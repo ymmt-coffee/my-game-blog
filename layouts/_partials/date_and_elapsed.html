@@ -1,0 +1,5 @@
+{{- if not .Date.IsZero -}}
+{{- partial "formatted_date.html" . -}}
+<span class="meta-sep">·</span>
+{{- partial "formatted_elapsed.html" . -}}
+{{- end -}}

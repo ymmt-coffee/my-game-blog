@@ -1,0 +1,3 @@
+{{- if ne (.Param "hideSummary") true -}}
+<p>{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}…{{ end }}</p>
+{{- end -}}

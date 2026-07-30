@@ -1,0 +1,3 @@
+{{- if not .Date.IsZero -}}
+<span title="{{ .Date }}">{{ .Date | time.Format (default ":date_long" site.Params.DateFormat) }}</span>
+{{- end -}}

@@ -1,0 +1,19 @@
+{{- $sec := sub now.Unix .Unix -}}
+{{- if lt $sec 0 -}}
+{{- /* 未来日付（予約投稿） */ -}}
+{{- . | time.Format (default ":date_long" site.Params.DateFormat) -}}
+{{- else if lt $sec 60 -}}
+たった今
+{{- else if lt $sec 3600 -}}
+{{- div $sec 60 }}分前
+{{- else if lt $sec 86400 -}}
+{{- div $sec 3600 }}時間前
+{{- else if lt $sec 604800 -}}
+{{- div $sec 86400 }}日前
+{{- else if lt $sec 2592000 -}}
+{{- div $sec 604800 }}週間前
+{{- else if lt $sec 31536000 -}}
+{{- div $sec 2592000 }}ヶ月前
+{{- else -}}
+{{- div $sec 31536000 }}年前
+{{- end -}}

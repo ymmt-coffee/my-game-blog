@@ -1,0 +1,22 @@
+<article class="home-featured">
+  <header class="home-featured-header">
+    <h2 class="home-featured-title">
+      {{- .Title }}
+      {{- if .Draft }}
+      <span class="entry-hint" title="Draft">（下書き）</span>
+      {{- end }}
+    </h2>
+  </header>
+  {{- if ne (.Param "hideSummary") true }}
+  <div class="home-featured-content">
+    {{- partial "post_summary.html" . -}}
+  </div>
+  {{- end }}
+  <footer class="home-featured-footer">
+    <div class="home-featured-meta">
+      {{- partial "date_and_elapsed.html" . -}}
+    </div>
+    <span class="home-featured-readmore">続きを読む →</span>
+  </footer>
+  <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
+</article>

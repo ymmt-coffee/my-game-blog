@@ -1,0 +1,19 @@
+{{- $scriptUrl := .Site.Params.analytics.umami.scriptUrl | default "https://cloud.umami.is/script.js" -}}
+{{- $websiteId := .Site.Params.analytics.umami.websiteId | default "" -}}
+{{- $excludeSelf := .Site.Params.analytics.umami.excludeSelf | default false -}}
+
+{{- if $websiteId -}}
+  {{- if $excludeSelf -}}
+<script>
+(function () {
+  if (window.location.search.includes('umami_ignore_self=1')) {
+    document.cookie = 'umami_ignore_self=1; path=/; max-age=' + 60 * 60 * 24 * 365;
+  }
+})();
+function umamiBeforeSend(type, payload) {
+  return document.cookie.includes('umami_ignore_self=1') ? false : payload;
+}
+</script>
+  {{- end -}}
+<script defer src="{{ $scriptUrl }}" data-website-id="{{ $websiteId }}"{{ if $excludeSelf }} data-before-send="umamiBeforeSend"{{ end }}></script>
+{{- end -}}

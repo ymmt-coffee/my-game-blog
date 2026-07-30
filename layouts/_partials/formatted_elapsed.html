@@ -1,0 +1,3 @@
+{{- if not .Date.IsZero -}}
+<span title="{{ .Date }}">{{ partial "relative_time_ja.html" .Date }}</span>
+{{- end -}}

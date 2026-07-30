@@ -1,0 +1,30 @@
+baseURL = "https://ymmt-coffee.github.io/my-game-blog/"
+languageCode = "ja"
+title = "game logs"
+theme = "PaperMod"
+buildFuture = false
+
+[frontmatter]
+  date = ["date", "publishDate"]
+
+[params]
+  defaultTheme = "auto"
+  ShowReadingTime = false
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = false
+  disableSpecial1stPost = true
+
+  [params.analytics]
+    provider = "umami"
+
+    [params.analytics.umami]
+      scriptUrl = "https://cloud.umami.is/script.js"
+      websiteId = ""
+      excludeSelf = true
+
+    [params.analytics.google]
+      measurementId = ""
+
+    [params.analytics.plausible]
+      domain = ""

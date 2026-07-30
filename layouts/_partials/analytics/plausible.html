@@ -1,0 +1,4 @@
+{{- $domain := .Site.Params.analytics.plausible.domain | default "" -}}
+{{- if $domain -}}
+<script defer data-domain="{{ $domain }}" src="https://plausible.io/js/script.js"></script>
+{{- end -}}

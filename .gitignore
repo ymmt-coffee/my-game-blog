@@ -1,0 +1,15 @@
+# Hugo build output
+/public/
+/resources/_gen/
+.hugo_build.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# スクリプトの同期記録
+scripts/.synced_files.json
+
+# ローカル運用メモ
+blog_automation_spec.md
+CLAUDE.md

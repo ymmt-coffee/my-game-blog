@@ -1,0 +1,9 @@
+{{- $provider := .Site.Params.analytics.provider | default "" -}}
+
+{{- if eq $provider "umami" -}}
+  {{ partial "analytics/umami.html" . }}
+{{- else if eq $provider "google" -}}
+  {{ partial "analytics/google.html" . }}
+{{- else if eq $provider "plausible" -}}
+  {{ partial "analytics/plausible.html" . }}
+{{- end -}}
