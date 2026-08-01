@@ -1,10 +1,29 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$SourceFile
+    [string]$SourceFile,
+
+    [switch]$Interactive
 )
 
 $ErrorActionPreference = "Stop"
+
+# Shell Commands runs its command in the background. Open a visible PowerShell
+# window first so that the confirmation dialog and any error remain visible.
+if (-not $Interactive) {
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-NoExit",
+        "-File", "`"$PSCommandPath`"",
+        "-SourceFile", "`"$SourceFile`"",
+        "-Interactive"
+    )
+
+    Start-Process powershell -ArgumentList $arguments -WindowStyle Normal
+    exit 0
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 $message = @"
 Gemini 3.6 Flashで現在の記事を校正します。
@@ -28,14 +47,4 @@ if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) {
 
 $projectRoot = $PSScriptRoot
 $reviewScript = Join-Path $projectRoot "review.ps1"
-$arguments = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-NoExit",
-    "-File", "`"$reviewScript`"",
-    "-SourceFile", "`"$SourceFile`"",
-    "-Gemini",
-    "-Replace"
-)
-
-Start-Process powershell -ArgumentList $arguments -WindowStyle Normal
+& $reviewScript -SourceFile $SourceFile -Gemini -Replace

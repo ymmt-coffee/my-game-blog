@@ -296,8 +296,9 @@ class ReviewArticleTests(unittest.TestCase):
         self.assertIn("if (-not $Approve)", publish)
         launcher = (PROJECT_ROOT / "launch-review.ps1").read_text(encoding="utf-8")
         self.assertIn("MessageBox", launcher)
-        self.assertIn('"-Gemini"', launcher)
-        self.assertIn('"-Replace"', launcher)
+        self.assertIn('& $reviewScript -SourceFile $SourceFile -Gemini -Replace', launcher)
+        self.assertIn('[switch]$Interactive', launcher)
+        self.assertIn('Start-Process powershell', launcher)
 
 
 if __name__ == "__main__":
