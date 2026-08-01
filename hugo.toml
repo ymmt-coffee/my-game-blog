@@ -1,13 +1,17 @@
 baseURL = "https://ymmt-coffee.github.io/my-game-blog/"
-languageCode = "ja"
+locale = "ja-JP"
+defaultContentLanguage = "ja"
 title = "game logs"
 theme = "PaperMod"
 buildFuture = false
+enableRobotsTXT = true
 
 [frontmatter]
   date = ["date", "publishDate"]
 
 [params]
+  description = "PCゲームを中心に、プレイ途中の所感、新作・セール情報、ゲーム体験を綴る個人ブログです。"
+  author = "やまもと"
   defaultTheme = "auto"
   ShowReadingTime = false
   ShowShareButtons = false
@@ -16,7 +20,7 @@ buildFuture = false
   disableSpecial1stPost = true
 
   [params.analytics]
-    provider = "umami"
+    provider = ""
 
     [params.analytics.umami]
       scriptUrl = "https://cloud.umami.is/script.js"
@@ -28,3 +32,33 @@ buildFuture = false
 
     [params.analytics.plausible]
       domain = ""
+
+  [params.schema]
+    publisherType = "Person"
+
+  [params.assets]
+    favicon = "favicon.svg"
+    favicon16x16 = "favicon.svg"
+    favicon32x32 = "favicon.svg"
+    apple_touch_icon = "favicon.svg"
+    safari_pinned_tab = "favicon.svg"
+
+[[menu.main]]
+  name = "About"
+  url = "/about/"
+  weight = 10
+
+[[menu.main]]
+  name = "プライバシー"
+  url = "/privacy/"
+  weight = 20
+
+[[menu.main]]
+  name = "広告・提供方針"
+  url = "/editorial-policy/"
+  weight = 30
+
+[[menu.main]]
+  name = "レビューキー"
+  url = "/review-key-policy/"
+  weight = 40

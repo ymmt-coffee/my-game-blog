@@ -1,6 +1,6 @@
-version: "1.1"
+version: "1.2"
 updated_at: "2026-08-02"
-status: phase_1_foundation_in_progress
+status: phase_1_local_complete_awaiting_publish_approval
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -11,7 +11,7 @@ document_set:
 
 implementation_status:
   phase_0_audit: completed
-  phase_1_overall: in_progress
+  phase_1_overall: local_complete_awaiting_commit_and_deploy
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -31,10 +31,15 @@ implementation_status:
     - github_actions_result_check
     - public_url_check
     - pinned_hugo_version_0_163_2_extended
+    - three_article_archetypes
+    - article_type_disclosures
+    - seo_metadata_validation
+    - responsive_images_and_webp
+    - internal_link_validation
+    - required_front_matter_validation
+    - static_policy_pages
   not_implemented:
     - ai_proofreading
-    - three_article_archetypes
-    - image_optimization
     - discord_notifications
     - google_drive_backup
     - weekly_release_sale_generation
@@ -54,11 +59,14 @@ change_history:
     summary: "テスト記事のcommit、push、GitHub Pages公開を確認"
   - date: "2026-08-02"
     summary: "Obsidianからプレビューと本番投稿を確認し、ショートカット構成を整理"
+  - date: "2026-08-02"
+    summary: "Phase 1の記事形式、SEO、画像最適化、検査、固定ページをローカル実装・検証"
 
 site:
   working_title: "game logs"
   title_is_temporary: true
   language: ja
+  locale: ja-JP
   author: "やまもと"
   platform_focus:
     - PC
@@ -103,6 +111,23 @@ content:
     enabled_when_capacity_allows: true
     purpose: "ゲーム体験を題材に自由に書く私小説的なレビューエッセイ"
     seo_priority: low
+  article_types:
+    play_note:
+      archetype_kind: play-note
+      requires: [title, date, lastmod, draft, description, images, article_type, play_time, author]
+      automatic_notice: play_time_and_not_full_review
+    weekly_picks:
+      archetype_kind: weekly-picks
+      requires: [title, date, lastmod, draft, description, images, article_type, author]
+      automatic_notice: unplayed_information_article
+    monthly_essay:
+      archetype_kind: monthly-essay
+      requires: [title, date, lastmod, draft, description, images, article_type, author]
+      automatic_notice: none_unless_spoiler_or_provided
+  optional_front_matter:
+    spoiler_warning: "空なら非表示。警告文がある場合だけ表示"
+    provided: "trueの場合だけ提供と編集上の独立性を表示"
+    corrections: "dateとsummaryによる訂正・更新履歴"
 
 editorial_boundaries:
   author_writes_article_body: true
@@ -189,9 +214,12 @@ publishing:
     - resolve_current_article
     - require_explicit_approval
     - protect_unrelated_worktree_changes
-    - sync_one_page_bundle
+    - sync_one_page_bundle_to_validation_area
     - validate_draft_false_and_images
-    - hugo_build_check
+    - validate_front_matter_internal_links_and_test_content
+    - hugo_production_build_to_temporary_directory
+    - validate_generated_seo_and_site_links
+    - sync_one_page_bundle_after_validation
     - git_commit_one_article
     - git_push
     - wait_for_github_actions
@@ -206,10 +234,27 @@ publishing:
     - hugo_build_failure
     - missing_required_article_file
     - missing_required_image
+    - missing_required_front_matter
+    - missing_article_type_specific_field
+    - broken_internal_link
+    - review_report_in_public_content
+    - invalid_or_duplicate_canonical_and_social_metadata
+    - draft_or_unapproved_test_content
     - deployment_failure
   corrections:
     silent_for_minor_typos: true
     show_history_for_material_changes: true
+  image_delivery:
+    keep_obsidian_originals: true
+    keep_bundle_source_images: true
+    raster_formats_with_responsive_webp: [jpg, jpeg, png, webp]
+    maximum_display_width_px: 1440
+    webp_quality: 82
+    gif_policy: preserve_animation_without_webp_conversion
+    svg_policy: pass_through_without_raster_conversion
+    avif_policy: pass_through_without_reencoding
+    no_image_fallback: no_broken_placeholder_and_summary_twitter_card
+    generated_files_are_not_committed: true
 
 schedule:
   timezone: Asia/Tokyo
@@ -260,6 +305,9 @@ analytics:
   google_search_console: planned
   current_provider: none
   umami_configuration_present_but_disabled_by_empty_website_id: true
+  ga4_configuration_present_but_disabled_by_empty_measurement_id: true
+  plausible_configuration_present_but_disabled_by_empty_domain: true
+  repository_must_not_store_real_ids: true
   detailed_monthly_report_in_obsidian: true
   summary_monthly_report_in_discord: true
   quarterly_strategy_review: true

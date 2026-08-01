@@ -1,8 +1,8 @@
 # ゲームブログ運営自動化仕様書
 
-- 版: 1.1
+- 版: 1.2
 - 更新日: 2026-08-02
-- 状態: Phase 0完了・Phase 1基盤を一部実装済み
+- 状態: Phase 1ローカル実装・検証完了（commit・公開承認待ち）
 - 対象: `my-game-blog`
 
 ## 1. 文書の位置づけ
@@ -24,7 +24,7 @@
 
 ### 1.1 現在の実装状況
 
-2026-08-02時点で、Phase 0の監査と、Phase 1・2・3にまたがる安全な公開基盤の先行実装および実地確認が完了している。
+2026-08-02時点で、Phase 0の監査、安全な公開基盤の先行実装、Phase 1「記事形式とHugo基盤」のローカル実装・検証が完了している。Phase 1の変更は、ユーザー確認後にcommit・push・GitHub Pages確認を行う。
 
 - Obsidian原稿を記事単位のPage Bundleへ同期できる
 - `review-report.md` は同期・公開対象から常に除外する
@@ -35,6 +35,9 @@
 - ローカルとGitHub ActionsのHugoを `0.163.2 extended` に統一した
 - 手動実行可能なGitHub Actionsと、Pagesの同時デプロイ制御を追加した
 - Obsidianからのプレビューと本番投稿を実地確認した
+- 3種類の記事archetype、記事種別ごとの自動表示、固定ページを追加した
+- サイト・記事のSEOメタ情報、robots.txt、画像のレスポンシブ配信とWebP生成を整備した
+- front matter、画像、内部リンク、生成HTML、テスト記事を公開前に検査する処理を追加した
 
 現在のショートカットは次のとおり。
 
@@ -46,7 +49,7 @@
 
 Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によりObsidian設定から削除した。Claude Code本体やデータは削除していない。`my-blog` は旧サイトではなく独立したブログであるため、その公開機能は維持する。
 
-未実装の主な範囲は、AI校正、3種類の記事archetype、画像最適化、SEOの追加整備、Discord通知、Google Driveバックアップ、新作・セール記事、AI編集長、SNS、GA4、Search Console、月報、問い合わせ、収益化、費用上限制御である。
+未実装の主な範囲は、AI校正、Discord通知、Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御である。
 
 ### 1.2 変更履歴
 
@@ -54,6 +57,7 @@ Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によ�
 |---|---|---|
 | 2026-08-01 | 1.0 | 運営方針と自動化要件を初版として整理 |
 | 2026-08-01〜02 | 1.1 | Phase 0監査、安全な同期・プレビュー・公開基盤、本番テスト、Obsidianショートカット整理の結果を反映 |
+| 2026-08-02 | 1.2 | Phase 1の記事archetype、定型表示、SEO、画像最適化、公開前検査、固定ページのローカル実装結果を反映 |
 
 ## 2. プロジェクトの目的
 
@@ -279,6 +283,34 @@ article-name/
 
 現在の同期処理は、原稿の `index.md` と `images/` を `content/posts/<slug>/` へ同期し、`review-report.md` を除外する。原稿の削除を公開記事の自動削除には連動させない。
 
+### 6.3 記事archetypeとfront matter
+
+| kind | 記事種別 | 追加必須項目 | 自動表示 |
+|---|---|---|---|
+| `play-note` | プレイ途中記 | `article_type: play_note`、`play_time` | プレイ時間、完走レビューではない旨 |
+| `weekly-picks` | 新作・セール5選 | `article_type: weekly_picks` | 未プレイ作品の紹介でありレビューではない旨 |
+| `monthly-essay` | 月次レビューエッセイ | `article_type: monthly_essay` | 常設の種別枠は表示しない |
+
+共通の必須項目は `title`、`date`、`lastmod`、`draft`、`description`、`images`、`article_type`、`author` とする。`images` は画像なしの場合に空配列を許可し、1枚目をOGP画像として扱う。`spoiler_warning` は空なら非表示、警告文があれば表示する。`provided` は真偽値とし、`true` の場合だけ提供表示を出す。訂正が必要な場合は `lastmod` を更新し、任意の `corrections` に `date` と `summary` を追加する。
+
+Hugo標準コマンドでObsidian原稿側にPage Bundleを作る例は次のとおり。
+
+```powershell
+hugo new content --kind play-note <slug>/index.md --contentDir "C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog"
+```
+
+`weekly-picks` と `monthly-essay` も同じ方法で作成できる。
+
+### 6.4 画像配信
+
+- Obsidian原本と同期先Page Bundleの元画像は上書き・削除しない
+- JPEG、PNG、WebPはHugoビルド時に最大幅1440pxの表示用画像、複数幅の `srcset`、品質82のWebPを生成する
+- 透過PNGはWebPを利用できるブラウザへWebPを配信し、元形式のPNGをフォールバックとして残す
+- GIFはアニメーションを保つためWebP化せず、幅・高さだけを付与する
+- SVGとAVIFは変換せず、そのまま配信する
+- 変換物はHugoの生成領域に置かれ、原稿やGit管理対象へ再実行差分を作らない
+- 画像がない記事は壊れた代替画像を出さず、OGP画像なし・Twitter Cardのsummary表示へ安全にフォールバックする
+
 ## 7. 校正と公開
 
 ### 7.1 校正レポート
@@ -301,11 +333,13 @@ AIは次の分類で指摘する。
 3. やまもとが表示を確認し、公開する場合は `draft: false` にする
 4. `Alt+Shift+P` を押し、確認画面で公開を明示承認
 5. stage済み変更と対象記事の未コミット変更を検査
-6. 指定した1記事だけをHugoの正式なPage Bundleへ同期
-7. `draft: false`、必須ファイル、参照画像を検査
-8. Hugoを出力なしでビルド検証
-9. 対象記事だけを `publish: <slug>` でcommitし、GitHubへpush
-10. GitHub Actionsの成功と公開URLのHTTP 200を確認
+6. 指定した1記事を一時領域のPage Bundleへ同期
+7. `draft: false`、必須ファイル、参照画像、front matter、内部リンク、テスト記事を検査
+8. 一時領域で本番相当のHugoビルドを実行
+9. title、description、canonical、OGP、Twitter Card、JSON-LD、サイト内リンク、sitemap、robots.txt、RSSを生成HTMLで検査
+10. 全検査の成功後、指定した1記事だけを正式なPage Bundleへ同期
+11. 対象記事だけを `publish: <slug>` でcommitし、GitHubへpush
+12. GitHub Actionsの成功と公開URLのHTTP 200を確認
 
 AI校正、Discord通知、SNS予約はこのフローへ後から追加する未実装工程である。校正を追加した後も、AIは本文を書き換えず `review-report.md` へ提案だけを記録する。
 
@@ -314,9 +348,14 @@ AI校正、Discord通知、SNS予約はこのフローへ後から追加する�
 - Hugoビルド失敗
 - 必須記事ファイルの欠落
 - 原稿が参照している画像の欠落
+- 必須front matterまたは記事種別固有項目の欠落
+- 壊れた内部リンク
+- `review-report.md` の公開用content混入
+- canonical、主要OGP、Twitter Card、JSON-LDの欠落・重複・不正
+- `draft: false` ではない対象記事、または明示許可のないテスト記事
 - GitHub Pagesへの公開失敗
 
-文章、構成、SEO上の警告だけでは公開を止めない。
+既存のnoindex付き公開フローテスト、画像未設定、文章、構成、SEO改善提案は警告とし、それだけでは公開を止めない。新規のテスト記事が `draft: false` の場合は停止する。
 
 公開処理が失敗した場合はSNS投稿も停止し、Discordの `エラー通知` と `要確認` へ通知する。
 

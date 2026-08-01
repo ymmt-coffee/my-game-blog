@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import subprocess
 import sys
 import tempfile
@@ -46,7 +47,11 @@ class SyncDiaryTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (article / "review-report.md").write_text("非公開", encoding="utf-8")
-            (images / "01.png").write_bytes(b"test-image")
+            (images / "01.png").write_bytes(
+                base64.b64decode(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+                )
+            )
 
             result = self.run_sync(source, output)
 

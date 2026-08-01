@@ -114,7 +114,7 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <div class="eyebrow">Version 1.1 · Phase 0 complete · Phase 1 in progress</div>
+          <div class="eyebrow">Version 1.2 · Phase 1 locally complete · Publish approval pending</div>
           <h1>遊ぶ。書く。<br>運営はAIと仕組みに任せる。</h1>
           <p>やまもとがゲームプレイと文章執筆に集中し、企画選定・校正提案・公開・SEO・分析・SNS運用をAIと自動処理が担うための確定仕様。</p>
         </div>
@@ -144,13 +144,13 @@
       <div class="shell">
         <div class="section-head">
           <h2>現在地</h2>
-          <p>Phase 0の監査と、安全な記事同期・プレビュー・公開基盤の先行実装が完了した。Obsidianからのプレビューと本番投稿も確認済み。次は記事種別、SEO、画像最適化などPhase 1の残作業を進める。</p>
+          <p>Phase 0の監査と安全な公開基盤に加え、Phase 1の記事形式、SEO、画像最適化、検査、固定ページをローカル実装・検証した。commit・push・GitHub Pages確認はユーザー承認待ち。</p>
         </div>
         <div class="status">
-          <article class="card"><span class="tag">VERIFIED</span><h3>安全な公開基盤</h3><ul><li>記事単位のPage Bundle同期</li><li>一時領域でのローカルプレビュー</li><li>明示承認後に対象記事だけcommit / push</li><li>Actions成功と公開URLを確認</li></ul></article>
-          <article class="card"><span class="tag">NEXT</span><h3>Phase 1の残作業</h3><ul><li>3種類の記事archetype</li><li>SEO・構造化データの追加点検</li><li>画像圧縮・WebP化</li><li>固定ページと内部リンク検査</li></ul></article>
+          <article class="card"><span class="tag">VERIFIED</span><h3>記事品質と安全な公開基盤</h3><ul><li>3種類のPage Bundle archetype</li><li>記事種別に応じた注意表示</li><li>SEO・WebP・レスポンシブ画像</li><li>公開前の内容・生成HTML検査</li></ul></article>
+          <article class="card"><span class="tag">APPROVAL</span><h3>公開前の残作業</h3><ul><li>Phase 1差分のユーザー確認</li><li>対象ファイルだけをcommit</li><li>GitHubへpush</li><li>Actions成功と公開URLを確認</li></ul></article>
         </div>
-        <div class="card" style="margin-top:16px"><span class="tag">CHANGE LOG</span><h3>2026-08-01〜02の主な変更</h3><p>Phase 0監査、安全な同期・公開処理、Hugo 0.163.2への固定、手動Actions、Obsidianショートカットを導入。本番テストを完了した。独立したlogsブログの公開機能は維持し、Claude Code起動ショートカットのみ削除した。Umamiは設定欄だけを残し、ID未設定のため無効である。</p></div>
+        <div class="card" style="margin-top:16px"><span class="tag">CHANGE LOG</span><h3>2026-08-01〜02の主な変更</h3><p>Phase 0監査、安全な同期・公開処理、Hugo 0.163.2への固定、手動Actions、Obsidianショートカットを導入。本番テストを完了した。続けてPhase 1の3記事形式、SEO、画像最適化、公開前検査、固定ページをローカル実装した。独立したlogsブログの公開機能は維持し、Claude Code起動ショートカットのみ削除した。解析サービスはID未設定のため無効である。</p></div>
       </div>
     </section>
 
@@ -235,8 +235,8 @@
         <div class="section-head"><h2>段階導入</h2><p>最初から万能Botを作らず、記事が増えるほど判断材料と自動化範囲を広げる。</p></div>
         <div class="timeline">
           <article class="phase"><small>PHASE 0 / COMPLETE</small><h3>現状監査と安全対策</h3><p>旧ブログ由来の設定、Hugo、Obsidian、GitHub Pagesを監査。誤公開や別変更の巻き込みを防ぐ公開基盤へ更新し、本番動作を確認した。</p></article>
-          <article class="phase"><small>PHASE 1 / IN PROGRESS</small><h3>記事形式とHugo基盤</h3><p>Page Bundle、画像欠落検査、校正レポート除外は完了。3種のarchetype、SEO、画像最適化、固定ページを続けて整える。</p></article>
-          <article class="phase"><small>PHASE 2–4 / NEXT</small><h3>AI校正・Discord・バックアップ</h3><p>本文を書き換えない校正レポート、公開結果通知、Google Driveへの復元可能なバックアップを順番に追加する。</p></article>
+          <article class="phase"><small>PHASE 1 / LOCALLY COMPLETE</small><h3>記事形式とHugo基盤</h3><p>3種のarchetype、定型表示、SEO、画像最適化、固定ページ、公開前検査を実装し、9件の自動テストに成功。commitと公開確認は承認待ち。</p></article>
+          <article class="phase"><small>PHASE 2–4 / NEXT AFTER APPROVAL</small><h3>AI校正・Discord・バックアップ</h3><p>Phase 1の公開確認後、本文を書き換えない校正レポート、公開結果通知、Google Driveへの復元可能なバックアップを順番に追加する。</p></article>
           <article class="phase"><small>PHASE 5–9 / LATER</small><h3>企画・SNS・分析・収益化</h3><p>新作・セール記事、AI編集長、SNS、GA4とSearch Console、月報、問い合わせ、収益化、費用制御をデータ蓄積に合わせて導入する。</p></article>
         </div>
       </div>
@@ -275,7 +275,7 @@
 
     <section id="publishing">
       <div class="shell">
-        <div class="section-head"><h2>執筆と公開</h2><p>Obsidianの原稿とHugoの公開データを分離する基盤は実装済み。AI校正は未実装だが、追加後も本文を変更せず別レポートへ提案を残す。</p></div>
+        <div class="section-head"><h2>執筆と公開</h2><p>Obsidianの原稿とHugoの公開データを分離し、3記事形式、画像最適化、SEOとリンクの公開前検査まで実装済み。AI校正は未実装だが、追加後も本文を変更せず別レポートへ提案を残す。</p></div>
         <div class="flow" aria-label="公開承認フロー">
           <div class="flow-row">
             <div class="node"><strong>WRITE</strong>Obsidianで<br>本文と画像を作成</div><div class="arrow">→</div>
@@ -290,9 +290,9 @@
 ├─ index.md
 ├─ review-report.md
 └─ images/
-   ├─ 01.webp
-   └─ 02.webp</pre><p>校正レポートは証跡として保存するが、Hugoでは公開しない。</p></article>
-          <article class="card"><h3>公開を止める条件</h3><ul><li>Hugoビルドエラー</li><li>必須画像・記事ファイルの欠落</li><li>公開先への反映失敗</li></ul><p>誤字、SEO、構成上の提案は警告に留め、採用しなくても公開できる。</p></article>
+   ├─ 01.png
+   └─ 02.gif</pre><p>元画像は保持し、Hugoが表示用の縮小画像とWebPを生成する。校正レポートは証跡として保存するが公開しない。</p></article>
+          <article class="card"><h3>公開を止める条件</h3><ul><li>Hugoビルドエラー</li><li>必須情報・画像・内部リンクの欠落</li><li>SEOメタ情報や生成HTMLの不正</li><li>下書き・テスト記事の誤公開</li><li>公開先への反映失敗</li></ul><p>誤字、SEO、構成上の提案は警告に留め、採用しなくても公開できる。</p></article>
         </div>
         <div class="card" style="margin-top:16px"><h3>現在のObsidianショートカット</h3><p><code>Alt+Shift+V</code> はゲームブログのプレビュー、<code>Alt+Shift+P</code> は確認付き本番公開、<code>Alt+Shift+L</code> は独立したlogsブログの公開に使用する。Claude Code用の <code>Alt+Shift+C</code> は削除済み。</p></div>
       </div>
@@ -329,17 +329,17 @@
     <section>
       <div class="shell decision">
         <div class="eyebrow" style="color:#ffd4c1">Recommended next move</div>
-        <h2>まずはPhase 1の「記事品質」を完成させる。</h2>
-        <p>安全な公開経路は動作確認できた。次は記事種別、SEO、画像最適化、固定ページを完成させ、その後にAI校正、Discord通知、バックアップへ進む。</p>
+        <h2>Phase 1の変更を確認し、安全に公開する。</h2>
+        <p>記事種別、SEO、画像最適化、固定ページ、公開前検査はローカルで完成した。ユーザー確認後にcommit・pushし、Actionsと公開URLを確認してからPhase 2へ進む。</p>
         <div class="next">
-          <div><b>01</b>3種の記事archetypeとSEO</div>
-          <div><b>02</b>画像最適化と固定ページ</div>
-          <div><b>03</b>AI校正とDiscord通知</div>
+          <div><b>01</b>Phase 1差分を確認</div>
+          <div><b>02</b>commit・Actions・公開確認</div>
+          <div><b>03</b>Phase 2のAI校正へ</div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div class="shell">my-game-blog 運営仕様書 v1.1 · 2026-08-02 · Phase 0完了 / Phase 1進行中 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.2 · 2026-08-02 · Phase 1ローカル実装完了 / 公開承認待ち · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
 </body>
 </html>

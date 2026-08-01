@@ -63,6 +63,42 @@ body {
   line-height: 1.9;
 }
 
+.article-disclosures {
+  margin: 1.5rem 0;
+  padding: 1rem 1.2rem;
+  border-left: 4px solid #7b6da8;
+  border-radius: var(--radius);
+  background: var(--code-bg);
+  color: var(--content);
+}
+
+.article-disclosures p { margin: 0.35rem 0; }
+
+.article-disclosures__label {
+  color: var(--secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.article-disclosures__warning { color: #9a4b31; }
+[data-theme="dark"] .article-disclosures__warning { color: #f0a38b; }
+
+.article-corrections {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
+.post-content picture,
+.post-content picture img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 /* 一覧の抜粋 */
 .post-entry .entry-content {
   line-height: 1.9;

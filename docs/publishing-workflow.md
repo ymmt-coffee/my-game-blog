@@ -28,14 +28,45 @@ Obsidianの `Life_and_Div/30_Projects/01_blog` に、記事ごとのフォルダ
 ---
 title: 記事タイトル
 date: 2026-08-01
+lastmod: 2026-08-01
 draft: true
 description: 記事の短い説明
-images:
-  - images/01.png
+images: []
+article_type: play_note
+play_time: 約5時間
+spoiler_warning: ""
+provided: false
+author: やまもと
+corrections: []
 ---
 ```
 
 公開する準備ができたら、Obsidian上で `draft: false` に変更します。公開処理は `draft: false` が明示されていない記事を拒否します。
+
+### 3種類の雛形
+
+| 記事 | Hugoのkind | `article_type` | 固有の項目・表示 |
+|---|---|---|---|
+| プレイ途中記 | `play-note` | `play_note` | `play_time` が必須。プレイ時間と完走レビューではない旨を自動表示 |
+| 新作・セール5選 | `weekly-picks` | `weekly_picks` | 未プレイ作品の紹介でありレビューではない旨を自動表示 |
+| 月次レビューエッセイ | `monthly-essay` | `monthly_essay` | 常設の注意枠を出さず、文章を優先 |
+
+たとえば、プレイ途中記のPage BundleをObsidian原稿フォルダへ作る場合は次を実行します。
+
+```powershell
+hugo new content --kind play-note sample-game/index.md --contentDir "C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog"
+```
+
+`sample-game` を記事slugへ置き換えてください。ほかの2種類はkindだけを変えます。
+
+- `images` の1枚目はOGP画像に使われます。画像なしなら `[]` のままで安全に表示できます。
+- `spoiler_warning` は、必要なときだけ具体的な警告文を入れます。
+- `provided: true` の場合だけ提供表示が出ます。
+- 内容に関わる訂正では `lastmod` を更新し、`corrections` に `date` と `summary` を追加します。
+
+## 画像の扱い
+
+JPEG、PNG、WebPは公開ビルド時に縮小版とWebPを自動生成し、画面幅に合う画像を配信します。Obsidianの元画像とPage Bundleの元画像は上書きしません。透過PNGは元PNGも残し、GIFはアニメーション維持のため変換せず、SVGとAVIFもそのまま扱います。変換物は生成領域に置かれるため、再実行だけでGit差分は増えません。
 
 ## プレビュー
 
@@ -64,16 +95,19 @@ Obsidian設定の切替後は、対象記事を開いて `Alt+Shift+P` を押し
 1. 明示的な `-Approve` があるか確認
 2. 既存のstage済み変更がないか確認
 3. 公開先の記事に未コミット変更がないか確認
-4. 指定した1記事だけをPage Bundleへ同期
-5. `draft: false` と画像欠落を検査
-6. 書き出しなしのHugoビルドを実行
-7. 指定記事だけをGitへ登録
-8. `publish: 記事slug` という記事単位のcommitを作成
-9. GitHubへpush
-10. 対応するGitHub Actionsの完了を最大10分待つ
-11. Actions成功後、公開URLがHTTP 200を返すことを確認
+4. 指定した1記事をWindows一時フォルダのPage Bundleへ同期
+5. `draft: false`、front matter、画像、内部リンク、テスト記事を検査
+6. 一時フォルダで本番相当のHugoビルドを実行
+7. title、description、canonical、OGP、Twitter Card、JSON-LD、サイト内リンク、sitemap、robots.txt、RSSを生成HTMLで検査
+8. 全検査の成功後、正式なPage Bundleへ同期し、指定記事だけをGitへ登録
+9. `publish: 記事slug` という記事単位のcommitを作成
+10. GitHubへpush
+11. 対応するGitHub Actionsの完了を最大10分待つ
+12. Actions成功後、公開URLがHTTP 200を返すことを確認
 
 `.gitignore`、仕様書、別の記事など、指定記事以外の変更はcommit対象にしません。
+
+検査結果は `[停止]` と `[警告]` に分かれます。必須情報不足、画像・内部リンク切れ、`review-report.md` 混入、SEOメタ情報の欠落や重複、下書き・新規テスト記事の誤公開は停止します。画像未設定や、過去に意図して公開したnoindex付きテスト記事は警告に留めます。
 
 ## 現在のショートカット
 

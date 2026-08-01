@@ -71,6 +71,17 @@ try {
     }
 
     Write-Host ""
+    Write-Host "--- Preview content checks ---" -ForegroundColor Cyan
+    $validateArgs = @("scripts/validate_blog.py", "--content-dir", $previewContent)
+    if ($Article) {
+        $validateArgs += @("--article", $Article)
+    }
+    python @validateArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Preview content checks failed."
+    }
+
+    Write-Host ""
     Write-Host "Open http://localhost:1313/my-game-blog/ in your browser." -ForegroundColor Green
     Write-Host "Press Ctrl+C in this window to stop the preview."
     hugo server --buildDrafts --contentDir $previewContent --disableFastRender

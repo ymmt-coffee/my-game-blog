@@ -1,0 +1,28 @@
+{{- $u := urls.Parse .Destination -}}
+{{- $src := $u.String -}}
+{{- $resource := false -}}
+{{- if not $u.IsAbs -}}
+  {{- $path := strings.TrimPrefix "./" $u.Path -}}
+  {{- $resource = or (.PageInner.Resources.Get $path) (resources.Get $path) -}}
+  {{- with $resource -}}{{- $src = .RelPermalink -}}{{- end -}}
+{{- end -}}
+{{- $alt := .Text | transform.HTMLEscape -}}
+{{- $title := .Title | transform.HTMLEscape -}}
+{{- $processable := slice "jpeg" "png" "webp" -}}
+{{- if and $resource (in $processable $resource.MediaType.SubType) (gt $resource.Width 0) (gt $resource.Height 0) -}}
+  {{- $widths := slice 480 720 1080 1440 -}}
+  {{- $usableWidths := slice -}}
+  {{- range $widths -}}{{- if ge $resource.Width . -}}{{- $usableWidths = $usableWidths | append . -}}{{- end -}}{{- end -}}
+  {{- if not $usableWidths -}}{{- $usableWidths = $usableWidths | append $resource.Width -}}{{- end -}}
+  {{- $maxWidth := index (last 1 $usableWidths) 0 -}}
+  {{- $display := $resource -}}
+  {{- if gt $resource.Width $maxWidth -}}{{- $display = $resource.Resize (printf "%dx" $maxWidth) -}}{{- end -}}
+<picture>
+  <source type="image/webp" srcset="{{ range $index, $width := $usableWidths }}{{ if $index }}, {{ end }}{{ ($resource.Resize (printf "%dx webp q82" $width)).RelPermalink }} {{ $width }}w{{ end }}" sizes="(min-width: 768px) 720px, 100vw">
+  <img src="{{ $display.RelPermalink }}" srcset="{{ range $index, $width := $usableWidths }}{{ if $index }}, {{ end }}{{ ($resource.Resize (printf "%dx" $width)).RelPermalink }} {{ $width }}w{{ end }}" sizes="(min-width: 768px) 720px, 100vw" width="{{ $display.Width }}" height="{{ $display.Height }}" alt="{{ $alt }}"{{ with $title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
+</picture>
+{{- else if and $resource (eq $resource.MediaType.SubType "gif") (gt $resource.Width 0) (gt $resource.Height 0) -}}
+<img src="{{ $src }}" width="{{ $resource.Width }}" height="{{ $resource.Height }}" alt="{{ $alt }}"{{ with $title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
+{{- else -}}
+<img src="{{ $src }}" alt="{{ $alt }}"{{ with $title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
+{{- end -}}

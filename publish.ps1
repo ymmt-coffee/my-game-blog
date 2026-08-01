@@ -10,6 +10,9 @@ $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = New-Obj
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location $PSScriptRoot
 $ErrorActionPreference = "Stop"
+$validationRoot = $null
+$validationContent = $null
+$validationSite = $null
 
 function Invoke-CheckedCommand {
     param(
@@ -141,12 +144,30 @@ try {
         throw "The generated article has uncommitted changes. Publishing stopped: $articlePath"
     }
 
-    Invoke-CheckedCommand "Sync approved article as a Page Bundle" {
-        python scripts/sync_diary.py --article $Article --require-publishable
+    $validationRoot = Join-Path ([System.IO.Path]::GetTempPath()) "my-game-blog-validation-$PID"
+    $validationContent = Join-Path $validationRoot "content"
+    $validationSite = Join-Path $validationRoot "public"
+    New-Item -ItemType Directory -Path $validationRoot -Force | Out-Null
+    Copy-Item -LiteralPath "content" -Destination $validationContent -Recurse
+
+    Invoke-CheckedCommand "Sync approved article to the validation area" {
+        python scripts/sync_diary.py --article $Article --require-publishable --output (Join-Path $validationContent "posts")
+    }
+
+    Invoke-CheckedCommand "Validate publishable content" {
+        python scripts/validate_blog.py --content-dir $validationContent --article $Article --production
     }
 
     Invoke-CheckedCommand "Pre-publish Hugo build" {
-        hugo --renderToMemory --minify
+        hugo --minify --environment production --contentDir $validationContent --destination $validationSite --cleanDestinationDir
+    }
+
+    Invoke-CheckedCommand "Validate generated site" {
+        python scripts/validate_blog.py --content-dir $validationContent --article $Article --production --public-dir $validationSite
+    }
+
+    Invoke-CheckedCommand "Sync approved article as a Page Bundle" {
+        python scripts/sync_diary.py --article $Article --require-publishable
     }
 
     Invoke-CheckedCommand "Stage only the selected article" {
@@ -191,4 +212,13 @@ catch {
     Write-Host ""
     Write-Host "[PUBLISH STOPPED] $($_.Exception.Message)" -ForegroundColor Red
     exit 1
+}
+finally {
+    if ($validationRoot) {
+        $resolvedTemp = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+        $resolvedValidation = [System.IO.Path]::GetFullPath($validationRoot)
+        if ($resolvedValidation.StartsWith($resolvedTemp) -and (Split-Path $resolvedValidation -Leaf).StartsWith("my-game-blog-validation-")) {
+            Remove-Item -LiteralPath $resolvedValidation -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }

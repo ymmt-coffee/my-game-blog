@@ -1,0 +1,10 @@
+{{- with .Params.corrections }}
+<section class="article-corrections" aria-labelledby="article-corrections-title">
+  <h2 id="article-corrections-title">訂正・更新履歴</h2>
+  <ul>
+    {{- range . }}
+    <li><time datetime="{{ .date }}">{{ .date }}</time> — {{ .summary }}</li>
+    {{- end }}
+  </ul>
+</section>
+{{- end }}

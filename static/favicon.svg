@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ゲームブログ">
+  <rect width="64" height="64" rx="14" fill="#243a52"/>
+  <path d="M18 25h28c5 0 9 4 9 9v8c0 5-6 8-10 4l-5-5H24l-5 5c-4 4-10 1-10-4v-8c0-5 4-9 9-9Z" fill="#dcece2"/>
+  <path d="M22 31v10M17 36h10" stroke="#1f6b4f" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="41" cy="34" r="2.5" fill="#d16b3c"/>
+  <circle cx="47" cy="39" r="2.5" fill="#d16b3c"/>
+</svg>

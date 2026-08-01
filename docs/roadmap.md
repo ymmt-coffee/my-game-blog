@@ -1,8 +1,8 @@
 # ゲームブログ運営自動化ロードマップ
 
-- 版: 1.1
+- 版: 1.2
 - 更新日: 2026-08-02
-- 状態: Phase 0完了・Phase 1基盤を一部実装済み
+- 状態: Phase 1ローカル実装・検証完了（commit・公開承認待ち）
 - 詳細要件: `docs/blog_automation_spec.md`
 - 自動処理設定: `data/editorial/strategy.yaml`
 
@@ -20,7 +20,7 @@
 - Phase 0の監査は完了し、結果を `docs/phase-0-audit.md` に保存済み
 - 監査で判明したCritical／Highの公開リスクに対する基盤修正を先行実施済み
 - Obsidianからのプレビューと本番公開を、テスト記事で実地確認済み
-- Phase 1全体は未完了。次は記事種別、SEO、画像最適化、固定ページを進める
+- Phase 1はローカル実装とテストを完了。ユーザー承認後にcommit・push・Actions・公開URLを確認する
 - AI校正、Discord、バックアップ以降の運営自動化は未着手
 
 ## 変更履歴
@@ -30,6 +30,7 @@
 | 2026-08-01 | Phase 0監査を完了し、安全なPage Bundle同期・公開基盤を実装 |
 | 2026-08-01 | 直接公開テストとGitHub Pages反映を確認 |
 | 2026-08-02 | Obsidianショートカットからプレビュー・本番公開を確認。logsブログ機能を維持し、Claude Codeショートカットを削除 |
+| 2026-08-02 | Phase 1の記事archetype、定型表示、SEO、画像最適化、検査、固定ページを実装し、ローカルテストを完了 |
 
 ## Phase 0: 現状監査
 
@@ -68,17 +69,17 @@
 
 - [x] Page Bundle形式を採用し、記事ごとに `index.md` と `images/` を置く
 - [x] `review-report.md` が公開されないことを保証
-- [ ] 3種類の記事archetypeを作成
-- [ ] プレイ時間と提供表示を実装
-- [ ] ネタバレ警告を任意表示できるようにする
+- [x] 3種類の記事archetypeを作成
+- [x] プレイ時間と提供表示を実装
+- [x] ネタバレ警告を任意表示できるようにする
 - [x] 共通archetypeへ `description` と `images` を追加
-- [ ] タイトル、description、canonical、OGPを点検・記事種別へ展開
-- [ ] JSON-LD、著者、公開日、更新日を点検
-- [ ] sitemap、robots.txt、RSSを確認
-- [ ] 画像圧縮・WebP変換の方針を実装
+- [x] タイトル、description、canonical、OGPを点検・記事種別へ展開
+- [x] JSON-LD、著者、公開日、更新日を点検
+- [x] sitemap、robots.txt、RSSを確認
+- [x] 画像圧縮・WebP変換の方針を実装
 - [x] 参照画像の欠落検査を追加
-- [ ] 内部リンク検査を追加
-- [ ] About、プライバシー、広告、提供作品方針の固定ページを用意
+- [x] 内部リンク検査を追加
+- [x] About、プライバシー、広告、提供作品方針の固定ページを用意
 
 ### 完了条件
 
@@ -86,6 +87,8 @@
 - 必須front matter不足を検出できる
 - 画像と校正レポートが意図どおり処理される
 - 検索・SNS向けメタ情報が重複しない
+
+**ローカル実装・検証完了（2026-08-02）**。9件の自動テストと本番相当ビルドに成功した。commit・push・GitHub Actions・公開URLの最終確認は、ユーザー承認後に実施する。
 
 ## Phase 2: 校正レポートと公開承認
 
