@@ -27,7 +27,7 @@ function Resolve-ArticleSlug {
         throw "The active file is outside the game blog source folder."
     }
     $relative = $sourcePath.Substring($rootPrefix.Length)
-    if ($relative -match '^(.*?)[\/](?:index\.md|review-report\.md)$' -or $relative -match '^(.*?)[\/]images[\/]') {
+    if ($relative -match '^(.*?)[\\/](?:index\.md|review-report\.md)$' -or $relative -match '^(.*?)[\\/]images[\\/]') {
         return $Matches[1].Replace('\', '/')
     }
     throw "Open index.md, review-report.md, or an article image before running this command."

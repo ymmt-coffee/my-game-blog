@@ -287,6 +287,7 @@ class ReviewArticleTests(unittest.TestCase):
         config = (PROJECT_ROOT / "scripts" / "configure_obsidian_shortcuts.ps1").read_text(encoding="utf-8")
         preview = (PROJECT_ROOT / "preview.ps1").read_text(encoding="utf-8")
         publish = (PROJECT_ROOT / "publish.ps1").read_text(encoding="utf-8")
+        review = (PROJECT_ROOT / "review.ps1").read_text(encoding="utf-8")
         self.assertIn('key = "V"', config)
         self.assertIn('key = "R"', config)
         self.assertIn('key = "P"', config)
@@ -294,6 +295,7 @@ class ReviewArticleTests(unittest.TestCase):
         self.assertNotIn('key = "C"', config)
         self.assertIn("hugo server", preview)
         self.assertIn("if (-not $Approve)", publish)
+        self.assertIn("[\\\\/]", review)
         launcher = (PROJECT_ROOT / "launch-review.ps1").read_text(encoding="utf-8")
         messages = json.loads(
             (PROJECT_ROOT / "data" / "editorial" / "review-launcher-ja.json").read_text(
