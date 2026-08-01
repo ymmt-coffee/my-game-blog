@@ -295,10 +295,18 @@ class ReviewArticleTests(unittest.TestCase):
         self.assertIn("hugo server", preview)
         self.assertIn("if (-not $Approve)", publish)
         launcher = (PROJECT_ROOT / "launch-review.ps1").read_text(encoding="utf-8")
+        messages = json.loads(
+            (PROJECT_ROOT / "data" / "editorial" / "review-launcher-ja.json").read_text(
+                encoding="utf-8"
+            )
+        )
         self.assertIn("MessageBox", launcher)
         self.assertIn('& $reviewScript -SourceFile $SourceFile -Gemini -Replace', launcher)
         self.assertIn('[switch]$Interactive', launcher)
         self.assertIn('Start-Process powershell', launcher)
+        self.assertIn('-Encoding UTF8', launcher)
+        self.assertEqual(messages["title"], "ゲームブログ校正の確認")
+        self.assertTrue(any("index.md" in line for line in messages["lines"]))
 
 
 if __name__ == "__main__":

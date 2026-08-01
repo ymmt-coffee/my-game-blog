@@ -25,19 +25,12 @@ if (-not $Interactive) {
 }
 
 Add-Type -AssemblyName System.Windows.Forms
-$message = @"
-Gemini 3.6 Flashで現在の記事を校正します。
-
-- index.mdと画像は変更しません
-- 修正案はreview-report.mdだけへ保存します
-- 既存のreview-report.mdがある場合は置き換えます
-- 記事本文はGeminiの無料枠へ送信されます
-
-続行しますか？
-"@
+$messagesPath = Join-Path $PSScriptRoot "data\editorial\review-launcher-ja.json"
+$messages = Get-Content -LiteralPath $messagesPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$message = $messages.lines -join [Environment]::NewLine
 $answer = [System.Windows.Forms.MessageBox]::Show(
     $message,
-    "ゲームブログ校正の確認",
+    $messages.title,
     [System.Windows.Forms.MessageBoxButtons]::YesNo,
     [System.Windows.Forms.MessageBoxIcon]::Question
 )
