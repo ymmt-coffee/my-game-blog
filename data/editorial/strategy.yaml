@@ -185,6 +185,10 @@ editorial_boundaries:
     proofreading_shortcut_status: configured_and_verified
     external_ai_service: google_gemini_developer_api
     external_ai_model: gemini-3.6-flash
+    alternate_ai_service_status: deferred_until_needed
+    external_fact_search_status: disabled_deferred
+    interactions_api_recheck: required_on_sdk_update
+    production_article_quality_and_usage_review: pending
     model_version_policy: pin_stable_model_id
     api_connection_status: live_smoke_test_verified
     planned_usage_tier: free_tier

@@ -24,4 +24,4 @@
 
 - `../data/editorial/strategy.yaml` — AIと自動処理が参照する機械可読な運営設定
 
-方針を変更するときは、`blog_automation_spec.md`、`roadmap.md`、`game-blog-operation-plan.html`、`../data/editorial/strategy.yaml` の4資料を同時に更新する。
+方針を変更するときは、`blog_automation_spec.md`、`roadmap.md`、`game-blog-operation-plan.html`、`publishing-workflow.md`、該当Phaseの実装報告、`../data/editorial/strategy.yaml` を同時に更新する。
