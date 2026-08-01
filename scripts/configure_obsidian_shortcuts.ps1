@@ -10,6 +10,7 @@ $shellConfigPath = Join-Path $settingsDir "plugins\obsidian-shellcommands\data.j
 $hotkeysPath = Join-Path $settingsDir "hotkeys.json"
 $publishCommandId = "papo6svpi0"
 $previewCommandId = "gameprev01"
+$logsPublishCommandId = "logspub001"
 
 if (-not $SkipProcessCheck) {
     $obsidianProcesses = @(Get-Process Obsidian -ErrorAction SilentlyContinue)
@@ -60,12 +61,33 @@ $previewCommand.platform_specific_commands.default = $previewCommandText
 $previewCommand.confirm_execution = $false
 $previewCommand.icon = "lucide-eye"
 
+$existingLogsPublish = @($shellConfig.shell_commands | Where-Object { $_.id -eq $logsPublishCommandId })
+if ($existingLogsPublish.Count -gt 1) {
+    throw "Multiple logs blog publish commands use id $logsPublishCommandId."
+}
+if ($existingLogsPublish.Count -eq 0) {
+    $logsPublishCommand = ($publishCommand[0] | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+    $logsPublishCommand.id = $logsPublishCommandId
+    $shellConfig.shell_commands += $logsPublishCommand
+}
+else {
+    $logsPublishCommand = $existingLogsPublish[0]
+}
+
+$logsPublishCommand.alias = "Logs blog: Publish"
+$logsPublishCommand.platform_specific_commands.default = "powershell -ExecutionPolicy Bypass -File `"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\10_Apps\my-blog\publish.ps1`""
+$logsPublishCommand.confirm_execution = $true
+$logsPublishCommand.icon = "lucide-notebook-pen"
+
 $publishHotkeyName = "obsidian-shellcommands:shell-command-$publishCommandId"
 $previewHotkeyName = "obsidian-shellcommands:shell-command-$previewCommandId"
+$logsPublishHotkeyName = "obsidian-shellcommands:shell-command-$logsPublishCommandId"
 $publishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "P" })
 $previewHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "V" })
+$logsPublishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "L" })
 $hotkeys | Add-Member -NotePropertyName $publishHotkeyName -NotePropertyValue $publishHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $previewHotkeyName -NotePropertyValue $previewHotkey -Force
+$hotkeys | Add-Member -NotePropertyName $logsPublishHotkeyName -NotePropertyValue $logsPublishHotkey -Force
 
 $backupRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("my-game-blog-obsidian-backup-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
@@ -82,4 +104,5 @@ Move-Item -LiteralPath $hotkeysTemp -Destination $hotkeysPath -Force
 Write-Host "Obsidian shortcuts updated."
 Write-Host "  Alt+Shift+V: Preview current game blog article"
 Write-Host "  Alt+Shift+P: Publish current game blog article (confirmation required)"
+Write-Host "  Alt+Shift+L: Publish logs blog (confirmation required)"
 Write-Host "  Backup: $backupRoot"
