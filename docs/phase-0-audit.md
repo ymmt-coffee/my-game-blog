@@ -3,7 +3,9 @@
 - 監査日: 2026-08-01（Asia/Tokyo）
 - 対象: `my-game-blog`
 - 監査方針: 読み取りと非破壊確認のみ。commit、push、公開、同期スクリプト実行、外部設定変更は未実施
-- 正本資料: `blog_automation_spec.md`、`roadmap.md`、`data/editorial/strategy.yaml`、`docs/game-blog-operation-plan.html`
+- 正本資料: `docs/blog_automation_spec.md`、`docs/roadmap.md`、`data/editorial/strategy.yaml`、`docs/game-blog-operation-plan.html`
+
+> 監査後の整理（2026-08-02）: `blog_automation_spec.md` と `roadmap.md` はリポジトリ直下から `docs/` へ移動した。本書内のディレクトリ構成とGit状態は、特記がない限り監査時点の記録である。
 
 ## 1. エグゼクティブサマリー
 
@@ -367,7 +369,7 @@ Phase 1の中でも、SEOや解析より先に誤公開・データ衝突・ユ�
 3. **記事URL**: Page Bundleのフォルダ名をそのままslugにするか、front matterの `slug` を必須にするか。
 4. **同期削除**: Obsidianから原稿が消えたとき、Hugo記事も自動削除してよいか、毎回確認するか、原則残すか。
 5. **既存 `my-blog` との関係**: 旧ブログの `Alt+Shift+P` を残し、ゲームブログ用に別キーを追加するか、置き換えるか。
-6. **仕様書類のGit管理**: 現在gitignore対象の `blog_automation_spec.md`、`roadmap.md` と、未追跡の `data/`、`docs/` を今後リポジトリで共有・履歴管理するか。
+6. **仕様書類のGit管理**: 現在gitignore対象の `docs/blog_automation_spec.md`、`docs/roadmap.md` と、未追跡の `data/`、`docs/` を今後リポジトリで共有・履歴管理するか。
 7. **ブログ名・独自ドメイン**: Phase 1では仮の `game logs` とGitHub Pages URLのままSEOを整備してよいか。
 8. **解析サービス**: Phase 1でGA4を優先し、現在テンプレートだけあるUmami/Plausibleは無効のまま残すか、整理するか。
 9. **Search Console**: ブログ専用Googleアカウントは作成済みか。未作成ならPhase 1のどの時点で用意するか。

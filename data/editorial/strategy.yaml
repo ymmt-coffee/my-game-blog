@@ -1,0 +1,335 @@
+version: "1.1"
+updated_at: "2026-08-02"
+status: phase_1_foundation_in_progress
+
+document_set:
+  human_spec: docs/blog_automation_spec.md
+  implementation_roadmap: docs/roadmap.md
+  human_overview: docs/game-blog-operation-plan.html
+  machine_config: data/editorial/strategy.yaml
+  synchronization_rule: "方針変更時は4ファイルを同時に更新する"
+
+implementation_status:
+  phase_0_audit: completed
+  phase_1_overall: in_progress
+  verified_at: "2026-08-02"
+  verified_operations:
+    - obsidian_local_preview
+    - explicit_publish_approval
+    - article_scoped_git_commit_and_push
+    - github_pages_deployment
+    - public_url_http_200
+  implemented:
+    - page_bundle_sync
+    - per_article_images
+    - review_report_exclusion
+    - missing_image_validation
+    - draft_false_publish_gate
+    - temporary_local_preview
+    - separate_preview_and_publish_shortcuts
+    - article_scoped_commit
+    - github_actions_result_check
+    - public_url_check
+    - pinned_hugo_version_0_163_2_extended
+  not_implemented:
+    - ai_proofreading
+    - three_article_archetypes
+    - image_optimization
+    - discord_notifications
+    - google_drive_backup
+    - weekly_release_sale_generation
+    - ai_editor_in_chief
+    - social_posting
+    - ga4
+    - search_console
+    - monthly_reporting
+    - contact_form
+    - advertising_and_affiliates
+    - automation_cost_enforcement
+
+change_history:
+  - date: "2026-08-01"
+    summary: "Phase 0監査と安全なPage Bundle同期・公開基盤を実装"
+  - date: "2026-08-01"
+    summary: "テスト記事のcommit、push、GitHub Pages公開を確認"
+  - date: "2026-08-02"
+    summary: "Obsidianからプレビューと本番投稿を確認し、ショートカット構成を整理"
+
+site:
+  working_title: "game logs"
+  title_is_temporary: true
+  language: ja
+  author: "やまもと"
+  platform_focus:
+    - PC
+    - Steam
+  custom_domain_planned: true
+  comments_enabled: false
+  copyright: "© やまもと"
+
+mission:
+  primary: "文章を定期的に書く趣味を無理なく続ける"
+  secondary:
+    - "面白いゲームを探している日本語読者へ作品を紹介する"
+    - "文章を読むこと自体を好む再訪読者を増やす"
+    - "アクセスと収益を意識して改善する"
+  revenue_goal:
+    target_monthly_jpy: 10000
+    target_after_months: 12
+    purpose: "ブログ運営費とゲーム購入費"
+
+content:
+  weekly_impression:
+    enabled: true
+    frequency: weekly
+    series_name: "プレイ途中記"
+    minimum_play_hours_target: 5
+    disclose_play_hours: true
+    completion_required: false
+    score_or_stars: false
+    explicit_purchase_verdict: false
+    title_tone: neutral
+    spoilers: avoid
+  weekly_release_sale:
+    enabled: true
+    publish_day: monday
+    item_count: 5
+    release_window: monday_to_sunday
+    minimum_sale_discount_percent: 20
+    ai_may_draft_full_article: true
+    author_comment_deadline: "Sunday 24:00 Asia/Tokyo"
+    publish_without_author_comment: true
+  monthly_essay:
+    enabled_when_capacity_allows: true
+    purpose: "ゲーム体験を題材に自由に書く私小説的なレビューエッセイ"
+    seo_priority: low
+
+editorial_boundaries:
+  author_writes_article_body: true
+  ai_may_modify_article_body: false
+  ai_may_report:
+    - typos
+    - grammatical_discomfort
+    - subject_predicate_mismatch
+    - unclear_passages
+    - fact_check_needed
+    - seo_suggestions
+    - structure_suggestions
+  suggestions_are_optional: true
+  report_location: "article sibling note named review-report.md"
+  retain_reports: true
+  publish_reports: false
+  disclose_ai_usage_on_about_page: true
+
+game_selection:
+  candidates_per_week: 3
+  candidate_source: unowned_games
+  selection_input:
+    steam_library: true
+    steam_wishlist: true
+  priorities:
+    - release_recency_and_buzz
+    - search_demand
+    - author_taste_fit
+    - low_competitor_coverage
+    - steam_user_rating
+    - low_price
+    - japanese_language_support
+    - suitability_for_weekly_article
+    - potential_for_monthly_essay
+  author_preferences:
+    genres:
+      - MMO
+      - strategy
+      - visual_novel
+      - simulation
+      - hack_and_slash
+      - roguelike
+    examples:
+      - Albion Online
+      - VA-11 Hall-A
+      - Etrian Odyssey
+      - Tooth and Tail
+      - Mystery Dungeon series
+    avoid:
+      - poor_pacing
+      - shoot_em_up
+  scope:
+    prefer_indie_and_small_studios: true
+    allow_major_titles_when_high_interest: true
+    allow_early_access: true
+    allow_ai_asset_heavy_games: true
+    exclude_adult_content: true
+    exclude_strong_gore: true
+    allow_general_combat_horror_and_light_blood: true
+  language:
+    english_only_allowed: true
+    limit_to_accessible_for_general_japanese_readers: true
+  purchase_budget_jpy:
+    normal_monthly: 15000
+    exceptional_monthly_max: 30000
+  if_no_candidate_selected_by_deadline: choose_rank_1
+  if_article_delayed: carry_over_to_next_week
+
+publishing:
+  source: Obsidian
+  source_directory_hint: "Life_and_Div/30_Projects/01_blog"
+  images_subdirectory: images
+  author_controls_image_selection_and_captions: true
+  review_report_filename: review-report.md
+  require_local_preview: true
+  require_separate_publish_approval: true
+  current_shortcuts:
+    preview_game_blog: "Alt+Shift+V"
+    publish_game_blog: "Alt+Shift+P"
+    publish_logs_blog: "Alt+Shift+L"
+    claude_code_shortcut: removed
+  logs_blog_is_separate_site: true
+  current_pipeline:
+    - resolve_current_article
+    - require_explicit_approval
+    - protect_unrelated_worktree_changes
+    - sync_one_page_bundle
+    - validate_draft_false_and_images
+    - hugo_build_check
+    - git_commit_one_article
+    - git_push
+    - wait_for_github_actions
+    - verify_public_url
+  automation_after_approval:
+    - sync_to_hugo
+    - git_commit
+    - git_push
+    - deploy
+    - social_schedule
+  block_publish_on:
+    - hugo_build_failure
+    - missing_required_article_file
+    - missing_required_image
+    - deployment_failure
+  corrections:
+    silent_for_minor_typos: true
+    show_history_for_material_changes: true
+
+schedule:
+  timezone: Asia/Tokyo
+  weekly_article_publish: "Sunday"
+  roundup_publish: "Monday 06:00"
+  editor_candidates_discord: "Monday 06:05"
+  first_social_post: "Monday 07:30"
+  second_social_post: "Monday 20:00"
+  game_selection_deadline: "Monday 24:00"
+  monthly_report: "Day 1 06:00"
+  quarterly_review_months: [1, 4, 7, 10]
+
+social:
+  accounts_pending_until_brand_decided: true
+  primary: X
+  secondary: Bluesky
+  official_account_tone: factual_and_calm
+  personal_account_is_publicly_the_author: true
+  automatic_replies: false
+  author_handles_replies: true
+  ai_may_summarize_articles: true
+  ai_must_not_invent_first_person_experience: true
+  monthly_essay_posts_use_author_excerpt: true
+  repost_windows:
+    - immediately
+    - next_day
+    - one_week
+    - one_month
+    - relevant_sale
+    - major_update_or_full_release
+  routine_reposts_max_article_age_days: 31
+  publish_only_after_site_deploy_success: true
+
+discord:
+  category: "編集室"
+  mode: incoming_webhooks
+  channels:
+    assignments: "今週の指示"
+    publish: "公開通知"
+    social: "sns予定"
+    monthly_report: "アクセス月報"
+    errors: "エラー通知"
+    attention: "要確認"
+  secrets_must_not_be_stored_here: true
+
+analytics:
+  google_analytics_4: planned
+  google_search_console: planned
+  current_provider: none
+  umami_configuration_present_but_disabled_by_empty_website_id: true
+  detailed_monthly_report_in_obsidian: true
+  summary_monthly_report_in_discord: true
+  quarterly_strategy_review: true
+  priorities:
+    - sustainable_writing
+    - returning_readers
+    - search_and_social_access
+    - revenue_toward_game_costs
+
+monetization:
+  display_ads_at_launch: false
+  add_display_ads_after_content_base_exists: true
+  initial_article_target_before_ads: 20
+  avoid:
+    - interstitial_ads
+    - sticky_ads
+    - excessive_in_content_ads
+  steam_links_without_revenue_are_allowed: true
+  affiliate_stores_must_be_authorized_resellers: true
+  disclosure_pages_required: true
+
+automation_budget:
+  monthly_jpy: 3000
+  warning_percent: 80
+  shutdown_order:
+    - opportunistic_social_reposts
+    - detailed_social_analysis
+    - ad_hoc_ai_research
+    - routine_social_reposts
+  preserve:
+    - publishing
+    - weekly_game_selection
+    - minimum_monthly_report
+
+backup:
+  provider: google_drive
+  setup_status: pending_account_and_capacity_check
+  provider_account: dedicated_blog_account
+  source_scope: Life_and_Div
+  daily_time: "02:00"
+  monthly_snapshots_to_keep: 12
+  exclude:
+    - .git
+    - public
+    - caches
+    - temporary_files
+    - virtual_environments
+    - downloadable_dependencies
+  notify_failure_in_discord: true
+
+contact:
+  form_planned: true
+  dedicated_email_planned: true
+  fields:
+    - name
+    - email
+    - category
+    - message
+  accept_categories:
+    - correction
+    - feedback
+    - game_recommendation
+    - review_key_offer
+    - advertising_or_work
+  attachments_allowed: false
+  spam_protection: required
+  discord_notification_contains_personal_data: false
+
+review_keys:
+  accepted: true
+  publication_guaranteed: false
+  editorial_control_required: true
+  disclosure_required: true
