@@ -2,7 +2,7 @@
 
 - 版: 1.2
 - 更新日: 2026-08-02
-- 状態: Phase 1ローカル実装・検証完了（commit・公開承認待ち）
+- 状態: Phase 1完了・GitHub Pages公開確認済み
 - 詳細要件: `docs/blog_automation_spec.md`
 - 自動処理設定: `data/editorial/strategy.yaml`
 
@@ -20,7 +20,7 @@
 - Phase 0の監査は完了し、結果を `docs/phase-0-audit.md` に保存済み
 - 監査で判明したCritical／Highの公開リスクに対する基盤修正を先行実施済み
 - Obsidianからのプレビューと本番公開を、テスト記事で実地確認済み
-- Phase 1はローカル実装とテストを完了。ユーザー承認後にcommit・push・Actions・公開URLを確認する
+- Phase 1は実装、ローカルテスト、commit、push、Actions、公開URL確認まで完了
 - AI校正、Discord、バックアップ以降の運営自動化は未着手
 
 ## 変更履歴
@@ -88,7 +88,7 @@
 - 画像と校正レポートが意図どおり処理される
 - 検索・SNS向けメタ情報が重複しない
 
-**ローカル実装・検証完了（2026-08-02）**。9件の自動テストと本番相当ビルドに成功した。commit・push・GitHub Actions・公開URLの最終確認は、ユーザー承認後に実施する。
+**完了（2026-08-02）**。9件の自動テストと本番相当ビルドに成功し、Phase 1関連ファイルだけをcommit・pushした。GitHub Actionsのbuild・deploy成功と、トップ・固定ページ・robots.txt・sitemap・RSSのHTTP 200を確認した。
 
 ## Phase 2: 校正レポートと公開承認
 

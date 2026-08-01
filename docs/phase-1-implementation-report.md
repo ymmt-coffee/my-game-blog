@@ -2,7 +2,7 @@
 
 - 実施日: 2026-08-02（Asia/Tokyo）
 - 対象: `my-game-blog`
-- 状態: ローカル実装・検証完了、commit・push・GitHub Pages公開は未実施
+- 状態: 完了、commit・push・GitHub Actions・GitHub Pages公開確認済み
 - Hugo: `v0.163.2 extended`
 - PaperMod: Git submodule commit `154d006e0182dfc7da38008323976b02e6bfab4a`（submodule内は未変更）
 
@@ -108,6 +108,11 @@
 - 一時テストの下書き記事: 本番生成物に含まれないことを確認
 - `review-report.md`: 既存同期テストで生成サイトに含まれないことを確認
 - 大型PNG: 1440pxへ縮小し、複数幅PNGとWebP、幅・高さを出すことを確認
+- 実装commit: `f8a566a38f75eda93ee3ce5905090b4ddc0b645a`
+- GitHub Actions: build・deploy成功
+- 公開確認: トップ、4固定ページ、robots.txt、sitemap、RSSがHTTP 200
+- 公開トップ: サイトdescriptionと固定ページメニューを確認
+- 公開トップ: Umami、GA4、Plausibleの解析タグが出ていないことを確認
 
 ## 3. 非推奨警告
 
@@ -132,8 +137,9 @@
 1. 正式なブログ名、独自ドメイン、専用メール、広告事業者は未決定のまま
 2. 既存の公開フローテスト記事2件は、削除禁止を優先して公開状態のまま維持している。いずれも `robotsNoIndex: true` であり、検査時に警告する。将来、残す・下書き化する・削除するかはユーザー判断が必要
 3. PaperMod由来の `.Language.LanguageCode` 警告1件は、将来のテーマ更新または上流対応時に再確認する
-4. commit、push、GitHub Actions、公開URLの確認は未実施。ユーザー承認後に今回のPhase 1関連ファイルだけを対象として行う
+
+GitHub Actionsには、利用中のGitHub公式ActionがNode.js 20から24へ移行中である旨の警告が出た。build・deployは成功しており、Phase 1の公開を妨げるものではない。将来、公式Actionの新しいメジャーバージョンが安定した時点で更新を検討する。
 
 ## 6. 判定
 
-Phase 1はローカル実装と検証まで完了した。commit・push前の状態としては準備済みである。Phase 2へは、Phase 1をcommit・pushし、GitHub Actions成功と公開URLを確認した後に進める。
+Phase 1は実装、ローカル検証、commit、push、GitHub Actions、公開URL確認まで完了した。Phase 2へ進める状態である。

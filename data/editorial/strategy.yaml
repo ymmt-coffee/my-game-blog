@@ -1,6 +1,6 @@
 version: "1.2"
 updated_at: "2026-08-02"
-status: phase_1_local_complete_awaiting_publish_approval
+status: phase_1_completed
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -11,7 +11,7 @@ document_set:
 
 implementation_status:
   phase_0_audit: completed
-  phase_1_overall: local_complete_awaiting_commit_and_deploy
+  phase_1_overall: completed
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -61,6 +61,8 @@ change_history:
     summary: "Obsidianからプレビューと本番投稿を確認し、ショートカット構成を整理"
   - date: "2026-08-02"
     summary: "Phase 1の記事形式、SEO、画像最適化、検査、固定ページをローカル実装・検証"
+  - date: "2026-08-02"
+    summary: "Phase 1をcommit・pushし、GitHub ActionsとGitHub Pagesの公開を確認"
 
 site:
   working_title: "game logs"
