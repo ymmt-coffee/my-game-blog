@@ -80,7 +80,6 @@ Obsidian設定の切替後は、対象記事を開いて `Alt+Shift+P` を押し
 - `Alt+Shift+V`: 現在開いているゲームブログ記事を一時領域でプレビュー
 - `Alt+Shift+P`: 確認画面の承認後、現在開いているゲームブログ記事を公開
 - `Alt+Shift+L`: 確認画面の承認後、既存のlogsブログ（`my-blog`）を公開
-- `Alt+Shift+C`: 既存のClaude Code起動（変更なし）
 
 ## 現在まだ行わないこと
 
