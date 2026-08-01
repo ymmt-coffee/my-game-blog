@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">my-game-blog publishing flow test</title>
+  <desc id="desc">ObsidianからHugoへの公開フロー確認用画像</desc>
+  <rect width="1200" height="630" fill="#1f2937"/>
+  <rect x="70" y="70" width="1060" height="490" rx="28" fill="#f9fafb"/>
+  <text x="600" y="260" text-anchor="middle" font-family="sans-serif" font-size="58" font-weight="700" fill="#111827">my-game-blog</text>
+  <text x="600" y="350" text-anchor="middle" font-family="sans-serif" font-size="38" fill="#374151">Obsidian → Hugo → GitHub Pages</text>
+  <text x="600" y="430" text-anchor="middle" font-family="sans-serif" font-size="30" fill="#047857">Publishing flow test</text>
+</svg>
