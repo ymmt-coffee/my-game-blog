@@ -10,12 +10,13 @@
 
 ## 運用時に使う資料
 
-- [`publishing-workflow.md`](publishing-workflow.md) — Obsidianからプレビュー・公開する手順
+- [`publishing-workflow.md`](publishing-workflow.md) — Obsidianから校正・プレビュー・公開する手順
 
 ## 記録資料
 
 - [`phase-0-audit.md`](phase-0-audit.md) — Phase 0実施時点の現状監査結果
 - [`phase-1-implementation-report.md`](phase-1-implementation-report.md) — Phase 1の実装内容、テスト結果、保留事項
+- [`phase-2-implementation-report.md`](phase-2-implementation-report.md) — Phase 2の本文保護、校正レポート、テスト結果、保留事項
 
 監査資料は当時の状態を残す記録であり、現在の操作方法と異なる場合がある。現在の公開操作は `publishing-workflow.md`、現在の進捗は `roadmap.md` を優先する。
 

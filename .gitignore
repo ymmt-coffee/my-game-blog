@@ -10,5 +10,13 @@ Thumbs.db
 # スクリプトの同期記録
 scripts/.synced_files.json
 
+# Pythonのテスト・構文確認で生成されるキャッシュ
+__pycache__/
+*.py[cod]
+
+# 秘密情報は環境変数だけで扱い、.envをGitへ入れない
+.env
+.env.*
+
 # ローカル運用メモ
 CLAUDE.md

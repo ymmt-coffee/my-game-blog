@@ -1,6 +1,6 @@
-version: "1.2"
+version: "1.3"
 updated_at: "2026-08-02"
-status: phase_1_completed
+status: phase_2_committed_locally_pending_push
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -12,6 +12,8 @@ document_set:
 implementation_status:
   phase_0_audit: completed
   phase_1_overall: completed
+  phase_2_overall: locally_completed
+  phase_2_external_ai_connection: live_smoke_test_verified
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -19,6 +21,10 @@ implementation_status:
     - article_scoped_git_commit_and_push
     - github_pages_deployment
     - public_url_http_200
+    - gemini_3_6_flash_fictional_article_live_smoke_test
+    - gemini_source_hash_unchanged
+    - gemini_six_category_report_parsed
+    - gemini_smoke_temporary_data_removed
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -38,8 +44,21 @@ implementation_status:
     - internal_link_validation
     - required_front_matter_validation
     - static_policy_pages
+    - review_input_allowlist_and_dry_run
+    - source_hash_before_and_after_review
+    - six_category_review_report
+    - atomic_review_report_save
+    - secret_detection_before_ai_and_before_save
+    - review_report_freshness_warning
+    - fake_ai_review_for_offline_tests
+    - gemini_3_6_flash_adapter
+    - gemini_structured_output_schema
+    - gemini_missing_key_guard
+    - gemini_fictional_article_smoke_test
+    - gemini_live_smoke_test
+    - obsidian_gemini_review_shortcut
   not_implemented:
-    - ai_proofreading
+    - external_fact_check_search
     - discord_notifications
     - google_drive_backup
     - weekly_release_sale_generation
@@ -63,6 +82,10 @@ change_history:
     summary: "Phase 1の記事形式、SEO、画像最適化、検査、固定ページをローカル実装・検証"
   - date: "2026-08-02"
     summary: "Phase 1をcommit・pushし、GitHub ActionsとGitHub Pagesの公開を確認"
+  - date: "2026-08-02"
+    summary: "Phase 2の本文保護、秘密情報検査、校正レポート、鮮度確認をローカル実装"
+  - date: "2026-08-02"
+    summary: "Gemini最小疎通とAlt+Shift+Rを確認し、Phase 2をローカルcommit"
 
 site:
   working_title: "game logs"
@@ -147,6 +170,44 @@ editorial_boundaries:
   retain_reports: true
   publish_reports: false
   disclose_ai_usage_on_about_page: true
+  review_implementation:
+    input_scope: one_article_allowlisted_front_matter_and_body
+    image_payload: filenames_and_alt_text_only
+    image_binary_sent: false
+    source_hash_algorithm: sha256
+    source_hash_checked_before_and_after: true
+    response_format: strict_json_six_categories
+    report_atomic_write: true
+    same_input_result_reused: true
+    existing_report_default: refuse_overwrite_without_explicit_replace
+    history_mode: single_report_with_explicit_replace
+    proofreading_shortcut: "Alt+Shift+R"
+    proofreading_shortcut_status: configured_and_verified
+    external_ai_service: google_gemini_developer_api
+    external_ai_model: gemini-3.6-flash
+    model_version_policy: pin_stable_model_id
+    api_connection_status: live_smoke_test_verified
+    planned_usage_tier: free_tier
+    free_tier_data_notice: "無料枠では送信内容がGoogleの製品改善に使われる"
+    external_fact_check_search: disabled
+    api_key_source: GEMINI_API_KEY_environment_variable_only
+    interaction_store: false
+    google_search_tool_enabled: false
+    interactions_sdk_warning: experimental_api_may_change
+    fake_provider_for_tests: true
+  review_input_excludes:
+    - api_keys
+    - webhook_urls
+    - git_credentials
+    - whole_obsidian_vault
+    - other_articles
+    - prior_review_report
+    - .git
+    - .env
+    - os_user_information
+    - non_blog_personal_notes
+    - image_binaries
+    - my-blog
 
 game_selection:
   candidates_per_week: 3
@@ -208,6 +269,7 @@ publishing:
   require_separate_publish_approval: true
   current_shortcuts:
     preview_game_blog: "Alt+Shift+V"
+    review_game_blog: "Alt+Shift+R"
     publish_game_blog: "Alt+Shift+P"
     publish_logs_blog: "Alt+Shift+L"
     claude_code_shortcut: removed
@@ -215,6 +277,7 @@ publishing:
   current_pipeline:
     - resolve_current_article
     - require_explicit_approval
+    - check_review_report_safety_and_freshness
     - protect_unrelated_worktree_changes
     - sync_one_page_bundle_to_validation_area
     - validate_draft_false_and_images
@@ -233,6 +296,10 @@ publishing:
     - deploy
     - social_schedule
   block_publish_on:
+    - article_modified_during_review
+    - possible_secret_in_review_input_or_report
+    - unsafe_or_unparseable_ai_output_or_review_report
+    - review_report_save_failure
     - hugo_build_failure
     - missing_required_article_file
     - missing_required_image
@@ -243,6 +310,10 @@ publishing:
     - invalid_or_duplicate_canonical_and_social_metadata
     - draft_or_unapproved_test_content
     - deployment_failure
+  warn_publish_on:
+    - review_report_missing
+    - review_report_stale
+    - proofreading_suggestions_unresolved
   corrections:
     silent_for_minor_typos: true
     show_history_for_material_changes: true

@@ -1,0 +1,14 @@
+{
+  "overall_result": "要確認",
+  "categories": [
+    { "id": "typos", "findings": [] },
+    { "id": "japanese", "findings": [] },
+    { "id": "clarity", "findings": [] },
+    { "id": "fact_check", "findings": [] },
+    { "id": "seo", "findings": [] },
+    { "id": "structure", "findings": [] }
+  ],
+  "user_checklist": [
+    "指摘を採用するか確認する"
+  ]
+}

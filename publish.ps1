@@ -126,6 +126,10 @@ try {
         throw "Approval is required. Run this from the publish shortcut after preview."
     }
 
+    Invoke-CheckedCommand "Check proofreading report safety and freshness" {
+        python scripts/review_article.py --article $Article --status
+    }
+
     if ($Article -match '(^|[\\/])\.\.([\\/]|$)' -or [System.IO.Path]::IsPathRooted($Article)) {
         throw "Invalid article slug: $Article"
     }

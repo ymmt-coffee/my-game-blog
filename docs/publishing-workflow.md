@@ -1,6 +1,6 @@
 # 記事のプレビューと公開手順
 
-この文書は、Phase 1で導入した安全な公開基盤の現在の使い方をまとめたものです。
+この文書は、Phase 1の安全な公開基盤と、Phase 2の本文を書き換えない校正レポートの現在の使い方をまとめたものです。
 
 ## 原稿の置き方
 
@@ -68,6 +68,102 @@ hugo new content --kind play-note sample-game/index.md --contentDir "C:\Users\ym
 
 JPEG、PNG、WebPは公開ビルド時に縮小版とWebPを自動生成し、画面幅に合う画像を配信します。Obsidianの元画像とPage Bundleの元画像は上書きしません。透過PNGは元PNGも残し、GIFはアニメーション維持のため変換せず、SVGとAVIFもそのまま扱います。変換物は生成領域に置かれるため、再実行だけでGit差分は増えません。
 
+## 校正レポート
+
+校正は本文を直す処理ではありません。AIは6分類の指摘と修正案を `review-report.md` へ書き、採用するかはユーザーが決めます。
+
+1. 誤字・脱字
+2. 主語述語や日本語の違和感
+3. 読者が理解しにくい箇所
+4. 事実確認が必要な箇所
+5. SEO上の提案
+6. 構成上の提案
+
+指摘がない分類には「指摘なし」と表示されます。各指摘には重要度、該当箇所、修正理由、修正案があります。最後のチェック欄を見ながら、採用したい修正だけをObsidianの `index.md` へ自分で反映してください。
+
+### 現在の開始方法
+
+初期AIはGoogle Gemini Developer APIの安定版 `gemini-3.6-flash` に決定しました。APIキーはまだ用意していないため外部接続は無効です。キー取得までの暫定運用は、Codexで「記事slugをPhase 2の方式で校正して」と依頼し、構造化した結果を安全な取込処理へ渡す手動方式です。Codexは本文へパッチを当てず、取込処理だけが `review-report.md` を保存します。
+
+Geminiの無料枠では、送信内容がGoogleの製品改善に使われる扱いです。記事本文を送る前に、この条件と最新の無料枠を再確認します。Google検索連携は無料枠では利用できないため、自動校正では無効にします。Interactions APIの会話保存も無効にします。
+
+### APIキーの設定
+
+APIキーはリポジトリ、`.env`、PowerShell履歴、Obsidian、レポートへ書きません。Windowsの「環境変数を編集」を開き、ユーザー環境変数として名前 `GEMINI_API_KEY`、値に取得したAPIキーを設定します。設定後はCodexとPowerShellをいったん閉じ、新しいプロセスで開き直します。
+
+キーの値をチャットへ貼らないでください。設定確認では環境変数名の有無だけを表示します。
+
+最初の実通信は、実記事ではなく短い架空原稿を1回だけ送ります。
+
+```powershell
+python scripts\gemini_smoke_test.py
+```
+
+2026-08-02にこの疎通テストは成功しました。架空原稿だけを送信し、本文変更なし、6分類レポート、一時データ削除を確認済みです。公式SDKからInteractions APIが試験的で将来変更される可能性があるという警告が出るため、SDK更新時は再テストします。
+
+成功後、実記事を校正する操作は次のとおりです。
+
+```powershell
+.\review.ps1 -Article sample-game -Gemini
+```
+
+### 手動確認用の記事
+
+Obsidianの `01_blog/phase2-review-demo/index.md` に、公開されない `draft: true` の架空記事を用意しています。誤字、意味の矛盾、曖昧な説明、未確認の売上情報、見出し不足を意図的に含めています。
+
+1. Obsidianで `phase2-review-demo/index.md` を開く
+2. 校正前の本文を確認する
+3. `Alt+Shift+R` を押す
+4. 確認画面の内容を読み、「はい」を選ぶ
+5. 別画面で校正完了と本文ハッシュ不変を確認する
+6. 同じ記事フォルダにできた `review-report.md` を開く
+7. 6分類、重要度、理由、修正案があることを確認する
+8. `index.md` が変更されていないことを見比べる
+
+このデモ記事は `draft: true` と `test_content: true` のため、本番公開できません。手動確認後も自動削除はしません。
+
+PowerShellでAIへ渡す対象だけを確認する場合:
+
+```powershell
+.\review.ps1 -Article sample-game -DryRun
+```
+
+校正用の構造化入力全体を画面で確認する場合:
+
+```powershell
+.\review.ps1 -Article sample-game -PrintRequest
+```
+
+固定応答を使う動作確認は次のとおりです。これは文章を校正せず、6分類の空レポートを作るテスト専用です。
+
+```powershell
+.\review.ps1 -Article sample-game -Fake
+```
+
+AIが返したJSONを取り込む場合は、`data/editorial/review-response-template.json` と同じ形式にし、使用したサービス・モデルを実在する情報だけで記録します。
+
+```powershell
+.\review.ps1 -Article sample-game -ResponseFile C:\path\to\response.json -Method "実際に使用したサービスとモデル"
+```
+
+既存のレポートが異なる結果の場合は自動上書きしません。確認して置き換える場合だけ末尾へ `-Replace` を付けます。同じ原稿・同じ設定・同じ結果なら既存ファイルを再利用し、日時だけの差分を作りません。履歴は複数ファイルへ増やさず、記事ごとに1つのレポートを明示的に置き換えます。
+
+### 本文を修正した後
+
+本文を修正すると、レポート内のハッシュと現在の `index.md` が一致しなくなり、「古いレポート」と表示されます。これは異常ではなく、「今の本文はまだこのレポートの対象ではない」という意味です。再校正して新しい結果を確認してください。
+
+```powershell
+.\review.ps1 -Article sample-game -Status
+```
+
+レポートがない、または古い場合は警告ですが、それだけでは公開を止めません。秘密情報の疑い、壊れたレポート、危険なHTML、校正中の本文変更、保存失敗は停止します。
+
+### AIへ渡す情報
+
+送信対象は、指定した1記事の許可済みfront matter、本文、記事種別、description、プレイ時間、ネタバレ・提供表示、画像のファイル名と代替テキストです。画像ファイル本体は送りません。
+
+送らないものは、APIキー、Webhook URL、Git認証情報、Obsidian全体、別の記事、過去のレポート、`.git`、`.env`、OSのユーザー情報、ブログ以外の個人メモ、画像本体、独立した `my-blog` のデータです。入力前と保存前に秘密情報らしい文字列を検査し、見つかった場合は値を表示せず、種類と場所だけを知らせて停止します。
+
 ## プレビュー
 
 現在は次のように実行します。`sample-game` は記事フォルダ名です。
@@ -78,7 +174,7 @@ JPEG、PNG、WebPは公開ビルド時に縮小版とWebPを自動生成し、�
 
 Obsidian設定の切替後は、記事の `index.md`、`review-report.md`、または記事画像を開いて `Alt+Shift+V` を押すと同じ処理を実行できます。
 
-プレビュー用データはWindowsの一時フォルダに作られます。Hugoの正式な `content/posts/` やGitには触れません。表示確認後、PowerShell画面で `Ctrl+C` を押すと終了します。
+プレビュー開始前に校正レポートの有無・鮮度・安全性も確認します。レポートなし・古いレポートは警告だけです。プレビュー用データはWindowsの一時フォルダに作られ、`review-report.md` は同期されません。Hugoの正式な `content/posts/` やGitには触れません。表示確認後、PowerShell画面で `Ctrl+C` を押すと終了します。
 
 ## 公開
 
@@ -96,24 +192,38 @@ Obsidian設定の切替後は、対象記事を開いて `Alt+Shift+P` を押し
 2. 既存のstage済み変更がないか確認
 3. 公開先の記事に未コミット変更がないか確認
 4. 指定した1記事をWindows一時フォルダのPage Bundleへ同期
-5. `draft: false`、front matter、画像、内部リンク、テスト記事を検査
-6. 一時フォルダで本番相当のHugoビルドを実行
-7. title、description、canonical、OGP、Twitter Card、JSON-LD、サイト内リンク、sitemap、robots.txt、RSSを生成HTMLで検査
-8. 全検査の成功後、正式なPage Bundleへ同期し、指定記事だけをGitへ登録
-9. `publish: 記事slug` という記事単位のcommitを作成
-10. GitHubへpush
-11. 対応するGitHub Actionsの完了を最大10分待つ
-12. Actions成功後、公開URLがHTTP 200を返すことを確認
+5. 校正レポートの有無・鮮度・安全性を確認
+6. `draft: false`、front matter、画像、内部リンク、テスト記事を検査
+7. 一時フォルダで本番相当のHugoビルドを実行
+8. title、description、canonical、OGP、Twitter Card、JSON-LD、サイト内リンク、sitemap、robots.txt、RSSを生成HTMLで検査
+9. 全検査の成功後、正式なPage Bundleへ同期し、指定記事だけをGitへ登録
+10. `publish: 記事slug` という記事単位のcommitを作成
+11. GitHubへpush
+12. 対応するGitHub Actionsの完了を最大10分待つ
+13. Actions成功後、公開URLがHTTP 200を返すことを確認
 
 `.gitignore`、仕様書、別の記事など、指定記事以外の変更はcommit対象にしません。
 
-検査結果は `[停止]` と `[警告]` に分かれます。必須情報不足、画像・内部リンク切れ、`review-report.md` 混入、SEOメタ情報の欠落や重複、下書き・新規テスト記事の誤公開は停止します。画像未設定や、過去に意図して公開したnoindex付きテスト記事は警告に留めます。
+検査結果は `[停止]` と `[警告]` に分かれます。必須情報不足、画像・内部リンク切れ、`review-report.md` 混入、SEOメタ情報の欠落や重複、下書き・新規テスト記事の誤公開、レポート内の秘密情報や不正形式は停止します。レポートなし・古いレポート、画像未設定、過去に意図して公開したnoindex付きテスト記事、文章上の提案は警告に留めます。
 
 ## 現在のショートカット
 
 - `Alt+Shift+V`: 現在開いているゲームブログ記事を一時領域でプレビュー
+- `Alt+Shift+R`: 確認後、現在開いているゲームブログ記事をGeminiで校正
 - `Alt+Shift+P`: 確認画面の承認後、現在開いているゲームブログ記事を公開
 - `Alt+Shift+L`: 確認画面の承認後、既存のlogsブログ（`my-blog`）を公開
+
+校正専用ショートカットは `Alt+Shift+R` です。対象記事の `index.md`、`review-report.md`、または画像を開いて押すと、本文送信と既存レポート置き換えの確認画面が出ます。「はい」を選んだ場合だけGemini校正を開始し、結果を別のPowerShell画面へ表示します。校正をプレビューとは独立させ、`Alt+Shift+V` はプレビューと状態確認に限定します。
+
+## エラー時の確認
+
+- `[警告] 校正レポートがありません`: 必要なら校正する。確認済みならそのままプレビュー・公開可能
+- `[警告] 古い結果`: 本文修正後のため、再校正を推奨
+- `秘密情報の可能性`: 表示された種類と行だけを手掛かりに、本文またはAI応答を確認。値はログに表示されない
+- `AI出力を安全に解析できません`: JSONがテンプレートの6分類形式か確認
+- `既存のreview-report.mdがあります`: 内容を確認し、置き換える場合だけ `-Replace`
+- `index.mdが変更された`: 校正処理を止め、Obsidianで意図した編集か確認してから再実行
+- Phase 1の画像・front matter・リンク・Hugoエラー: 従来どおり該当箇所を修正して再プレビュー
 
 ## 現在まだ行わないこと
 

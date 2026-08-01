@@ -10,6 +10,7 @@ $shellConfigPath = Join-Path $settingsDir "plugins\obsidian-shellcommands\data.j
 $hotkeysPath = Join-Path $settingsDir "hotkeys.json"
 $publishCommandId = "papo6svpi0"
 $previewCommandId = "gameprev01"
+$reviewCommandId = "gamereview01"
 $logsPublishCommandId = "logspub001"
 $claudeCommandId = "8un56pl1yc"
 
@@ -40,9 +41,11 @@ if ($publishCommand.Count -ne 1) {
 }
 
 $previewLauncher = Join-Path $projectRoot "launch-preview.ps1"
+$reviewLauncher = Join-Path $projectRoot "launch-review.ps1"
 $publishLauncher = Join-Path $projectRoot "launch-publish.ps1"
 $publishCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$publishLauncher`" -SourceFile {{file_path:absolute}}"
 $previewCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$previewLauncher`" -SourceFile {{file_path:absolute}}"
+$reviewCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$reviewLauncher`" -SourceFile {{file_path:absolute}}"
 
 $publishCommand[0].alias = "Game blog: Publish current article"
 $publishCommand[0].platform_specific_commands.default = $publishCommandText
@@ -67,6 +70,24 @@ $previewCommand.platform_specific_commands.default = $previewCommandText
 $previewCommand.confirm_execution = $false
 $previewCommand.icon = "lucide-eye"
 
+$existingReview = @($shellConfig.shell_commands | Where-Object { $_.id -eq $reviewCommandId })
+if ($existingReview.Count -gt 1) {
+    throw "Multiple review commands use id $reviewCommandId."
+}
+if ($existingReview.Count -eq 0) {
+    $reviewCommand = ($publishCommand[0] | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+    $reviewCommand.id = $reviewCommandId
+    $shellConfig.shell_commands += $reviewCommand
+}
+else {
+    $reviewCommand = $existingReview[0]
+}
+
+$reviewCommand.alias = "Game blog: Review current article with Gemini"
+$reviewCommand.platform_specific_commands.default = $reviewCommandText
+$reviewCommand.confirm_execution = $false
+$reviewCommand.icon = "lucide-spell-check"
+
 $existingLogsPublish = @($shellConfig.shell_commands | Where-Object { $_.id -eq $logsPublishCommandId })
 if ($existingLogsPublish.Count -gt 1) {
     throw "Multiple logs blog publish commands use id $logsPublishCommandId."
@@ -87,13 +108,16 @@ $logsPublishCommand.icon = "lucide-notebook-pen"
 
 $publishHotkeyName = "obsidian-shellcommands:shell-command-$publishCommandId"
 $previewHotkeyName = "obsidian-shellcommands:shell-command-$previewCommandId"
+$reviewHotkeyName = "obsidian-shellcommands:shell-command-$reviewCommandId"
 $logsPublishHotkeyName = "obsidian-shellcommands:shell-command-$logsPublishCommandId"
 $claudeHotkeyName = "obsidian-shellcommands:shell-command-$claudeCommandId"
 $publishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "P" })
 $previewHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "V" })
+$reviewHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "R" })
 $logsPublishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "L" })
 $hotkeys | Add-Member -NotePropertyName $publishHotkeyName -NotePropertyValue $publishHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $previewHotkeyName -NotePropertyValue $previewHotkey -Force
+$hotkeys | Add-Member -NotePropertyName $reviewHotkeyName -NotePropertyValue $reviewHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $logsPublishHotkeyName -NotePropertyValue $logsPublishHotkey -Force
 $hotkeys.PSObject.Properties.Remove($claudeHotkeyName)
 
@@ -114,6 +138,7 @@ Move-Item -LiteralPath $hotkeysTemp -Destination $hotkeysPath -Force
 
 Write-Host "Obsidian shortcuts updated."
 Write-Host "  Alt+Shift+V: Preview current game blog article"
+Write-Host "  Alt+Shift+R: Review current game blog article with Gemini (confirmation required)"
 Write-Host "  Alt+Shift+P: Publish current game blog article (confirmation required)"
 Write-Host "  Alt+Shift+L: Publish logs blog (confirmation required)"
 Write-Host "  Alt+Shift+C: Claude Code shortcut removed"

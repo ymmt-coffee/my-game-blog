@@ -65,6 +65,12 @@ try {
 
     Write-Host ""
     Write-Host "=== game blog preview ===" -ForegroundColor Cyan
+    if ($Article) {
+        python scripts/review_article.py --article $Article --status
+        if ($LASTEXITCODE -ne 0) {
+            throw "Review report safety check failed."
+        }
+    }
     python @syncArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Preview sync failed."
