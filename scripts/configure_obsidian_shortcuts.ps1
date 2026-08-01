@@ -111,10 +111,10 @@ $previewHotkeyName = "obsidian-shellcommands:shell-command-$previewCommandId"
 $reviewHotkeyName = "obsidian-shellcommands:shell-command-$reviewCommandId"
 $logsPublishHotkeyName = "obsidian-shellcommands:shell-command-$logsPublishCommandId"
 $claudeHotkeyName = "obsidian-shellcommands:shell-command-$claudeCommandId"
-$publishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "P" })
-$previewHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "V" })
-$reviewHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "R" })
-$logsPublishHotkey = @([pscustomobject]@{ modifiers = @("Alt", "Shift"); key = "L" })
+$publishHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "P" })
+$previewHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "V" })
+$reviewHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "R" })
+$logsPublishHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "L" })
 $hotkeys | Add-Member -NotePropertyName $publishHotkeyName -NotePropertyValue $publishHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $previewHotkeyName -NotePropertyValue $previewHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $reviewHotkeyName -NotePropertyValue $reviewHotkey -Force
@@ -137,9 +137,9 @@ Move-Item -LiteralPath $shellTemp -Destination $shellConfigPath -Force
 Move-Item -LiteralPath $hotkeysTemp -Destination $hotkeysPath -Force
 
 Write-Host "Obsidian shortcuts updated."
-Write-Host "  Alt+Shift+V: Preview current game blog article"
-Write-Host "  Alt+Shift+R: Review current game blog article with Gemini (confirmation required)"
-Write-Host "  Alt+Shift+P: Publish current game blog article (confirmation required)"
-Write-Host "  Alt+Shift+L: Publish logs blog (confirmation required)"
+Write-Host "  Ctrl+Alt+V: Preview current game blog article"
+Write-Host "  Ctrl+Alt+R: Review current game blog article with Gemini (confirmation required)"
+Write-Host "  Ctrl+Alt+P: Publish current game blog article (confirmation required)"
+Write-Host "  Ctrl+Alt+L: Publish logs blog (confirmation required)"
 Write-Host "  Alt+Shift+C: Claude Code shortcut removed"
 Write-Host "  Backup: $backupRoot"

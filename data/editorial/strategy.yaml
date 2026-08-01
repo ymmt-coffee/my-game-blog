@@ -85,7 +85,7 @@ change_history:
   - date: "2026-08-02"
     summary: "Phase 2の本文保護、秘密情報検査、校正レポート、鮮度確認をローカル実装"
   - date: "2026-08-02"
-    summary: "Gemini最小疎通とAlt+Shift+Rを確認し、Phase 2をローカルcommit"
+    summary: "Gemini最小疎通を確認し、Obsidian操作をCtrl+Altへ統一してPhase 2をローカルcommit"
 
 site:
   working_title: "game logs"
@@ -181,7 +181,7 @@ editorial_boundaries:
     same_input_result_reused: true
     existing_report_default: refuse_overwrite_without_explicit_replace
     history_mode: single_report_with_explicit_replace
-    proofreading_shortcut: "Alt+Shift+R"
+    proofreading_shortcut: "Ctrl+Alt+R"
     proofreading_shortcut_status: configured_and_verified
     external_ai_service: google_gemini_developer_api
     external_ai_model: gemini-3.6-flash
@@ -268,10 +268,10 @@ publishing:
   require_local_preview: true
   require_separate_publish_approval: true
   current_shortcuts:
-    preview_game_blog: "Alt+Shift+V"
-    review_game_blog: "Alt+Shift+R"
-    publish_game_blog: "Alt+Shift+P"
-    publish_logs_blog: "Alt+Shift+L"
+    preview_game_blog: "Ctrl+Alt+V"
+    review_game_blog: "Ctrl+Alt+R"
+    publish_game_blog: "Ctrl+Alt+P"
+    publish_logs_blog: "Ctrl+Alt+L"
     claude_code_shortcut: removed
   logs_blog_is_separate_site: true
   current_pipeline:

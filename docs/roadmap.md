@@ -114,7 +114,7 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 - [x] Gemini 3.6 Flashの構造化出力アダプターを追加
 - [x] APIキー未設定時の安全停止を追加
 - [x] 架空原稿だけを送る1回限りの疎通テストを追加
-- [x] `Alt+Shift+R` の確認付きGemini校正ショートカットを追加
+- [x] `Ctrl+Alt+R` の確認付きGemini校正ショートカットを追加
 - [x] レポートなし・古いレポートを公開前に警告
 - [x] 秘密情報または不正レポートを公開前に停止
 
@@ -126,7 +126,7 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 - ビルドエラーまたは画像欠落時は公開されない
 - プレビュー確認なしに誤操作で公開しにくい
 
-**実装・ローカル検証・最小実API疎通・ローカルcommit完了（2026-08-02）**。Phase 2テスト16件と既存Phase 1テスト9件の合計25件に成功した。Gemini 3.6 Flashへ短い架空原稿1件だけを送り、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。`Alt+Shift+R` の確認付き校正操作をObsidianへ追加し、V/P/Lを維持した。外部検索・会話保存は無効である。公式SDKのInteractions APIは試験的機能の警告がある。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push・公開、実記事送信は未実施。
+**実装・ローカル検証・最小実API疎通・ローカルcommit完了（2026-08-02）**。Phase 2テスト16件と既存Phase 1テスト9件の合計25件に成功した。Gemini 3.6 Flashへ短い架空原稿1件だけを送り、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianのプレビュー・校正・公開操作を `Ctrl+Alt+V/R/P/L` に統一した。外部検索・会話保存は無効である。公式SDKのInteractions APIは試験的機能の警告がある。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push・公開、実記事送信は未実施。
 
 ## Phase 3: GitHub PagesとDiscord通知
 
@@ -342,10 +342,10 @@ Obsidian原稿、画像、校正証跡、各プロジェクトを端末障害と
 
 ## 現在のObsidianショートカット
 
-- `Alt+Shift+V`: ゲームブログの現在の記事をプレビュー
-- `Alt+Shift+R`: 確認後、Geminiで現在の記事を校正
-- `Alt+Shift+P`: 確認後、ゲームブログの現在の記事を公開
-- `Alt+Shift+L`: 独立したlogsブログ（`my-blog`）を公開
+- `Ctrl+Alt+V`: ゲームブログの現在の記事をプレビュー
+- `Ctrl+Alt+R`: 確認後、Geminiで現在の記事を校正
+- `Ctrl+Alt+P`: 確認後、ゲームブログの現在の記事を公開
+- `Ctrl+Alt+L`: 独立したlogsブログ（`my-blog`）を公開
 - Claude Code用 `Alt+Shift+C`: 削除済み
 
 ## 当面の対象外

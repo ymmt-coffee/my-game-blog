@@ -113,7 +113,7 @@ Obsidianの `01_blog/phase2-review-demo/index.md` に、公開されない `draf
 
 1. Obsidianで `phase2-review-demo/index.md` を開く
 2. 校正前の本文を確認する
-3. `Alt+Shift+R` を押す
+3. `Ctrl+Alt+R` を押す
 4. 確認画面の内容を読み、「はい」を選ぶ
 5. 別画面で校正完了と本文ハッシュ不変を確認する
 6. 同じ記事フォルダにできた `review-report.md` を開く
@@ -172,7 +172,7 @@ AIが返したJSONを取り込む場合は、`data/editorial/review-response-tem
 .\preview.ps1 -Article sample-game
 ```
 
-Obsidian設定の切替後は、記事の `index.md`、`review-report.md`、または記事画像を開いて `Alt+Shift+V` を押すと同じ処理を実行できます。
+Obsidian設定の切替後は、記事の `index.md`、`review-report.md`、または記事画像を開いて `Ctrl+Alt+V` を押すと同じ処理を実行できます。
 
 プレビュー開始前に校正レポートの有無・鮮度・安全性も確認します。レポートなし・古いレポートは警告だけです。プレビュー用データはWindowsの一時フォルダに作られ、`review-report.md` は同期されません。Hugoの正式な `content/posts/` やGitには触れません。表示確認後、PowerShell画面で `Ctrl+C` を押すと終了します。
 
@@ -184,7 +184,7 @@ Obsidian設定の切替後は、記事の `index.md`、`review-report.md`、ま�
 .\publish.ps1 -Article sample-game -Approve
 ```
 
-Obsidian設定の切替後は、対象記事を開いて `Alt+Shift+P` を押します。確認画面を承認した場合だけ、別ウィンドウで公開処理が始まります。
+Obsidian設定の切替後は、対象記事を開いて `Ctrl+Alt+P` を押します。確認画面を承認した場合だけ、別ウィンドウで公開処理が始まります。
 
 公開処理は次の順で進みます。
 
@@ -208,12 +208,12 @@ Obsidian設定の切替後は、対象記事を開いて `Alt+Shift+P` を押し
 
 ## 現在のショートカット
 
-- `Alt+Shift+V`: 現在開いているゲームブログ記事を一時領域でプレビュー
-- `Alt+Shift+R`: 確認後、現在開いているゲームブログ記事をGeminiで校正
-- `Alt+Shift+P`: 確認画面の承認後、現在開いているゲームブログ記事を公開
-- `Alt+Shift+L`: 確認画面の承認後、既存のlogsブログ（`my-blog`）を公開
+- `Ctrl+Alt+V`: 現在開いているゲームブログ記事を一時領域でプレビュー
+- `Ctrl+Alt+R`: 確認後、現在開いているゲームブログ記事をGeminiで校正
+- `Ctrl+Alt+P`: 確認画面の承認後、現在開いているゲームブログ記事を公開
+- `Ctrl+Alt+L`: 確認画面の承認後、既存のlogsブログ（`my-blog`）を公開
 
-校正専用ショートカットは `Alt+Shift+R` です。対象記事の `index.md`、`review-report.md`、または画像を開いて押すと、本文送信と既存レポート置き換えの確認画面が出ます。「はい」を選んだ場合だけGemini校正を開始し、結果を別のPowerShell画面へ表示します。校正をプレビューとは独立させ、`Alt+Shift+V` はプレビューと状態確認に限定します。
+校正専用ショートカットは `Ctrl+Alt+R` です。対象記事の `index.md`、`review-report.md`、または画像を開いて押すと、本文送信と既存レポート置き換えの確認画面が出ます。「はい」を選んだ場合だけGemini校正を開始し、結果を別のPowerShell画面へ表示します。校正をプレビューとは独立させ、`Ctrl+Alt+V` はプレビューと状態確認に限定します。
 
 ## エラー時の確認
 

@@ -293,6 +293,8 @@ class ReviewArticleTests(unittest.TestCase):
         self.assertIn('key = "P"', config)
         self.assertIn('key = "L"', config)
         self.assertNotIn('key = "C"', config)
+        self.assertEqual(config.count('modifiers = @("Ctrl", "Alt")'), 4)
+        self.assertNotIn('modifiers = @("Alt", "Shift")', config)
         self.assertIn("hugo server", preview)
         self.assertIn("if (-not $Approve)", publish)
         self.assertIn("[\\\\/]", review)
