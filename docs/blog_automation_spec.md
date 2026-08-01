@@ -48,13 +48,13 @@
 | キー | 処理 |
 |---|---|
 | `Ctrl+Alt+V` | 現在開いているゲームブログ記事を一時領域でプレビュー |
-| `Ctrl+Alt+R` | 確認後、現在開いているゲームブログ記事をGeminiで校正 |
+| `Ctrl+Alt+K` | 確認後、現在開いているゲームブログ記事をGeminiで校正 |
 | `Ctrl+Alt+P` | 確認後、現在開いているゲームブログ記事を公開 |
 | `Ctrl+Alt+L` | 独立した既存のlogsブログ（`my-blog`）を公開 |
 
 Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によりObsidian設定から削除した。Claude Code本体やデータは削除していない。`my-blog` は旧サイトではなく独立したブログであるため、その公開機能は維持する。
 
-校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/R/P/L` に統一した。Discord通知、Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
+校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/K/P/L` に統一した。Discord通知、Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
 
 ### 1.2 変更履歴
 

@@ -289,7 +289,7 @@ class ReviewArticleTests(unittest.TestCase):
         publish = (PROJECT_ROOT / "publish.ps1").read_text(encoding="utf-8")
         review = (PROJECT_ROOT / "review.ps1").read_text(encoding="utf-8")
         self.assertIn('key = "V"', config)
-        self.assertIn('key = "R"', config)
+        self.assertIn('key = "K"', config)
         self.assertIn('key = "P"', config)
         self.assertIn('key = "L"', config)
         self.assertNotIn('key = "C"', config)

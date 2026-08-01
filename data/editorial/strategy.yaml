@@ -181,7 +181,7 @@ editorial_boundaries:
     same_input_result_reused: true
     existing_report_default: refuse_overwrite_without_explicit_replace
     history_mode: single_report_with_explicit_replace
-    proofreading_shortcut: "Ctrl+Alt+R"
+    proofreading_shortcut: "Ctrl+Alt+K"
     proofreading_shortcut_status: configured_and_verified
     external_ai_service: google_gemini_developer_api
     external_ai_model: gemini-3.6-flash
@@ -269,7 +269,7 @@ publishing:
   require_separate_publish_approval: true
   current_shortcuts:
     preview_game_blog: "Ctrl+Alt+V"
-    review_game_blog: "Ctrl+Alt+R"
+    review_game_blog: "Ctrl+Alt+K"
     publish_game_blog: "Ctrl+Alt+P"
     publish_logs_blog: "Ctrl+Alt+L"
     claude_code_shortcut: removed

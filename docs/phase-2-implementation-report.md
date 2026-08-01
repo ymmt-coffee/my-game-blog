@@ -3,7 +3,7 @@
 - 実施日: 2026-08-02（Asia/Tokyo）
 - 対象: `my-game-blog`
 - 状態: Gemini接続アダプター実装・架空原稿による実API疎通確認完了
-- 外部変更: ローカルcommit、Obsidianの `Ctrl+Alt+V/R/P/L` 設定、Gemini架空原稿1件の疎通を実施。push、GitHub Pages公開、実記事送信は未実施
+- 外部変更: ローカルcommit、Obsidianの `Ctrl+Alt+V/K/P/L` 設定、Gemini架空原稿1件の疎通を実施。push、GitHub Pages公開、実記事送信は未実施
 
 ## 1. 変更前の基準
 
@@ -14,7 +14,7 @@
 - Phase 1自動テスト: 9件すべて成功
 - Hugo本番相当ビルド: 成功
 - `publish.ps1` を承認なしで実行: commit・push前に正しく停止
-- 実際のObsidian設定: `Ctrl+Alt+V` はゲームブログのプレビュー、`Ctrl+Alt+R` は確認付き校正、`Ctrl+Alt+P` は確認付き公開、`Ctrl+Alt+L` は独立したlogsブログの公開。Claude Code用の旧 `Alt+Shift+C` は存在しない
+- 実際のObsidian設定: `Ctrl+Alt+V` はゲームブログのプレビュー、`Ctrl+Alt+K` は確認付き校正、`Ctrl+Alt+P` は確認付き公開、`Ctrl+Alt+L` は独立したlogsブログの公開。Claude Code用の旧 `Alt+Shift+C` は存在しない
 
 ## 2. 実装した内容
 
@@ -77,7 +77,7 @@ Google検索等のツールは渡さず、会話保存は `store: false` とす�
 
 公式SDK 2.7.0から、Interactions APIは試験的で将来変更される可能性があるという警告が出た。現在の疎通には成功しているが、SDK更新時は呼出形式と構造化出力を再確認する。
 
-Obsidianの4操作を `Ctrl+Alt+V/R/P/L` に統一した。校正実行前に、本文を変更しないこと、既存レポートを置き換えること、本文をGemini無料枠へ送ることを確認画面へ表示する。「はい」の場合だけ別画面で校正する。Claude Code用Cは復活させていない。設定変更前のファイルはWindows一時フォルダへバックアップする。
+Obsidianの4操作を `Ctrl+Alt+V/K/P/L` に統一した。校正実行前に、本文を変更しないこと、既存レポートを置き換えること、本文をGemini無料枠へ送ることを確認画面へ表示する。「はい」の場合だけ別画面で校正する。Claude Code用Cは復活させていない。設定変更前のファイルはWindows一時フォルダへバックアップする。
 
 手動確認用として、Obsidianの `01_blog/phase2-review-demo/` に `draft: true`、`test_content: true` の架空記事と空の `images/` を新規作成した。既存記事は変更していない。記事には誤字、矛盾、曖昧表現、未確認の事実、構成不足を意図的に含め、初回の `review-report.md` はユーザーの校正操作で生成された。
 
@@ -135,7 +135,7 @@ Phase 2テストは、3記事種別、日本語UTF-8、本文ハッシュ不変�
    - `GEMINI_API_KEY` ユーザー環境変数として新しいプロセスへ読み込ませる
    - 接続アダプターと架空原稿1回の実API疎通確認は完了
 3. 校正専用ショートカット
-   - 設定済み: `Ctrl+Alt+R`
+   - 設定済み: `Ctrl+Alt+K`
    - 実行前に本文送信と既存レポート置き換えを確認する。既存V/P/Lと衝突しない
 4. `Ctrl+Alt+V` との関係
    - 決定済み: 校正は独立操作、Vはレポート状態確認とプレビューだけ
@@ -150,7 +150,7 @@ Phase 2テストは、3記事種別、日本語UTF-8、本文ハッシュ不変�
 
 ## 6. 既存機能への影響
 
-- プレビュー・校正・公開操作を `Ctrl+Alt+V/R/P/L` に統一した
+- プレビュー・校正・公開操作を `Ctrl+Alt+V/K/P/L` に統一した
 - Claude Code用ショートカットは復活させていない
 - `my-blog` は変更していない
 - Obsidian原稿、画像、既存公開記事は変更・移動・削除していない
@@ -161,4 +161,4 @@ Phase 2テストは、3記事種別、日本語UTF-8、本文ハッシュ不変�
 
 ## 7. 判定
 
-Phase 2の安全基盤とGemini接続アダプターを実装し、外部通信なしの全25件のテスト、本番相当ビルド、架空原稿1件の実API疎通に成功した。Obsidian操作は `Ctrl+Alt+V/R/P/L` に統一した。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push、公開、実記事送信は別途確認する。公式SDKのInteractions APIは試験的機能の警告があるため、将来のSDK更新時に再検証する。
+Phase 2の安全基盤とGemini接続アダプターを実装し、外部通信なしの全25件のテスト、本番相当ビルド、架空原稿1件の実API疎通に成功した。Obsidian操作は `Ctrl+Alt+V/K/P/L` に統一した。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push、公開、実記事送信は別途確認する。公式SDKのInteractions APIは試験的機能の警告があるため、将来のSDK更新時に再検証する。

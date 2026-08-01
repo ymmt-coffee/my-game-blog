@@ -113,7 +113,7 @@ $logsPublishHotkeyName = "obsidian-shellcommands:shell-command-$logsPublishComma
 $claudeHotkeyName = "obsidian-shellcommands:shell-command-$claudeCommandId"
 $publishHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "P" })
 $previewHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "V" })
-$reviewHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "R" })
+$reviewHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "K" })
 $logsPublishHotkey = @([pscustomobject]@{ modifiers = @("Ctrl", "Alt"); key = "L" })
 $hotkeys | Add-Member -NotePropertyName $publishHotkeyName -NotePropertyValue $publishHotkey -Force
 $hotkeys | Add-Member -NotePropertyName $previewHotkeyName -NotePropertyValue $previewHotkey -Force
@@ -138,7 +138,7 @@ Move-Item -LiteralPath $hotkeysTemp -Destination $hotkeysPath -Force
 
 Write-Host "Obsidian shortcuts updated."
 Write-Host "  Ctrl+Alt+V: Preview current game blog article"
-Write-Host "  Ctrl+Alt+R: Review current game blog article with Gemini (confirmation required)"
+Write-Host "  Ctrl+Alt+K: Review current game blog article with Gemini (confirmation required)"
 Write-Host "  Ctrl+Alt+P: Publish current game blog article (confirmation required)"
 Write-Host "  Ctrl+Alt+L: Publish logs blog (confirmation required)"
 Write-Host "  Alt+Shift+C: Claude Code shortcut removed"
