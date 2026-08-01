@@ -1,6 +1,6 @@
 version: "1.3"
 updated_at: "2026-08-02"
-status: phase_2_committed_locally_pending_push
+status: phase_2_pushed_actions_and_pages_verified
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -86,6 +86,8 @@ change_history:
     summary: "Phase 2の本文保護、秘密情報検査、校正レポート、鮮度確認をローカル実装"
   - date: "2026-08-02"
     summary: "Gemini最小疎通を確認し、Obsidian操作をCtrl+Altへ統一してPhase 2をローカルcommit"
+  - date: "2026-08-02"
+    summary: "Phase 2をpushし、GitHub Actionsのbuild・deployとGitHub Pagesへの配置を確認"
 
 site:
   working_title: "game logs"
@@ -189,6 +191,7 @@ editorial_boundaries:
     external_fact_search_status: disabled_deferred
     interactions_api_recheck: required_on_sdk_update
     production_article_quality_and_usage_review: pending
+    github_actions_node20_deprecation_followup: deferred
     model_version_policy: pin_stable_model_id
     api_connection_status: live_smoke_test_verified
     planned_usage_tier: free_tier

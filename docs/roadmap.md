@@ -2,7 +2,7 @@
 
 - 版: 1.3
 - 更新日: 2026-08-02
-- 状態: Phase 2実装・検証・Gemini最小疎通・ローカルcommit完了（push・公開は未実施）
+- 状態: Phase 2実装・検証・Gemini最小疎通・commit・push・GitHub Actions・GitHub Pages確認完了
 - 詳細要件: `docs/blog_automation_spec.md`
 - 自動処理設定: `data/editorial/strategy.yaml`
 
@@ -126,7 +126,7 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 - ビルドエラーまたは画像欠落時は公開されない
 - プレビュー確認なしに誤操作で公開しにくい
 
-**実装・ローカル検証・最小実API疎通・ローカルcommit完了（2026-08-02）**。Phase 2テスト16件と既存Phase 1テスト9件の合計25件に成功した。Gemini 3.6 Flashへ短い架空原稿1件だけを送り、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianのプレビュー・校正・公開操作を `Ctrl+Alt+V/K/P/L` に統一した。外部検索・会話保存は無効である。公式SDKのInteractions APIは試験的機能の警告がある。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push・公開、実記事送信は未実施。
+**完了（2026-08-02）**。Phase 2テスト16件と既存Phase 1テスト9件の合計25件に成功した。Gemini 3.6 Flashへ短い架空原稿1件だけを送り、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianのプレビュー・校正・公開操作を `Ctrl+Alt+V/K/P/L` に統一した。外部検索・会話保存は無効である。公式SDKのInteractions APIは試験的機能の警告がある。Phase 2本体と追補修正をcommit・pushし、GitHub Actionsのビルド・deploy成功とGitHub Pagesへの配置を確認した。実際の公開予定記事による継続評価は未実施。
 
 ## Phase 3: GitHub PagesとDiscord通知
 
@@ -333,6 +333,7 @@ Obsidian原稿、画像、校正証跡、各プロジェクトを端末障害と
 - [ ] Gemini以外のAIサービス・モデルへ切り替える必要が生じたら再選定する
 - [ ] 外部事実確認検索を有効にするかは、無料枠・料金・送信範囲を再確認して判断する
 - [ ] SDK更新時にInteractions APIと構造化出力を再テストする
+- [ ] GitHub公式Actionsの更新状況を確認し、Node.js 20廃止予告へ将来対応する
 - [ ] 実際の公開予定記事で校正品質と利用量を継続評価する
 - [ ] 正式なブログ名を決める
 - [ ] 独自ドメインを決める

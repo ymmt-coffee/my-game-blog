@@ -3,7 +3,7 @@
 - 実施日: 2026-08-02（Asia/Tokyo）
 - 対象: `my-game-blog`
 - 状態: Gemini接続アダプター実装・架空原稿による実API疎通確認完了
-- 外部変更: ローカルcommit、Obsidianの `Ctrl+Alt+V/K/P/L` 設定、Gemini架空原稿1件の疎通を実施。push、GitHub Pages公開、実記事送信は未実施
+- 外部変更: commit・push、GitHub Actions・GitHub Pages確認、Obsidianの `Ctrl+Alt+V/K/P/L` 設定、Gemini架空原稿1件の疎通を実施。実際の公開予定記事による継続評価は未実施
 
 ## 1. 変更前の基準
 
@@ -153,6 +153,7 @@ Phase 2テストは、3記事種別、日本語UTF-8、本文ハッシュ不変�
    - Interactions APIは試験的なため、SDK更新時に安定版APIへの移行可否と構造化出力を再検証する
    - 実際の公開予定記事での品質、利用量、無料枠消費の継続評価は未実施
    - 複数世代のレポート履歴、Phase 3のDiscord通知、Phase 4以降の機能は未実装
+   - GitHub ActionsでNode.js 20廃止予告が表示された。今回のbuild・deployは成功しており、公式Actionsの更新状況を見て将来対応する
 
 ## 6. 既存機能への影響
 
@@ -162,9 +163,9 @@ Phase 2テストは、3記事種別、日本語UTF-8、本文ハッシュ不変�
 - Obsidian原稿、画像、既存公開記事は変更・移動・削除していない
 - PaperMod submodule内は変更していない
 - APIキー、Webhook URL、解析ID、トークンは追加していない
-- ユーザー承認済みの架空原稿1件だけGeminiへ接続した。外部検索、Discordには接続しておらず、このPhase 2作業ではGitHub Pagesの公開操作をしていない
+- ユーザー承認済みの架空原稿1件だけGeminiへ接続した。外部検索、Discordには接続していない。Phase 2のpush後、GitHub Actionsのbuild・deployとGitHub Pagesへの配置を確認した
 - Phase 3以降の機能は先行実装していない
 
 ## 7. 判定
 
-Phase 2の安全基盤とGemini接続アダプターを実装し、外部通信なしの全25件のテスト、本番相当ビルド、架空原稿1件の実API疎通に成功した。Obsidian操作は `Ctrl+Alt+V/K/P/L` に統一した。Phase 2関連ファイルを `feat: add safe Gemini proofreading workflow` でローカルcommitした。push、公開、実記事送信は別途確認する。公式SDKのInteractions APIは試験的機能の警告があるため、将来のSDK更新時に再検証する。
+Phase 2の安全基盤とGemini接続アダプターを実装し、外部通信なしの全25件のテスト、本番相当ビルド、架空原稿1件の実API疎通に成功した。Obsidian操作は `Ctrl+Alt+V/K/P/L` に統一した。Phase 2本体と追補修正をcommit・pushし、GitHub Actionsのbuild・deploy成功とGitHub Pagesへの配置を確認した。公式SDKのInteractions APIは試験的機能の警告があるため、将来のSDK更新時に再検証する。

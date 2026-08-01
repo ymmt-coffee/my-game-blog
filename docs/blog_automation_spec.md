@@ -2,7 +2,7 @@
 
 - 版: 1.3
 - 更新日: 2026-08-02
-- 状態: Phase 2実装・検証・Gemini最小疎通・ローカルcommit完了（push・公開は未実施）
+- 状態: Phase 2実装・検証・Gemini最小疎通・commit・push・GitHub Actions・GitHub Pages確認完了
 - 対象: `my-game-blog`
 
 ## 1. 文書の位置づけ
@@ -623,6 +623,7 @@ AI API、X API、問い合わせフォーム等の自動化費用を合計月3,0
 - 実際の公開予定記事を使った校正品質・利用量・無料枠消費の継続評価
 - 複数世代の校正レポート履歴（現在は記事ごとに1ファイルを確認後に置き換える）
 - Phase 3のDiscord通知と、それ以降の自動生成・SNS・分析・バックアップ
+- GitHub ActionsのNode.js 20廃止予告への対応（公式Actionsの更新状況を確認して将来更新）
 - 正式なブログ名
 - 独自ドメイン
 - PaperModを基にした最終デザイン
