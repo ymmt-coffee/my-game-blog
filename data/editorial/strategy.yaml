@@ -1,6 +1,6 @@
 version: "1.4"
 updated_at: "2026-08-02"
-status: phase_3_secrets_registered_pending_live_test_and_push
+status: phase_3_live_discord_verified_node24_v5_followup_pending
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -14,7 +14,7 @@ implementation_status:
   phase_1_overall: completed
   phase_2_overall: locally_completed
   phase_2_external_ai_connection: live_smoke_test_verified
-  phase_3_overall: secrets_registered_pending_live_test_commit_push_and_pages
+  phase_3_overall: live_discord_verified_node24_v5_followup_pending
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -27,6 +27,9 @@ implementation_status:
     - gemini_six_category_report_parsed
     - gemini_smoke_temporary_data_removed
     - phase_3_fake_discord_tests
+    - discord_publish_channel_live_connection_test
+    - discord_error_channel_live_connection_test
+    - discord_attention_channel_live_connection_test
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -67,8 +70,7 @@ implementation_status:
     - node24_actions_execution
   not_implemented:
     - external_fact_check_search
-    - live_discord_smoke_test
-    - phase_3_commit_push_actions_and_pages_verification
+    - phase_3_node24_v5_actions_verification
     - google_drive_backup
     - weekly_release_sale_generation
     - ai_editor_in_chief
@@ -202,7 +204,7 @@ editorial_boundaries:
     external_fact_search_status: disabled_deferred
     interactions_api_recheck: required_on_sdk_update
     production_article_quality_and_usage_review: pending
-    github_actions_node20_deprecation_followup: addressed_with_node24_actions_and_forced_runtime
+    github_actions_node20_deprecation_followup: addressed_with_node24_native_official_actions
     model_version_policy: pin_stable_model_id
     api_connection_status: live_smoke_test_verified
     planned_usage_tier: free_tier
@@ -397,7 +399,7 @@ discord:
     publish: DISCORD_WEBHOOK_PUBLISH
     errors: DISCORD_WEBHOOK_ERROR
     attention: DISCORD_WEBHOOK_ATTENTION
-  implementation_status: secrets_registered_pending_live_test_and_push
+  implementation_status: live_discord_verified_node24_v5_followup_pending
   notification_rules:
     publish_success: "push後のHEAD commitがpublish: <安全なslug>で、push全体の変更範囲が対象記事だけ、build・deploy・Pages・記事URL確認が成功"
     normal_push_success: no_notification
@@ -429,7 +431,7 @@ discord:
   notification_failure_rolls_back_published_content: false
   workflow_rerun_may_duplicate: true
   duplicate_identifiers: [commit_short_sha, actions_run_url]
-  live_test_messages_sent: 0
+  live_test_messages_sent: 3
 
 analytics:
   google_analytics_4: planned

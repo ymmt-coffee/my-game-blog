@@ -174,6 +174,9 @@ class DiscordNotifyTests(unittest.TestCase):
         self.assertIn("notify_connection_test:", workflow_text)
         self.assertEqual(workflow_text.count("--test-message"), 3)
         self.assertIn("inputs.discord_test == true", workflow_text)
+        self.assertIn("actions/upload-pages-artifact@v5", workflow_text)
+        self.assertIn("actions/deploy-pages@v5", workflow_text)
+        self.assertNotIn("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24", workflow_text)
         for secret_name in discord_notify.SECRET_NAMES.values():
             self.assertIn(secret_name, workflow_text)
 

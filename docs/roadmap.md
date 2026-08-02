@@ -2,7 +2,7 @@
 
 - 版: 1.4
 - 更新日: 2026-08-02
-- 状態: Phase 3ローカル実装・fakeテスト・Secrets登録完了、実Discord確認・commit・push・Pages反映を実施中
+- 状態: Phase 3実Discord3チャンネル疎通・commit・push・Actions・Pages確認完了、Node.js 24公式v5追補確認中
 - 詳細要件: `docs/blog_automation_spec.md`
 - 自動処理設定: `data/editorial/strategy.yaml`
 
@@ -24,7 +24,7 @@
 - Phase 2のサービス非依存校正基盤はローカル実装・検証済み
 - 初期AI `gemini-3.6-flash` の接続アダプターと架空原稿による実API疎通確認が完了
 - Phase 3のDiscord通知コードとActions連携はローカル実装・fakeテスト済み
-- Phase 3のSecrets登録は完了。実Discord確認、commit、push、Pages反映と、バックアップ以降は未実施
+- Phase 3のSecrets、実Discord3件、commit、push、Actions、Pagesを確認。Node.js 24公式v5追補と、バックアップ以降は未完了
 
 ## 変更履歴
 
@@ -151,7 +151,7 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 - [x] ログにWebhook URLを出さないことをfakeテストで確認
 - [x] build、deploy、URL確認、通知失敗を別の段階として扱う
 - [x] 429・5xxだけの限定再試行とメンション無効化を実装
-- [x] Node.js 24対応Actionと強制実行設定へ更新
+- [x] checkout、Hugo setup、Pages artifact、deployをNode.js 24対応版へ更新
 
 ### 完了条件
 
@@ -162,7 +162,7 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 
 **ローカル実装完了（2026-08-02）**。Secret未設定時、トリガー分類、成功・失敗・要確認、限定再試行、非破壊性を含むfakeテストに成功した。Secrets登録、実Discord各1件（合計3件）の疎通、commit、push、Actions、Pages反映は承認済みで、順に確認中である。
 
-2026-08-02 14:03頃、3つのGitHub Secrets名が登録済みであることを値を表示せず確認した。実Discord投稿はまだ0件である。
+2026-08-02 14:03頃、3つのGitHub Secrets名が登録済みであることを値を表示せず確認した。14:09頃、`公開通知`、`エラー通知`、`要確認` へ接続テストを各1件、合計3件送り、全件成功した。
 
 ## Phase 4: バックアップ
 
@@ -342,7 +342,7 @@ Obsidian原稿、画像、校正証跡、各プロジェクトを端末障害と
 - [ ] Gemini以外のAIサービス・モデルへ切り替える必要が生じたら再選定する
 - [ ] 外部事実確認検索を有効にするかは、無料枠・料金・送信範囲を再確認して判断する
 - [ ] SDK更新時にInteractions APIと構造化出力を再テストする
-- [x] GitHub公式ActionsをNode.js 24対応へ更新し、workflowでNode.js 24実行を明示する
+- [x] GitHub公式ActionsをNode.js 24ネイティブ対応版へ更新する
 - [ ] 実際の公開予定記事で校正品質と利用量を継続評価する
 - [ ] 正式なブログ名を決める
 - [ ] 独自ドメインを決める

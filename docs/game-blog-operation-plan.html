@@ -144,14 +144,14 @@
       <div class="shell">
         <div class="section-head">
           <h2>現在地</h2>
-          <p>Phase 2までの公開・校正基盤に加え、Phase 3のDiscord通知、Pagesと対象記事URLの確認、トリガー分類、失敗段階の分離をローカル実装した。fakeテストとSecrets登録は完了し、実Discord確認、commit、push、Pages反映を順に確認中である。</p>
+          <p>Phase 2までの公開・校正基盤に加え、Phase 3のDiscord通知、Pagesと対象記事URLの確認、トリガー分類、失敗段階の分離を実装した。fakeテスト、Secrets、実Discord3件、commit、push、Actions、Pagesを確認し、Node.js 24公式v5の追補確認を進めている。</p>
         </div>
         <div class="status">
           <article class="card"><span class="tag">VERIFIED</span><h3>本文を書き換えない校正基盤</h3><ul><li>校正前後のSHA-256確認</li><li>AI入力の限定と秘密情報検査</li><li>6分類のreview-report</li><li>外部APIなしの固定応答テスト</li></ul></article>
           <article class="card"><span class="tag">VERIFIED</span><h3>Gemini最小疎通成功</h3><ul><li>安定版 gemini-3.6-flash</li><li>架空原稿1件だけを送信</li><li>本文ハッシュ不変</li><li>検索・会話保存は無効</li></ul></article>
           <article class="card"><span class="tag">LOCAL VERIFIED</span><h3>安全なDiscord通知</h3><ul><li>公開・エラー・要確認を分離</li><li>Pagesと記事URL確認後に成功通知</li><li>メンションと秘密情報を除外</li><li>429・5xxだけ最大3回</li></ul></article>
         </div>
-        <div class="card" style="margin-top:16px"><span class="tag">CHANGE LOG</span><h3>2026-08-01〜02の主な変更</h3><p>Phase 0〜2の安全な公開・校正基盤に続き、Phase 3では通常push・schedule・手動実行を区別し、公開成功、技術的失敗、人の確認が必要な状態をDiscordの別チャンネルへ送る処理を追加した。Node.js 24実行も明示した。独立したlogsブログと既存ショートカットは維持している。</p></div>
+        <div class="card" style="margin-top:16px"><span class="tag">CHANGE LOG</span><h3>2026-08-01〜02の主な変更</h3><p>Phase 0〜2の安全な公開・校正基盤に続き、Phase 3では通常push・schedule・手動実行を区別し、公開成功、技術的失敗、人の確認が必要な状態をDiscordの別チャンネルへ送る処理を追加した。GitHub公式ActionもNode.js 24ネイティブ対応版へ更新した。独立したlogsブログと既存ショートカットは維持している。</p></div>
       </div>
     </section>
 
@@ -238,7 +238,7 @@
           <article class="phase"><small>PHASE 0 / COMPLETE</small><h3>現状監査と安全対策</h3><p>旧ブログ由来の設定、Hugo、Obsidian、GitHub Pagesを監査。誤公開や別変更の巻き込みを防ぐ公開基盤へ更新し、本番動作を確認した。</p></article>
           <article class="phase"><small>PHASE 1 / COMPLETE</small><h3>記事形式とHugo基盤</h3><p>3種のarchetype、定型表示、SEO、画像最適化、固定ページ、公開前検査を実装。9件の自動テスト、Actions、GitHub Pages公開を確認した。</p></article>
           <article class="phase"><small>PHASE 2 / LIVE SMOKE VERIFIED</small><h3>本文を書き換えない校正</h3><p>本文ハッシュ検査、6分類レポート、固定応答テストを実装。gemini-3.6-flashへ架空原稿1件の最小疎通も成功した。</p></article>
-          <article class="phase"><small>PHASE 3 / EXTERNAL CHECK IN PROGRESS</small><h3>GitHub PagesとDiscord通知</h3><p>公開・エラー・要確認通知を実装し、fakeテストとSecrets登録を完了。各チャンネル1件の実疎通、pushとPages確認を実施中。</p></article>
+          <article class="phase"><small>PHASE 3 / FINAL FOLLOW-UP</small><h3>GitHub PagesとDiscord通知</h3><p>公開・エラー・要確認通知、各チャンネル1件の実疎通、push、Actions、Pagesを確認。Node.js 24公式v5の最終確認中。</p></article>
           <article class="phase"><small>PHASE 4 / NEXT</small><h3>復元可能なバックアップ</h3><p>Google Driveへ原稿と画像を安全に一方向バックアップし、復元手順を確認する。</p></article>
           <article class="phase"><small>PHASE 5–9 / LATER</small><h3>企画・SNS・分析・収益化</h3><p>新作・セール記事、AI編集長、SNS、GA4とSearch Console、月報、問い合わせ、収益化、費用制御をデータ蓄積に合わせて導入する。</p></article>
         </div>
@@ -333,8 +333,8 @@
     <section>
       <div class="shell decision">
         <div class="eyebrow" style="color:#ffd4c1">Phase 3 local implementation complete</div>
-        <h2>Discord通知はfakeテスト・Secrets登録済み。外部確認を実施中。</h2>
-        <p>公開・エラー・要確認の分岐、秘密情報保護、限定再試行、Pagesと記事URL確認をローカル検証した。実Discord投稿は0件である。</p>
+        <h2>Discord 3チャンネルの実疎通に成功。</h2>
+        <p>公開・エラー・要確認へ接続テストを各1件送り、全件成功した。通常pushで成功通知が送られないこと、ActionsとPages反映も確認した。</p>
         <div class="next">
           <div><b>01</b>3つのGitHub Secretsを登録</div>
           <div><b>02</b>実Discordへ各1件だけ疎通</div>
@@ -344,6 +344,6 @@
     </section>
   </main>
 
-  <footer><div class="shell">my-game-blog 運営仕様書 v1.4 · 2026-08-02 · Phase 3ローカル実装・Secrets登録済み・外部確認中 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.4 · 2026-08-02 · Phase 3実Discord・Actions・Pages確認済み・Node.js 24追補中 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
 </body>
 </html>

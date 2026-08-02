@@ -246,7 +246,7 @@ Discordが429または5xxを明示的に返したときだけ、初回を含め�
 
 ## 現在まだ行わないこと
 
-- 3つのGitHub Secretsは登録済みです。実Discord投稿、commit、push、GitHub Pages反映は承認済みで、順に確認中です。
+- 3つのGitHub Secretsは登録済みです。2026-08-02に、接続テストを3チャンネルへ各1件・合計3件送り、全件成功しました。Phase 3のcommit、push、GitHub Actions、GitHub Pages反映も確認済みです。
 - 実Discordの疎通は、本番公開を失敗させず、`--test-message` で「接続テスト」「実際の公開・失敗・要確認は発生していない」と明記し、3チャンネルへ各1件、合計3件だけ送る予定です。
 - Obsidianから原稿を削除しても、公開記事は自動削除しません。
 

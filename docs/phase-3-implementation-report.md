@@ -2,8 +2,8 @@
 
 - 実施日: 2026-08-02（Asia/Tokyo）
 - 対象: `my-game-blog`
-- 状態: ローカル実装・fakeテスト・GitHub Secrets登録確認完了。実Discord確認、commit、push、Pages反映を実施中
-- 外部変更: 3つのGitHub Secretsをユーザーが登録し、名前だけを確認。値は取得・表示していない。実Discord投稿、commit、push、GitHub Actions、GitHub Pages反映はまだ未実施
+- 状態: ローカル実装・fakeテスト・GitHub Secrets・実Discord3件・commit・push・Actions・Pages確認完了。Node.js 24公式v5追補を確認中
+- 外部変更: 3つのGitHub Secretsをユーザーが登録し、名前だけを確認。接続テストを3チャンネルへ各1件・合計3件送信。Phase 3をcommit・pushし、ActionsとPagesを確認。Webhook値は取得・表示していない
 
 ## 1. 変更前の基準
 
@@ -54,7 +54,7 @@ Webhook URLは環境変数からだけ読み、値をチャット、コマンド
 
 ### 実Discordテスト計画
 
-本番公開を故意に失敗させず、手動実行の `discord_test` を明示的に有効にした場合だけ、`--test-message` で「実際の公開・失敗・要確認は発生していない」と明記した文を `公開通知`、`エラー通知`、`要確認` へ各1件、合計3件だけ送る。現時点の実送信は0件である。
+本番公開を故意に失敗させず、手動実行の `discord_test` を明示的に有効にした場合だけ、`--test-message` で「実際の公開・失敗・要確認は発生していない」と明記した文を `公開通知`、`エラー通知`、`要確認` へ各1件、合計3件だけ送る。2026-08-02にこの方法で3件を送り、すべて成功した。
 
 ## 3. 実装内容
 
@@ -105,11 +105,11 @@ GitHub公式告知ではNode.js 20は2026年4月にEOLとなり、GitHub-hosted 
 
 - `actions/checkout` をNode.js 24対応のv6へ更新
 - `peaceiris/actions-hugo` をNode.js 24対応のv3.2.0へ更新
-- workflowで `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` を明示
-- Pages公式Actionは公式READMEの現行推奨majorである `upload-pages-artifact@v3` と `deploy-pages@v4` を維持
+- `actions/upload-pages-artifact` をNode.js 24版のartifact処理を使う公式v5へ更新
+- `actions/deploy-pages` を `node24` で動く公式v5へ更新
 - Node.js 20へ戻す一時回避設定は使用しない
 
-この対応により、今回のworkflowはNode.js 20廃止を待たずNode.js 24で動かす設計になった。実際のGitHub-hosted runner確認はpush承認後に行う。
+最初のpushではPages artifact v3内部の `actions/upload-artifact@v4` がNode.js 20対象のため、Node.js 24へ強制実行している警告が1件残った。GitHub公式リリースを再確認し、2026-04-10公開のPages artifact v5と2026-03-25公開のdeploy v5が利用可能であることを確認したため、両方をv5へ追補更新した。この更新後のGitHub-hosted runner結果で警告解消を確認する。
 
 ## 4. 警告と停止条件
 
@@ -145,7 +145,7 @@ GitHub公式告知ではNode.js 20は2026年4月にEOLとなり、GitHub-hosted 
 - YAML・JSON解析: 成功
 - Hugo 0.163.2 extended本番相当ビルド: 成功
 - Git差分・秘密情報らしい値・`review-report.md` 混入確認: 成功
-- 実Discord API呼出: 0件
+- 実Discord API呼出: 接続テスト3件、すべて成功
 
 Phase 3テストは次を直接確認した。
 
@@ -185,19 +185,21 @@ Phase 3テストは次を直接確認した。
 - `DISCORD_WEBHOOK_ERROR`
 - `DISCORD_WEBHOOK_ATTENTION`
 
-まだ実施していないもの:
+実施結果:
 
-- 実Discord Webhookへの接続
-- Discordへのテスト投稿（現在0件）
-- commit
-- push
-- GitHub Actions実行
-- GitHub Pages反映
+- Phase 3 commit: `48a315b6837f18c652ecb59f151dbc91f2256544`
+- `main` へpush: 成功
+- push Actions run `30733563196`: build、deploy、verify成功。通常pushのため通知jobはすべてスキップ
+- 接続テスト Actions run `30733597631`: build、deploy、verify、3チャンネル通知がすべて成功
+- 実Discord投稿: `公開通知`、`エラー通知`、`要確認` へ各1件、合計3件
+- 通常の公開・エラー・要確認通知: 0件
+- GitHub Pages: Actions内のPagesトップURL確認に成功
+- 秘密情報: Secret名だけを確認し、値は取得・表示していない
 
-3つのSecrets登録、実Discord各1件・合計3件の疎通、commit、push、Actions、Pages反映はユーザー承認済みである。Secrets登録確認後、安全な手動テスト入口を含むPhase 3変更をcommit・pushし、通常pushのActions成功後に3件の接続テストを実行する。
+最初のActionsでNode.js 20対象Actionの強制実行警告が1件残ったため、Pages公式v5へ追補更新し、再pushで警告解消を確認する。
 
 ## 8. 判定
 
 Phase 3のローカル実装とfakeテストは完了した。秘密情報をリポジトリへ置かず、記事公開成功、技術的失敗、人の判断が必要な状態を分離できる。通知失敗が公開済み記事やGit履歴を巻き戻さないことも設計・テストした。
 
-ただし、実Discord 3チャンネル、GitHub Secrets、GitHub-hosted Actions、実Pages反映は未確認である。したがってPhase 3は「ローカル完了・外部確認待ち」であり、Phase 4の実装開始前にPhase 3の外部確認を終えるのが安全である。
+実Discord 3チャンネル、GitHub Secrets、GitHub-hosted Actions、実Pages反映まで確認した。残る確認は、最初のActionsで見つかったNode.js 20対象警告を公式Pages v5への追補更新で解消できるかだけである。追補pushが成功し警告が消えれば、Phase 3を完了としてPhase 4へ進める。
