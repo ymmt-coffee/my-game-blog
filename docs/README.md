@@ -13,6 +13,7 @@
 ## 運用時に使う資料
 
 - [`publishing-workflow.md`](publishing-workflow.md) — Obsidianから校正・プレビュー・公開する手順
+- [`backup-and-restore-workflow.md`](backup-and-restore-workflow.md) — Phase 4のバックアップ、容量停止、復元、承認手順
 
 ## 記録資料
 
@@ -20,6 +21,7 @@
 - [`phase-1-implementation-report.md`](phase-1-implementation-report.md) — Phase 1の実装内容、テスト結果、保留事項
 - [`phase-2-implementation-report.md`](phase-2-implementation-report.md) — Phase 2の本文保護、校正レポート、テスト結果、保留事項
 - [`phase-3-implementation-report.md`](phase-3-implementation-report.md) — Phase 3のDiscord通知、Pages確認、実Discord疎通、Node.js 24対応の完了記録
+- [`phase-4-implementation-report.md`](phase-4-implementation-report.md) — Phase 4の容量実測、ローカル実装、外部変更の保留記録
 
 監査資料は当時の状態を残す記録であり、現在の操作方法と異なる場合がある。現在の公開操作は `publishing-workflow.md`、現在の進捗は `roadmap.md` を優先する。
 

@@ -114,7 +114,7 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <div class="eyebrow">Version 1.4 · Phase 3 complete · Discord and Pages verified</div>
+          <div class="eyebrow">Version 1.5 · Phase 4 local backup verified · External setup pending</div>
           <h1>遊ぶ。書く。<br>運営はAIと仕組みに任せる。</h1>
           <p>やまもとがゲームプレイと文章執筆に集中し、企画選定・校正提案・公開・SEO・分析・SNS運用をAIと自動処理が担うための確定仕様。</p>
         </div>
@@ -144,7 +144,7 @@
       <div class="shell">
         <div class="section-head">
           <h2>現在地</h2>
-          <p>Phase 2までの公開・校正基盤に加え、Phase 3のDiscord通知、Pagesと対象記事URLの確認、トリガー分類、失敗段階の分離を実装した。fakeテスト、Secrets、実Discord3件、commit、push、Actions、Pages、Node.js 24公式v5まで確認した。</p>
+          <p>Phase 3までの公開・通知基盤に加え、Phase 4の容量調査、一方向copy、月次12世代判定、容量停止、復元検証をローカル実装した。Google Drive接続、暗号化、定期実行、実バックアップは承認待ちである。</p>
         </div>
         <div class="status">
           <article class="card"><span class="tag">VERIFIED</span><h3>本文を書き換えない校正基盤</h3><ul><li>校正前後のSHA-256確認</li><li>AI入力の限定と秘密情報検査</li><li>6分類のreview-report</li><li>外部APIなしの固定応答テスト</li></ul></article>
@@ -239,7 +239,7 @@
           <article class="phase"><small>PHASE 1 / COMPLETE</small><h3>記事形式とHugo基盤</h3><p>3種のarchetype、定型表示、SEO、画像最適化、固定ページ、公開前検査を実装。9件の自動テスト、Actions、GitHub Pages公開を確認した。</p></article>
           <article class="phase"><small>PHASE 2 / LIVE SMOKE VERIFIED</small><h3>本文を書き換えない校正</h3><p>本文ハッシュ検査、6分類レポート、固定応答テストを実装。gemini-3.6-flashへ架空原稿1件の最小疎通も成功した。</p></article>
           <article class="phase"><small>PHASE 3 / COMPLETE</small><h3>GitHub PagesとDiscord通知</h3><p>公開・エラー・要確認通知、各チャンネル1件の実疎通、push、Actions、Pages、Node.js 24公式v5を確認済み。</p></article>
-          <article class="phase"><small>PHASE 4 / NEXT</small><h3>復元可能なバックアップ</h3><p>Google Driveへ原稿と画像を安全に一方向バックアップし、復元手順を確認する。</p></article>
+          <article class="phase"><small>PHASE 4 / LOCAL VERIFIED</small><h3>復元可能なバックアップ</h3><p>日次は除外後の全体約229 MB、月次12世代はブログ重要範囲約8.75 MBに限定。容量停止、暗号化した架空1件の復元も確認済み。</p></article>
           <article class="phase"><small>PHASE 5–9 / LATER</small><h3>企画・SNS・分析・収益化</h3><p>新作・セール記事、AI編集長、SNS、GA4とSearch Console、月報、問い合わせ、収益化、費用制御をデータ蓄積に合わせて導入する。</p></article>
         </div>
       </div>
@@ -332,18 +332,18 @@
 
     <section>
       <div class="shell decision">
-        <div class="eyebrow" style="color:#ffd4c1">Phase 3 local implementation complete</div>
-        <h2>Discord 3チャンネルの実疎通に成功。</h2>
-        <p>公開・エラー・要確認へ接続テストを各1件送り、全件成功した。通常pushで成功通知が送られないこと、ActionsとPages反映も確認した。</p>
+        <div class="eyebrow" style="color:#ffd4c1">Phase 4 local implementation complete</div>
+        <h2>元データへ触れず、復元可能性をローカル検証。</h2>
+        <p>容量と除外対象を実測し、削除を伝播しないcopy、月次12世代、容量不足停止、作業中変更検出、一時領域への復元を確認した。外部接続はまだ行っていない。</p>
         <div class="next">
-          <div><b>01</b>3つのGitHub Secretsを登録</div>
-          <div><b>02</b>実Discordへ各1件だけ疎通</div>
-          <div><b>03</b>commit・push・Actions・Pagesを確認</div>
+          <div><b>01</b>暗号化と復旧キー保管を決定</div>
+          <div><b>02</b>rclone・OAuth・架空1件を個別承認</div>
+          <div><b>03</b>復元成功後に定期実行とフルbackupを承認</div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div class="shell">my-game-blog 運営仕様書 v1.4 · 2026-08-02 · Phase 3実Discord・Actions・Pages・Node.js 24確認完了 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.5 · 2026-08-02 · Phase 4ローカルバックアップ・復元検証完了、外部設定は承認待ち · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
 </body>
 </html>

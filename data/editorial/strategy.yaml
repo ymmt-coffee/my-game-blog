@@ -1,6 +1,6 @@
-version: "1.4"
+version: "1.5"
 updated_at: "2026-08-02"
-status: phase_3_completed
+status: phase_4_local_implementation_completed_external_pending
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -15,6 +15,8 @@ implementation_status:
   phase_2_overall: completed
   phase_2_external_ai_connection: live_smoke_test_verified
   phase_3_overall: completed
+  phase_4_local_implementation: completed
+  phase_4_external_drive_connection: pending_explicit_approval
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -33,6 +35,9 @@ implementation_status:
     - node24_native_pages_actions_verified
     - github_pages_top_http_200_after_phase_3
     - github_pages_existing_article_http_200_after_phase_3
+    - phase_4_read_only_capacity_inventory
+    - phase_4_offline_copy_snapshot_restore_tests
+    - phase_4_encrypted_fictional_file_upload_restore_sha256_verified
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -71,9 +76,16 @@ implementation_status:
     - discord_mentions_disabled
     - discord_limited_retry_for_429_and_5xx
     - node24_actions_execution
+    - phase_4_explicit_exclusion_rules
+    - phase_4_copy_without_destination_deletes
+    - phase_4_monthly_snapshot_and_retention_candidates
+    - phase_4_run_lock_and_source_change_detection
+    - phase_4_capacity_guard
+    - phase_4_temporary_restore_hash_verification
+    - phase_4_safe_backup_error_workflow
   not_implemented:
     - external_fact_check_search
-    - google_drive_backup
+    - google_drive_live_backup
     - weekly_release_sale_generation
     - ai_editor_in_chief
     - social_posting
@@ -105,6 +117,8 @@ change_history:
     summary: "Phase 3のDiscord通知、Pages・記事URL確認、Node.js 24対応をローカル実装"
   - date: "2026-08-02"
     summary: "Phase 3のSecrets、実Discord3件、commit・push・Actions・Pages、Node.js 24公式v5を確認"
+  - date: "2026-08-02"
+    summary: "Phase 4の容量調査と外部接続なしのバックアップ・復元基盤をローカル実装"
 
 site:
   working_title: "game logs"
@@ -481,11 +495,59 @@ automation_budget:
 
 backup:
   provider: google_drive
-  setup_status: pending_account_and_capacity_check
+  setup_status: local_implementation_completed_external_setup_pending
   provider_account: dedicated_blog_account
+  provider_account_ready: true
+  provider_storage_total_bytes_verified: 16106127360
+  provider_storage_used_bytes_verified: 0
+  provider_storage_free_bytes_verified: 16106113631
   source_scope: Life_and_Div
+  source_absolute_path: "C:/Users/ymmt_/Documents/Life_and_Div"
+  measured_source_files: 19068
+  measured_source_bytes: 2754084310
+  estimated_included_files: 882
+  estimated_included_bytes: 229112114
+  tool: rclone
+  tool_version_candidate: "1.75.0"
+  tool_install_status: installed_sha256_verified
   daily_time: "02:00"
+  daily_policy: copy_without_destination_deletes
+  daily_scope: entire_Life_and_Div_after_exclusions
+  monthly_snapshot_name: YYYY-MM
   monthly_snapshots_to_keep: 12
+  monthly_scope_policy: blog_essentials_only
+  monthly_include_scopes:
+    - .obsidian
+    - 30_Projects/01_blog
+    - 30_Projects/10_Apps/my-blog
+    - 30_Projects/10_Apps/my-game-blog
+  monthly_estimated_files: 397
+  monthly_estimated_bytes: 8751823
+  monthly_twelve_snapshots_estimated_bytes: 105021876
+  client_side_encryption: rclone_crypt_configured
+  oauth_status: configured_and_capacity_read_verified
+  normal_remote_logical_name: gdrive-phase4
+  crypt_remote_logical_name: gdrive-phase4-crypt
+  crypt_underlying_path: "gdrive-phase4:my-game-blog-backup"
+  encrypted_smoke_test_status: upload_restore_sha256_verified
+  encrypted_smoke_test_plaintext_files: 1
+  encrypted_smoke_test_plaintext_bytes: 79
+  encrypted_smoke_test_remote_data: retained_by_user_approval
+  rclone_config_protection: encrypted_with_dpapi_current_user
+  initial_daily_backup_status: copy_and_verification_succeeded
+  initial_monthly_snapshot: "2026-08"
+  initial_monthly_backup_status: copy_and_verification_succeeded
+  task_scheduler_status: registered_enabled
+  registered_task_count: 2
+  monthly_time: "day_1_03:00"
+  wake_to_run: true
+  start_when_available: true
+  start_on_battery: false
+  duplicate_run_policy: reject_with_lock
+  restore_to_active_source_allowed: false
+  capacity_reserve:
+    minimum_bytes: 1073741824
+    minimum_percent: 20
   exclude:
     - .git
     - public
@@ -493,7 +555,11 @@ backup:
     - temporary_files
     - virtual_environments
     - downloadable_dependencies
+    - reparse_points
+    - local_secret_configuration
   notify_failure_in_discord: true
+  notification_route: github_actions_using_existing_error_secret
+  notification_activation_status: local_workflow_only_not_pushed
 
 contact:
   form_planned: true

@@ -1,5 +1,7 @@
 # 記事のプレビューと公開手順
 
+> 端末障害・誤削除からの復元は [`backup-and-restore-workflow.md`](backup-and-restore-workflow.md) を参照してください。Phase 4の実Google Drive接続と定期実行はまだ有効化されていません。
+
 この文書は、Phase 1の安全な公開基盤、Phase 2の本文を書き換えない校正レポート、Phase 3のGitHub Pages確認後のDiscord通知について、現在の使い方をまとめたものです。
 
 ## 原稿の置き方

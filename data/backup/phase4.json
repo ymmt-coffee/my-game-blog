@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source": "C:\\Users\\ymmt_\\Documents\\Life_and_Div",
+  "daily_destination": "daily",
+  "monthly_destination": "monthly",
+  "monthly_filter_file": "data/backup/monthly-filter-rules.txt",
+  "monthly_include_scopes": [
+    ".obsidian",
+    "30_Projects/01_blog",
+    "30_Projects/10_Apps/my-blog",
+    "30_Projects/10_Apps/my-game-blog"
+  ],
+  "snapshot_name_format": "YYYY-MM",
+  "monthly_snapshots_to_keep": 12,
+  "daily_time_local": "02:00",
+  "minimum_free_bytes": 1073741824,
+  "minimum_free_percent": 20,
+  "copy_policy": "copy_without_destination_deletes",
+  "follow_reparse_points": false,
+  "restore_to_source_allowed": false,
+  "client_side_encryption": "rclone_crypt_configured",
+  "remote_name": "gdrive-phase4-crypt",
+  "remote_root": "gdrive-phase4:my-game-blog-backup"
+}

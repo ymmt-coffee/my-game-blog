@@ -1,0 +1,42 @@
+name: Phase 4 backup error notification
+
+on:
+  workflow_dispatch:
+    inputs:
+      failure_kind:
+        description: Safe failure category
+        required: true
+        type: choice
+        options: [capacity, authentication, network, drive_api, source_changed, verification, configuration]
+      backup_run_id:
+        description: 32 lowercase hexadecimal characters
+        required: true
+        type: string
+      occurred_at:
+        description: ISO 8601 timestamp without file information
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate fixed backup failure fields
+        env:
+          FAILURE_KIND: ${{ inputs.failure_kind }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          OCCURRED_AT: ${{ inputs.occurred_at }}
+        run: python scripts/backup_error_notify.py validate
+      - name: Send minimal error notification
+        env:
+          DISCORD_WEBHOOK_ERROR: ${{ secrets.DISCORD_WEBHOOK_ERROR }}
+          FAILURE_KIND: ${{ inputs.failure_kind }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          OCCURRED_AT: ${{ inputs.occurred_at }}
+          ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python scripts/backup_error_notify.py send
