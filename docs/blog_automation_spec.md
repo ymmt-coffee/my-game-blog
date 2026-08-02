@@ -642,8 +642,7 @@ AI API、X API、問い合わせフォーム等の自動化費用を合計月3,0
 - 試験的なInteractions APIを安定版APIへ移行できるかの再確認（SDK更新時）
 - 実際の公開予定記事を使った校正品質・利用量・無料枠消費の継続評価
 - 複数世代の校正レポート履歴（現在は記事ごとに1ファイルを確認後に置き換える）
-- Phase 3のGitHub Secrets登録、実Discord 3チャンネルへの疎通、commit、push、Actions、Pages反映確認
-- Phase 3以降の自動生成・SNS・分析・バックアップ
+- Phase 4のGoogle Driveバックアップと、それ以降の自動生成・SNS・分析
 - 正式なブログ名
 - 独自ドメイン
 - PaperModを基にした最終デザイン

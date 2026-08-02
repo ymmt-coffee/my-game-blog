@@ -191,6 +191,8 @@ Phase 3テストは次を直接確認した。
 - `main` へpush: 成功
 - push Actions run `30733563196`: build、deploy、verify成功。通常pushのため通知jobはすべてスキップ
 - 接続テスト Actions run `30733597631`: build、deploy、verify、3チャンネル通知がすべて成功
+- Node.js 24追補commit `a20911ff4f196167974e5f7a85639fecab4d138d`、Actions run `30733775265`: build、deploy、verify成功、Node.js 20警告なし
+- 完了資料commit `23aad9c7183e24f42fd60171c36a418c4f802a08`、Actions run `30733872951`: build、deploy、verify成功
 - 実Discord投稿: `公開通知`、`エラー通知`、`要確認` へ各1件、合計3件
 - 通常の公開・エラー・要確認通知: 0件
 - GitHub Pages: Actions内のPagesトップURL確認に成功
