@@ -2,7 +2,7 @@
 
 - 実施日: 2026-08-02（Asia/Tokyo）
 - 対象: `my-game-blog`
-- 状態: ローカル実装・fakeテスト・GitHub Secrets・実Discord3件・commit・push・Actions・Pages確認完了。Node.js 24公式v5追補を確認中
+- 状態: Phase 3実装・fakeテスト・GitHub Secrets・実Discord3件・commit・push・Actions・Pages・Node.js 24確認完了
 - 外部変更: 3つのGitHub Secretsをユーザーが登録し、名前だけを確認。接続テストを3チャンネルへ各1件・合計3件送信。Phase 3をcommit・pushし、ActionsとPagesを確認。Webhook値は取得・表示していない
 
 ## 1. 変更前の基準
@@ -109,7 +109,7 @@ GitHub公式告知ではNode.js 20は2026年4月にEOLとなり、GitHub-hosted 
 - `actions/deploy-pages` を `node24` で動く公式v5へ更新
 - Node.js 20へ戻す一時回避設定は使用しない
 
-最初のpushではPages artifact v3内部の `actions/upload-artifact@v4` がNode.js 20対象のため、Node.js 24へ強制実行している警告が1件残った。GitHub公式リリースを再確認し、2026-04-10公開のPages artifact v5と2026-03-25公開のdeploy v5が利用可能であることを確認したため、両方をv5へ追補更新した。この更新後のGitHub-hosted runner結果で警告解消を確認する。
+最初のpushではPages artifact v3内部の `actions/upload-artifact@v4` がNode.js 20対象のため、Node.js 24へ強制実行している警告が1件残った。GitHub公式リリースを再確認し、2026-04-10公開のPages artifact v5と2026-03-25公開のdeploy v5が利用可能であることを確認したため、両方をv5へ追補更新した。追補後のGitHub-hosted runnerで警告が消え、build・deploy・verifyに成功した。
 
 ## 4. 警告と停止条件
 
@@ -196,10 +196,10 @@ Phase 3テストは次を直接確認した。
 - GitHub Pages: Actions内のPagesトップURL確認に成功
 - 秘密情報: Secret名だけを確認し、値は取得・表示していない
 
-最初のActionsでNode.js 20対象Actionの強制実行警告が1件残ったため、Pages公式v5へ追補更新し、再pushで警告解消を確認する。
+最初のActionsでNode.js 20対象Actionの強制実行警告が1件残ったため、Pages公式v5へ追補更新した。追補commit `a20911ff4f196167974e5f7a85639fecab4d138d` のActions run `30733775265` でbuild、deploy、verifyがすべて成功し、Node.js 20警告が表示されないことを確認した。Pagesトップと既存記事 `publishing-test` は直接確認でもHTTP 200を返した。
 
 ## 8. 判定
 
 Phase 3のローカル実装とfakeテストは完了した。秘密情報をリポジトリへ置かず、記事公開成功、技術的失敗、人の判断が必要な状態を分離できる。通知失敗が公開済み記事やGit履歴を巻き戻さないことも設計・テストした。
 
-実Discord 3チャンネル、GitHub Secrets、GitHub-hosted Actions、実Pages反映まで確認した。残る確認は、最初のActionsで見つかったNode.js 20対象警告を公式Pages v5への追補更新で解消できるかだけである。追補pushが成功し警告が消えれば、Phase 3を完了としてPhase 4へ進める。
+実Discord 3チャンネル、GitHub Secrets、GitHub-hosted Actions、実Pages反映、Node.js 24公式Pages v5まで確認した。通知は承認した接続テスト3件だけで、秘密情報の表示、記事やGit履歴の巻き戻し、意図しない成功通知は発生していない。Phase 3は完了し、Phase 4へ進める状態である。

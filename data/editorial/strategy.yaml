@@ -1,6 +1,6 @@
 version: "1.4"
 updated_at: "2026-08-02"
-status: phase_3_live_discord_verified_node24_v5_followup_pending
+status: phase_3_completed
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -14,7 +14,7 @@ implementation_status:
   phase_1_overall: completed
   phase_2_overall: locally_completed
   phase_2_external_ai_connection: live_smoke_test_verified
-  phase_3_overall: live_discord_verified_node24_v5_followup_pending
+  phase_3_overall: completed
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -30,6 +30,9 @@ implementation_status:
     - discord_publish_channel_live_connection_test
     - discord_error_channel_live_connection_test
     - discord_attention_channel_live_connection_test
+    - node24_native_pages_actions_verified
+    - github_pages_top_http_200_after_phase_3
+    - github_pages_existing_article_http_200_after_phase_3
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -70,7 +73,6 @@ implementation_status:
     - node24_actions_execution
   not_implemented:
     - external_fact_check_search
-    - phase_3_node24_v5_actions_verification
     - google_drive_backup
     - weekly_release_sale_generation
     - ai_editor_in_chief
@@ -101,6 +103,8 @@ change_history:
     summary: "Phase 2をpushし、GitHub Actionsのbuild・deployとGitHub Pagesへの配置を確認"
   - date: "2026-08-02"
     summary: "Phase 3のDiscord通知、Pages・記事URL確認、Node.js 24対応をローカル実装"
+  - date: "2026-08-02"
+    summary: "Phase 3のSecrets、実Discord3件、commit・push・Actions・Pages、Node.js 24公式v5を確認"
 
 site:
   working_title: "game logs"
@@ -399,7 +403,7 @@ discord:
     publish: DISCORD_WEBHOOK_PUBLISH
     errors: DISCORD_WEBHOOK_ERROR
     attention: DISCORD_WEBHOOK_ATTENTION
-  implementation_status: live_discord_verified_node24_v5_followup_pending
+  implementation_status: completed
   notification_rules:
     publish_success: "push後のHEAD commitがpublish: <安全なslug>で、push全体の変更範囲が対象記事だけ、build・deploy・Pages・記事URL確認が成功"
     normal_push_success: no_notification

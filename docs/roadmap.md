@@ -2,7 +2,7 @@
 
 - 版: 1.4
 - 更新日: 2026-08-02
-- 状態: Phase 3実Discord3チャンネル疎通・commit・push・Actions・Pages確認完了、Node.js 24公式v5追補確認中
+- 状態: Phase 3実装・実Discord3チャンネル疎通・commit・push・Actions・Pages・Node.js 24確認完了
 - 詳細要件: `docs/blog_automation_spec.md`
 - 自動処理設定: `data/editorial/strategy.yaml`
 
@@ -24,7 +24,7 @@
 - Phase 2のサービス非依存校正基盤はローカル実装・検証済み
 - 初期AI `gemini-3.6-flash` の接続アダプターと架空原稿による実API疎通確認が完了
 - Phase 3のDiscord通知コードとActions連携はローカル実装・fakeテスト済み
-- Phase 3のSecrets、実Discord3件、commit、push、Actions、Pagesを確認。Node.js 24公式v5追補と、バックアップ以降は未完了
+- Phase 3のSecrets、実Discord3件、commit、push、Actions、Pages、Node.js 24公式v5を確認。バックアップ以降は未着手
 
 ## 変更履歴
 
@@ -160,9 +160,11 @@ AIが本文を書き換えず、指摘だけを返し、ユーザーの最終確
 - 失敗時にSNS等の後続処理が開始されない
 - GitHub上に秘密情報が残らない
 
-**ローカル実装完了（2026-08-02）**。Secret未設定時、トリガー分類、成功・失敗・要確認、限定再試行、非破壊性を含むfakeテストに成功した。Secrets登録、実Discord各1件（合計3件）の疎通、commit、push、Actions、Pages反映は承認済みで、順に確認中である。
+**ローカル実装完了（2026-08-02）**。Secret未設定時、トリガー分類、成功・失敗・要確認、限定再試行、非破壊性を含むfakeテストに成功した。その後、Secrets登録、実Discord各1件（合計3件）の疎通、commit、push、Actions、Pages反映まで確認した。
 
 2026-08-02 14:03頃、3つのGitHub Secrets名が登録済みであることを値を表示せず確認した。14:09頃、`公開通知`、`エラー通知`、`要確認` へ接続テストを各1件、合計3件送り、全件成功した。
+
+**完了（2026-08-02）**。Phase 3の全40テスト、Hugoビルド、Secrets、実Discord3件、通常pushと手動実行の分岐、Actionsのbuild・deploy・verify、Pagesトップと既存記事のHTTP 200を確認した。Pages公式Actionをv5へ更新後、Node.js 20警告が消えた状態で再度成功した。
 
 ## Phase 4: バックアップ
 

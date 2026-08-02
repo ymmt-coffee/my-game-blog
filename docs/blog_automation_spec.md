@@ -2,7 +2,7 @@
 
 - 版: 1.4
 - 更新日: 2026-08-02
-- 状態: Phase 3の3チャンネル実Discord疎通、commit・push・Actions・Pages確認完了。Node.js 24公式v5追補確認中
+- 状態: Phase 3実装・3チャンネル実Discord疎通・commit・push・Actions・Pages・Node.js 24確認完了
 - 対象: `my-game-blog`
 
 ## 1. 文書の位置づけ
@@ -58,7 +58,7 @@
 
 Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によりObsidian設定から削除した。Claude Code本体やデータは削除していない。`my-blog` は旧サイトではなく独立したブログであるため、その公開機能は維持する。
 
-校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/K/P/L` に統一した。Discord通知コードとActions連携、3つのGitHub Secrets、実Discord各1件・合計3件の疎通、commit、push、Actions、Pages反映を確認した。最初のActionsでPages artifact内部のNode.js 20対象警告が残ったため、公式v5へ追補更新して再確認中である。Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
+校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/K/P/L` に統一した。Discord通知コードとActions連携、3つのGitHub Secrets、実Discord各1件・合計3件の疎通、commit、push、Actions、Pages反映を確認した。Pages公式Actionをv5へ更新し、Node.js 20警告が消えた状態でbuild・deploy・verifyに成功した。Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
 
 ### 1.2 変更履歴
 
