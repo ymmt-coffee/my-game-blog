@@ -1,6 +1,6 @@
-version: "1.5"
+version: "1.6"
 updated_at: "2026-08-02"
-status: phase_4_local_implementation_completed_external_pending
+status: phase_4_completed_phase_5_ready
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -16,7 +16,8 @@ implementation_status:
   phase_2_external_ai_connection: live_smoke_test_verified
   phase_3_overall: completed
   phase_4_local_implementation: completed
-  phase_4_external_drive_connection: pending_explicit_approval
+  phase_4_external_drive_connection: completed
+  phase_4_overall: completed
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -38,6 +39,10 @@ implementation_status:
     - phase_4_read_only_capacity_inventory
     - phase_4_offline_copy_snapshot_restore_tests
     - phase_4_encrypted_fictional_file_upload_restore_sha256_verified
+    - phase_4_initial_daily_backup_verified
+    - phase_4_initial_monthly_snapshot_verified
+    - phase_4_windows_tasks_enabled
+    - phase_4_backup_error_actions_connection_test
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -83,9 +88,10 @@ implementation_status:
     - phase_4_capacity_guard
     - phase_4_temporary_restore_hash_verification
     - phase_4_safe_backup_error_workflow
+    - phase_4_encrypted_google_drive_backup
+    - phase_4_windows_scheduled_tasks
   not_implemented:
     - external_fact_check_search
-    - google_drive_live_backup
     - weekly_release_sale_generation
     - ai_editor_in_chief
     - social_posting
@@ -119,6 +125,8 @@ change_history:
     summary: "Phase 3のSecrets、実Discord3件、commit・push・Actions・Pages、Node.js 24公式v5を確認"
   - date: "2026-08-02"
     summary: "Phase 4の容量調査と外部接続なしのバックアップ・復元基盤をローカル実装"
+  - date: "2026-08-02"
+    summary: "Phase 4の暗号化Google Driveバックアップ、復元、定期実行、Actions通知、commit・pushを完了"
 
 site:
   working_title: "game logs"
@@ -561,7 +569,7 @@ backup:
     - local_secret_configuration
   notify_failure_in_discord: true
   notification_route: github_actions_using_existing_error_secret
-  notification_activation_status: local_workflow_only_not_pushed
+  notification_activation_status: pushed_and_live_connection_test_verified
 
 contact:
   form_planned: true

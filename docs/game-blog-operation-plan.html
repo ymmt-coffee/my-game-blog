@@ -114,7 +114,7 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <div class="eyebrow">Version 1.5 · Phase 4 local backup verified · External setup pending</div>
+          <div class="eyebrow">Version 1.6 · Phase 4 complete · Phase 5 ready</div>
           <h1>遊ぶ。書く。<br>運営はAIと仕組みに任せる。</h1>
           <p>やまもとがゲームプレイと文章執筆に集中し、企画選定・校正提案・公開・SEO・分析・SNS運用をAIと自動処理が担うための確定仕様。</p>
         </div>
@@ -144,7 +144,7 @@
       <div class="shell">
         <div class="section-head">
           <h2>現在地</h2>
-          <p>Phase 3までの公開・通知基盤に加え、Phase 4の容量調査、一方向copy、月次12世代判定、容量停止、復元検証をローカル実装した。Google Drive接続、暗号化、定期実行、実バックアップは承認待ちである。</p>
+          <p>Phase 3までの公開・通知基盤に加え、Phase 4の暗号化Google Driveバックアップ、月次12世代、容量停止、復元検証、定期実行、Actions経由エラー通知まで完了した。次はPhase 5の新作・セール5選を安全な調査と下書きから実装する。</p>
         </div>
         <div class="status">
           <article class="card"><span class="tag">VERIFIED</span><h3>本文を書き換えない校正基盤</h3><ul><li>校正前後のSHA-256確認</li><li>AI入力の限定と秘密情報検査</li><li>6分類のreview-report</li><li>外部APIなしの固定応答テスト</li></ul></article>
@@ -332,18 +332,18 @@
 
     <section>
       <div class="shell decision">
-        <div class="eyebrow" style="color:#ffd4c1">Phase 4 local implementation complete</div>
-        <h2>元データへ触れず、復元可能性をローカル検証。</h2>
-        <p>容量と除外対象を実測し、削除を伝播しないcopy、月次12世代、容量不足停止、作業中変更検出、一時領域への復元を確認した。外部接続はまだ行っていない。</p>
+        <div class="eyebrow" style="color:#ffd4c1">Phase 4 complete · Phase 5 ready</div>
+        <h2>暗号化バックアップと復元経路を実運用へ。</h2>
+        <p>削除を伝播しない日次copy、ブログ重要範囲の月次12世代、容量不足停止、暗号化、復元検証、定期実行、エラー通知を確認した。次は公式情報に基づく新作・セール5選を実装する。</p>
         <div class="next">
-          <div><b>01</b>暗号化と復旧キー保管を決定</div>
-          <div><b>02</b>rclone・OAuth・架空1件を個別承認</div>
-          <div><b>03</b>復元成功後に定期実行とフルbackupを承認</div>
+          <div><b>01</b>Steam等の公式情報取得方法を調査</div>
+          <div><b>02</b>候補収集・検証・5本選定をローカル実装</div>
+          <div><b>03</b>架空データで下書き・重複防止を検証</div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div class="shell">my-game-blog 運営仕様書 v1.5 · 2026-08-02 · Phase 4ローカルバックアップ・復元検証完了、外部設定は承認待ち · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.6 · 2026-08-02 · Phase 4完了、Phase 5新作・セール5選の実装準備中 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
 </body>
 </html>
