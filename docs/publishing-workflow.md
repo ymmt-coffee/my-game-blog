@@ -1,6 +1,6 @@
 # 記事のプレビューと公開手順
 
-この文書は、Phase 1の安全な公開基盤と、Phase 2の本文を書き換えない校正レポートの現在の使い方をまとめたものです。
+この文書は、Phase 1の安全な公開基盤、Phase 2の本文を書き換えない校正レポート、Phase 3のGitHub Pages確認後のDiscord通知について、現在の使い方をまとめたものです。
 
 ## 原稿の置き方
 
@@ -200,11 +200,30 @@ Obsidian設定の切替後は、対象記事を開いて `Ctrl+Alt+P` を押し�
 10. `publish: 記事slug` という記事単位のcommitを作成
 11. GitHubへpush
 12. 対応するGitHub Actionsの完了を最大10分待つ
-13. Actions成功後、公開URLがHTTP 200を返すことを確認
+13. Actionsでbuild、deploy、PagesトップURL、対象記事URLを順に確認
+14. `publish: 記事slug` と変更範囲が安全に一致したpushだけ、Discordの `公開通知` へ送信
 
 `.gitignore`、仕様書、別の記事など、指定記事以外の変更はcommit対象にしません。
 
 検査結果は `[停止]` と `[警告]` に分かれます。必須情報不足、画像・内部リンク切れ、`review-report.md` 混入、SEOメタ情報の欠落や重複、下書き・新規テスト記事の誤公開、レポート内の秘密情報や不正形式は停止します。レポートなし・古いレポート、画像未設定、過去に意図して公開したnoindex付きテスト記事、文章上の提案は警告に留めます。
+
+## Discord通知
+
+GitHub Actionsで使用するSecret名は次の3つです。値はGitHub Secretsだけへ登録し、チャット、コマンド、ログ、ファイルへ表示しません。
+
+| Secret名 | チャンネル | 通知条件 |
+|---|---|---|
+| `DISCORD_WEBHOOK_PUBLISH` | `公開通知` | HEADが `publish: <安全なslug>` でpush全体が対象記事だけ、かつbuild、deploy、Pagesトップ、対象記事URL確認まで成功 |
+| `DISCORD_WEBHOOK_ERROR` | `エラー通知` | push、毎朝のschedule、手動実行のbuild、deploy、URL確認、通知が技術的に失敗 |
+| `DISCORD_WEBHOOK_ATTENTION` | `要確認` | `publish:` で始まるpushだがslugまたは変更範囲を安全に特定できず、deployとPages確認は成功 |
+
+通常のコード・資料push、毎朝8時のschedule、Actions画面からの手動実行は、成功しても `公開通知` を送りません。校正レポートなし・古いレポートをGitHubへ安全に渡す方式は未決定なので、現時点では `要確認` の条件に含めません。
+
+通知に含めるのは、通知種別、記事slugまたは失敗段階、公開URL、commitの短い識別子、トリガー、Actions実行URLだけです。記事本文、校正レポート本文、Webhook URL、秘密情報、ログ全文は送りません。`@everyone` 等が文字列に含まれてもメンションとして処理されない設定です。
+
+Discordが429または5xxを明示的に返したときだけ、初回を含め最大3回試します。400、401、403等の4xxや、結果が分からない通信切断・タイムアウトは重複防止のため再試行しません。Actions全体を手動で再実行した場合は同じ通知が重複する可能性がありますが、commitとActions実行URLで見分けられます。
+
+通知に失敗した場合、Actionsは失敗として表示されます。ただし、すでに公開された記事、Git commit、GitHub Pagesを削除・revertしません。公開通知または要確認通知の失敗は、可能なら `エラー通知` に通知します。
 
 ## 現在のショートカット
 
@@ -227,7 +246,8 @@ Obsidian設定の切替後は、対象記事を開いて `Ctrl+Alt+P` を押し�
 
 ## 現在まだ行わないこと
 
-- Discord通知は、今後の実装単位で追加します。
+- 3つのGitHub Secretsは登録済みです。実Discord投稿、commit、push、GitHub Pages反映は承認済みで、順に確認中です。
+- 実Discordの疎通は、本番公開を失敗させず、`--test-message` で「接続テスト」「実際の公開・失敗・要確認は発生していない」と明記し、3チャンネルへ各1件、合計3件だけ送る予定です。
 - Obsidianから原稿を削除しても、公開記事は自動削除しません。
 
 ## テスト用の実行

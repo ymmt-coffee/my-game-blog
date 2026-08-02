@@ -1,8 +1,8 @@
 # ゲームブログ運営自動化仕様書
 
-- 版: 1.3
+- 版: 1.4
 - 更新日: 2026-08-02
-- 状態: Phase 2実装・検証・Gemini最小疎通・commit・push・GitHub Actions・GitHub Pages確認完了
+- 状態: Phase 3 Discord通知をローカル実装・fakeテスト完了、3つのSecrets登録済み、実Discord確認・commit・push・Pages反映を実施中
 - 対象: `my-game-blog`
 
 ## 1. 文書の位置づけ
@@ -24,7 +24,7 @@
 
 ### 1.1 現在の実装状況
 
-2026-08-02時点で、Phase 0の監査、安全な公開基盤の先行実装、Phase 1「記事形式とHugo基盤」の公開確認、Phase 2「校正レポートと公開承認」のローカル実装・検証が完了している。
+2026-08-02時点で、Phase 0の監査、安全な公開基盤の先行実装、Phase 1「記事形式とHugo基盤」の公開確認、Phase 2「校正レポートと公開承認」の実装・外部確認、Phase 3「GitHub PagesとDiscord通知」のローカル実装・fakeテストが完了している。
 
 - Obsidian原稿を記事単位のPage Bundleへ同期できる
 - `review-report.md` は同期・公開対象から常に除外する
@@ -42,6 +42,10 @@
 - 校正前後でObsidian原稿のSHA-256を検査し、本文変更時は停止する
 - 6分類の提案だけを `review-report.md` へ原子的に保存できる
 - レポートなし・古いレポートは警告、秘密情報・不正レポートは公開停止としてプレビュー・公開前に確認する
+- Actionsでbuild、deploy、Pagesと対象記事URL確認、Discord通知を別jobとして判定する
+- `publish: <安全なslug>` のpush成功だけを公開通知候補とし、通常push、schedule、手動実行の成功通知を抑止する
+- 技術的失敗は `エラー通知`、公開形式を安全に特定できない成功pushは `要確認` に分ける
+- Discord通知は環境変数のWebhookだけを使い、メンション無効、最小情報、429・5xxだけの限定再試行とする
 
 現在のショートカットは次のとおり。
 
@@ -54,7 +58,7 @@
 
 Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によりObsidian設定から削除した。Claude Code本体やデータは削除していない。`my-blog` は旧サイトではなく独立したブログであるため、その公開機能は維持する。
 
-校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/K/P/L` に統一した。Discord通知、Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
+校正のサービス非依存基盤、固定応答テスト、Google Gemini Developer APIの安定版 `gemini-3.6-flash` 接続アダプターは実装済みである。APIキーは `GEMINI_API_KEY` 環境変数だけから読み、未設定時は外部送信せず停止する。Google検索ツールと会話保存は無効である。短い架空原稿1件による実API疎通に成功し、本文ハッシュ不変、6分類レポート、一時データ削除を確認した。Obsidianの現在の4操作は `Ctrl+Alt+V/K/P/L` に統一した。Discord通知コードとActions連携はローカル実装済みで、3つのGitHub Secretsは登録済みである。実Discord投稿、commit、push、Pages反映は確認中である。Google Driveバックアップ、新作・セール記事の自動生成、AI編集長、SNS、GA4、Search Console、月報、問い合わせフォーム、収益化、費用上限制御も未実装である。
 
 ### 1.2 変更履歴
 
@@ -64,6 +68,7 @@ Claude Code起動用の `Alt+Shift+C` は、CodexとGPTへの移管方針によ�
 | 2026-08-01〜02 | 1.1 | Phase 0監査、安全な同期・プレビュー・公開基盤、本番テスト、Obsidianショートカット整理の結果を反映 |
 | 2026-08-02 | 1.2 | Phase 1の記事archetype、定型表示、SEO、画像最適化、公開前検査、固定ページを実装し、Actionsと公開URLを確認 |
 | 2026-08-02 | 1.3 | Phase 2の本文保護、秘密情報検査、6分類レポート、鮮度確認、固定応答テストをローカル実装 |
+| 2026-08-02 | 1.4 | Phase 3のDiscord通知、トリガー分類、Pages・記事URL確認、失敗段階別通知、Node.js 24対応をローカル実装 |
 
 ## 2. プロジェクトの目的
 
@@ -368,9 +373,10 @@ AIサービスが利用できない、レポートがない、または本文修
 10. title、description、canonical、OGP、Twitter Card、JSON-LD、サイト内リンク、sitemap、robots.txt、RSSを生成HTMLで検査
 11. 全検査の成功後、指定した1記事だけを正式なPage Bundleへ同期
 12. 対象記事だけを `publish: <slug>` でcommitし、GitHubへpush
-13. GitHub Actionsの成功と公開URLのHTTP 200を確認
+13. GitHub Actionsでbuild、deploy、PagesトップURL、対象記事URLの順に確認
+14. `publish: <安全なslug>` のpushだけ、確認後にDiscordの `公開通知` へ送信
 
-AI校正の安全基盤、Gemini接続、公開前状態確認は追加済みである。Discord通知、SNS予約は未実装である。
+通常のコード・資料push、schedule、手動実行は、成功しても `公開通知` を送らない。`publish:` で始まるがslugや変更範囲を安全に特定できないpushは、Pages確認後に `要確認` へ送る。build、deploy、公開URL確認、通知の技術的失敗は `エラー通知` へ送り、成功通知と区別する。通知失敗はActions上で失敗として表示するが、公開済み記事やGit履歴を削除・revertしない。校正レポートなし・古いレポートをGitHubへ渡す方式は未決定のため、Phase 3の通知判定へ追加しない。
 
 ### 7.4 公開を停止する条件
 
@@ -390,7 +396,7 @@ AI校正の安全基盤、Gemini接続、公開前状態確認は追加済みで
 
 レポートなし、原稿更新後の古いレポート、既存のnoindex付き公開フローテスト、画像未設定、文章、構成、SEO改善提案は警告とし、それだけでは公開を止めない。新規のテスト記事が `draft: false` の場合は停止する。
 
-公開処理が失敗した場合はSNS投稿も停止し、Discordの `エラー通知` と `要確認` へ通知する。
+公開処理の技術的失敗はSNS等の後続処理を開始せず、Discordの `エラー通知` へ通知する。公開自体は成功したが対象記事を安全に特定できない場合だけ `要確認` へ通知する。
 
 ## 8. 週間・月間スケジュール
 
@@ -427,6 +433,20 @@ AI校正の安全基盤、Gemini接続、公開前状態確認は追加済みで
 初期はIncoming Webhookによる一方向通知とし、常駐Botは作らない。ゲーム選択はObsidianで行う。
 
 Webhook URLはGitHub Secretsへ保存し、リポジトリへ追加しない。
+
+Phase 3で使用するSecret名は次の3つとする。
+
+| Secret名 | 通知先 | 条件 |
+|---|---|---|
+| `DISCORD_WEBHOOK_PUBLISH` | `公開通知` | HEADが `publish: <安全なslug>` でpush全体が対象記事だけ、かつbuild・deploy・Pagesトップ・対象記事URL確認まで成功 |
+| `DISCORD_WEBHOOK_ERROR` | `エラー通知` | push、schedule、手動実行のbuild・deploy・URL確認・通知が技術的に失敗 |
+| `DISCORD_WEBHOOK_ATTENTION` | `要確認` | `publish:` 形式のpushだがslugまたは変更範囲を安全に特定できず、deployとPages確認は成功 |
+
+通知には通知種別、記事slugまたは失敗段階、公開URL、commitの先頭12文字、トリガー、Actions実行URLだけを含める。Webhook URL、記事本文、校正レポート本文、秘密情報、ログ全文は含めず、Discordのメンション解釈を無効にする。
+
+DiscordがHTTP 429または5xxを明示的に返した場合だけ、初回を含め最大3回まで再試行する。400、401、403、その他4xx、通信結果が分からないタイムアウトは再試行しない。同一スクリプト実行では成功後に再送しない。workflow全体の手動再実行ではDiscord側に冪等キー機能がないため重複し得るが、commitとActions実行URLで同じ事象を識別できるようにする。
+
+GitHub ActionsのNode.js 20廃止対応として、checkoutをNode.js 24対応版、Hugo setupをNode.js 24対応版へ更新し、workflow全体でNode.js 24実行を明示する。Pages公式Actionは現行推奨majorを維持し、GitHub-hosted runner上でNode.js 24を強制する。Node.js 20へ戻す回避設定は使用しない。
 
 ## 10. SNS運用
 
@@ -622,8 +642,8 @@ AI API、X API、問い合わせフォーム等の自動化費用を合計月3,0
 - 試験的なInteractions APIを安定版APIへ移行できるかの再確認（SDK更新時）
 - 実際の公開予定記事を使った校正品質・利用量・無料枠消費の継続評価
 - 複数世代の校正レポート履歴（現在は記事ごとに1ファイルを確認後に置き換える）
-- Phase 3のDiscord通知と、それ以降の自動生成・SNS・分析・バックアップ
-- GitHub ActionsのNode.js 20廃止予告への対応（公式Actionsの更新状況を確認して将来更新）
+- Phase 3のGitHub Secrets登録、実Discord 3チャンネルへの疎通、commit、push、Actions、Pages反映確認
+- Phase 3以降の自動生成・SNS・分析・バックアップ
 - 正式なブログ名
 - 独自ドメイン
 - PaperModを基にした最終デザイン

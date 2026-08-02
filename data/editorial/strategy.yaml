@@ -1,6 +1,6 @@
-version: "1.3"
+version: "1.4"
 updated_at: "2026-08-02"
-status: phase_2_pushed_actions_and_pages_verified
+status: phase_3_secrets_registered_pending_live_test_and_push
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -14,6 +14,7 @@ implementation_status:
   phase_1_overall: completed
   phase_2_overall: locally_completed
   phase_2_external_ai_connection: live_smoke_test_verified
+  phase_3_overall: secrets_registered_pending_live_test_commit_push_and_pages
   verified_at: "2026-08-02"
   verified_operations:
     - obsidian_local_preview
@@ -25,6 +26,7 @@ implementation_status:
     - gemini_source_hash_unchanged
     - gemini_six_category_report_parsed
     - gemini_smoke_temporary_data_removed
+    - phase_3_fake_discord_tests
   implemented:
     - page_bundle_sync
     - per_article_images
@@ -57,9 +59,16 @@ implementation_status:
     - gemini_fictional_article_smoke_test
     - gemini_live_smoke_test
     - obsidian_gemini_review_shortcut
+    - discord_trigger_classification
+    - discord_publish_error_attention_routing
+    - pages_and_article_url_verification
+    - discord_mentions_disabled
+    - discord_limited_retry_for_429_and_5xx
+    - node24_actions_execution
   not_implemented:
     - external_fact_check_search
-    - discord_notifications
+    - live_discord_smoke_test
+    - phase_3_commit_push_actions_and_pages_verification
     - google_drive_backup
     - weekly_release_sale_generation
     - ai_editor_in_chief
@@ -88,6 +97,8 @@ change_history:
     summary: "Gemini最小疎通を確認し、Obsidian操作をCtrl+Altへ統一してPhase 2をローカルcommit"
   - date: "2026-08-02"
     summary: "Phase 2をpushし、GitHub Actionsのbuild・deployとGitHub Pagesへの配置を確認"
+  - date: "2026-08-02"
+    summary: "Phase 3のDiscord通知、Pages・記事URL確認、Node.js 24対応をローカル実装"
 
 site:
   working_title: "game logs"
@@ -191,7 +202,7 @@ editorial_boundaries:
     external_fact_search_status: disabled_deferred
     interactions_api_recheck: required_on_sdk_update
     production_article_quality_and_usage_review: pending
-    github_actions_node20_deprecation_followup: deferred
+    github_actions_node20_deprecation_followup: addressed_with_node24_actions_and_forced_runtime
     model_version_policy: pin_stable_model_id
     api_connection_status: live_smoke_test_verified
     planned_usage_tier: free_tier
@@ -296,6 +307,9 @@ publishing:
     - git_push
     - wait_for_github_actions
     - verify_public_url
+    - verify_published_article_url
+    - classify_push_schedule_and_workflow_dispatch
+    - notify_discord_publish_error_or_attention
   automation_after_approval:
     - sync_to_hugo
     - git_commit
@@ -379,6 +393,43 @@ discord:
     errors: "エラー通知"
     attention: "要確認"
   secrets_must_not_be_stored_here: true
+  secret_names:
+    publish: DISCORD_WEBHOOK_PUBLISH
+    errors: DISCORD_WEBHOOK_ERROR
+    attention: DISCORD_WEBHOOK_ATTENTION
+  implementation_status: secrets_registered_pending_live_test_and_push
+  notification_rules:
+    publish_success: "push後のHEAD commitがpublish: <安全なslug>で、push全体の変更範囲が対象記事だけ、build・deploy・Pages・記事URL確認が成功"
+    normal_push_success: no_notification
+    schedule_success: no_notification
+    workflow_dispatch_success: no_notification
+    technical_failure_all_triggers: errors
+    unsafe_publish_identification_after_successful_deploy: attention
+    missing_or_stale_review_report: deferred_transfer_design
+  payload_allowlist:
+    - notification_type
+    - article_slug_or_failure_stage
+    - public_url
+    - commit_short_sha
+    - trigger
+    - actions_run_url
+  payload_excludes:
+    - webhook_url
+    - article_body
+    - review_report_body
+    - secrets
+    - full_logs
+  allowed_mentions: disabled
+  retry:
+    statuses: [429, "500-599"]
+    maximum_total_attempts: 3
+    other_statuses: no_retry
+    uncertain_connection_result: no_retry_to_reduce_duplicates
+  notification_failure_marks_actions_failed: true
+  notification_failure_rolls_back_published_content: false
+  workflow_rerun_may_duplicate: true
+  duplicate_identifiers: [commit_short_sha, actions_run_url]
+  live_test_messages_sent: 0
 
 analytics:
   google_analytics_4: planned
