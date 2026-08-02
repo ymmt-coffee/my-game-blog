@@ -153,7 +153,7 @@ class Phase4BackupTests(unittest.TestCase):
         self.assertTrue(backup.capacity_is_sufficient(500, 1000, 50, 100, 20))
 
     def test_capacity_auth_network_and_api_errors_are_safe_categories(self):
-        for kind in ("capacity", "authentication", "network", "drive_api"):
+        for kind in ("connection_test", "capacity", "authentication", "network", "drive_api"):
             request = backup.safe_notification_request(kind, "a" * 32, "2026-08-02T12:34:56+09:00")
             self.assertEqual(request["failure_kind"], kind)
         with self.assertRaises(backup.BackupError):

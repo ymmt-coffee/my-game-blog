@@ -7,7 +7,7 @@ on:
         description: Safe failure category
         required: true
         type: choice
-        options: [capacity, authentication, network, drive_api, source_changed, verification, configuration]
+        options: [connection_test, capacity, authentication, network, drive_api, source_changed, verification, configuration]
       backup_run_id:
         description: 32 lowercase hexadecimal characters
         required: true

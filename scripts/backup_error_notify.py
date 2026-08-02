@@ -30,9 +30,14 @@ def main() -> int:
         if not webhook:
             raise NotificationError("GitHub Secret DISCORD_WEBHOOK_ERROR が設定されていません。値は表示しません。")
         run_url = os.environ.get("ACTIONS_RUN_URL", "")
+        heading = (
+            "【接続テスト】Google Driveバックアップのエラー通知経路を確認しました。"
+            if values["failure_kind"] == "connection_test"
+            else "【バックアップエラー】Google Driveバックアップを完了できませんでした。"
+        )
         payload = {
             "content": "\n".join((
-                "【バックアップエラー】Google Driveバックアップを完了できませんでした。",
+                heading,
                 f"失敗種別: {values['failure_kind']}", f"日時: {values['occurred_at']}",
                 f"バックアップ実行ID: {values['backup_run_id']}", f"確認手順: {run_url}",
             )),

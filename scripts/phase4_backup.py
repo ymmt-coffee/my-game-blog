@@ -27,7 +27,7 @@ FILTER_PATH = PROJECT_ROOT / "data" / "backup" / "exclude-rules.txt"
 MONTHLY_FILTER_PATH = PROJECT_ROOT / "data" / "backup" / "monthly-filter-rules.txt"
 MONTH_RE = re.compile(r"20\d{2}-(?:0[1-9]|1[0-2])")
 RUN_ID_RE = re.compile(r"[0-9a-f]{32}")
-SAFE_FAILURES = {"capacity", "authentication", "network", "drive_api", "source_changed", "verification", "configuration"}
+SAFE_FAILURES = {"connection_test", "capacity", "authentication", "network", "drive_api", "source_changed", "verification", "configuration"}
 
 
 class BackupError(RuntimeError):
