@@ -538,6 +538,8 @@ backup:
   initial_monthly_snapshot: "2026-08"
   initial_monthly_backup_status: copy_and_verification_succeeded
   task_scheduler_status: registered_enabled
+  backup_error_actions_status: pushed_and_connection_test_succeeded
+  backup_error_discord_test_count: 1
   registered_task_count: 2
   monthly_time: "day_1_03:00"
   wake_to_run: true
