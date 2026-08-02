@@ -4,9 +4,11 @@
 
 ## 最初に読む資料
 
-1. [`game-blog-operation-plan.html`](game-blog-operation-plan.html) — 運営方針と現在地の概要
-2. [`blog_automation_spec.md`](blog_automation_spec.md) — 詳細な運営・自動化仕様
-3. [`roadmap.md`](roadmap.md) — 実装順、進捗、完了条件
+1. [`../AGENTS.md`](../AGENTS.md) — このリポジトリでAIが必ず守る短い共通指示
+2. [`automation-common-rules.md`](automation-common-rules.md) — 全Phase共通の安全、テスト、Git、資料更新ルール
+3. [`game-blog-operation-plan.html`](game-blog-operation-plan.html) — 運営方針と現在地の概要
+4. [`blog_automation_spec.md`](blog_automation_spec.md) — 詳細な運営・自動化仕様
+5. [`roadmap.md`](roadmap.md) — 実装順、進捗、完了条件
 
 ## 運用時に使う資料
 
@@ -24,4 +26,4 @@
 
 - `../data/editorial/strategy.yaml` — AIと自動処理が参照する機械可読な運営設定
 
-方針を変更するときは、`blog_automation_spec.md`、`roadmap.md`、`game-blog-operation-plan.html`、`publishing-workflow.md`、該当Phaseの実装報告、`../data/editorial/strategy.yaml` を同時に更新する。
+方針を変更するときは、`blog_automation_spec.md`、`roadmap.md`、`game-blog-operation-plan.html`、`publishing-workflow.md`、該当Phaseの実装報告、`../data/editorial/strategy.yaml` を同時に更新する。共通の作業・安全ルールを変更するときは、`../AGENTS.md` と `automation-common-rules.md` も同期する。
