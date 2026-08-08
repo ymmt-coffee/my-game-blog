@@ -196,7 +196,7 @@ content:
     automatic_publish: false
     schedule_status: not_registered
     discord_webhook_secret: DISCORD_WEBHOOK_WEEKLY_RESEARCH
-    live_operation_status: research_and_manual_discord_verified_webhook_connection_pending
+    live_operation_status: research_selection_draft_and_discord_webhook_verified
   monthly_essay:
     enabled_when_capacity_allows: true
     purpose: "ゲーム体験を題材に自由に書く私小説的なレビューエッセイ"

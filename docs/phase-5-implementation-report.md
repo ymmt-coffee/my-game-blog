@@ -64,17 +64,19 @@ APIキーは既存の`GEMINI_API_KEY`だけから読み、会話保存を無効�
 
 追補として、`research-result.json`へ検証済み候補を保存し、`selection.json`の5本を再検証して下書きへ接続する`apply_weekly_selection.py`を追加した。Discord要約とPDFを専用Webhookで送る`weekly_research_notify.py`、固定文面の接続テスト用GitHub Actionsも追加した。Secret名は`DISCORD_WEBHOOK_WEEKLY_RESEARCH`で、値はリポジトリ・ログ・Discord本文へ残さない。
 
+専用Secretを値を表示せずGitHubへ登録後、Actions run `31248848194`から固定の接続テスト文面と架空候補PDFを1件送信した。jobは成功し、Discordの`週次リサーチ`で`AI編集部`アプリによる本文とPDF添付を確認した。初回runで公式Action旧版のNode.js 20警告が出たため、既存リポジトリ方針と公式案内に合わせて`actions/checkout@v6`と`actions/setup-python@v6`へ更新した。
+
 - 全116テスト成功。テスト内の候補・AI・Discordはfakeで、実サービスを呼ばない
 - 変更前の既存67テスト: 成功
 - Phase 5追加後の全116テスト: 成功
 - Hugo 0.163.2 extended本番相当ビルド: 成功（既知の将来廃止予定警告1件のみ）
 - 実Geminiリサーチ: 承認済みの限定実行。最終実行で新作5件・セール5件を取得
 - Obsidianへ作成・変更したファイル: 0件
-- 実Discord: チャンネル作成1件、手動投稿1件。実SNS・実公開: 各0件
+- 実Discord: チャンネル作成1件、手動投稿1件、Webhook接続テスト1件。実SNS・実公開: 各0件
 - Windowsタスク、GitHub Actions schedule: 変更なし
 - Phase 4バックアップ、既存公開、原稿、画像、PaperMod、独立した`my-blog`: 変更なし
 - commit、push、Actions、公開: 未実施
 
 ## 保留とPhase 6
 
-残る運用項目は、Webhook接続テスト、承認済みObsidian保存先への下書き配置、公開直前の公式再確認、scheduleの要否判断、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
+残る運用項目は、承認済みObsidian保存先への下書き配置、公開直前の公式再確認、scheduleの要否判断、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
