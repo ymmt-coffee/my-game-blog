@@ -79,4 +79,12 @@ APIキーは既存の`GEMINI_API_KEY`だけから読み、会話保存を無効�
 
 ## 保留とPhase 6
 
-残る運用項目は、承認済みObsidian保存先への下書き配置、公開直前の公式再確認、scheduleの要否判断、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
+### 公式再確認とObsidian配置（追補）
+
+初回選択5本を公開前に独立してSteam公式情報と照合したところ、`つんつんリリム`の発売日が「近日登場」へ変わり、Coffee Talkとして扱ったApp ID `1090100`が実際にはScorchlandsであることを確認した。この時点で旧下書きのObsidian配置と公開を停止した。
+
+Gemini実リサーチを1回だけ再実行し、新作5件・セール5件を再生成してDiscordへPDFをWebhook投稿した。ユーザーは1・4・5・9・10を選択した。独立照合ではAkatoriの最新Steam表示が日本語未対応だったため、インターフェイス・字幕・音声をすべて未対応へ修正した。その後、Re:Night、Big Walk、Akatori、Marvel's Spider-Man: Miles Morales、NieR:Automataの5本で最終下書きを再生成した。
+
+最終下書きはUTF-8、5本、`draft: true`、旧誤候補なし、日本語修正反映を機械確認し、`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog\weekly-picks-2026-w32\index.md`へ新規配置した。生成元と配置先のSHA-256一致を確認した。記事公開、SNS投稿、`draft: false`変更は行っていない。
+
+残る運用項目は、schedule時刻の決定と有効化、記事内容の人による確認、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
