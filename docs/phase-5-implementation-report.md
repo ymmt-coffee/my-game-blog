@@ -89,4 +89,6 @@ Gemini実リサーチを1回だけ再実行し、新作5件・セール5件を�
 
 ユーザー承認により、毎週日曜18時（Asia/Tokyo、cronは日曜09:00 UTC）にGeminiで10候補を調査し、Discordへ要約とPDFを送るGitHub Actions scheduleを追加した。選択用の全成果物は14日間保存する。scheduleは記事生成、公開、SNS投稿を行わない。
 
+GitHub Secret `GEMINI_API_KEY`を値を表示せず登録し、本番相当の手動run `31249575323`を実行した。Gemini調査、候補検証、成果物`weekly-research-2026-W32`の14日間保存、Discord PDF通知まで全stepが約2分で成功した。workflowが有効であることも確認した。
+
 残る運用項目は、記事内容の人による確認と、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
