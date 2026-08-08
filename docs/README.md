@@ -14,6 +14,7 @@
 
 - [`publishing-workflow.md`](publishing-workflow.md) — Obsidianから校正・プレビュー・公開する手順
 - [`backup-and-restore-workflow.md`](backup-and-restore-workflow.md) — Phase 4のバックアップ、容量停止、復元、承認手順
+- [`weekly-picks-workflow.md`](weekly-picks-workflow.md) — Phase 5の候補収集、手入力、検証済み下書き生成手順
 
 ## 記録資料
 
@@ -21,8 +22,10 @@
 - [`phase-1-implementation-report.md`](phase-1-implementation-report.md) — Phase 1の実装内容、テスト結果、保留事項
 - [`phase-2-implementation-report.md`](phase-2-implementation-report.md) — Phase 2の本文保護、校正レポート、テスト結果、保留事項
 - [`phase-3-implementation-report.md`](phase-3-implementation-report.md) — Phase 3のDiscord通知、Pages確認、実Discord疎通、Node.js 24対応の完了記録
+- [`gemini-weekly-research-setup.md`](gemini-weekly-research-setup.md) — Gemini候補調査、HTML/PDF確認資料、API設定の手順
 - [`phase-4-implementation-report.md`](phase-4-implementation-report.md) — Phase 4の容量実測、暗号化バックアップ、復元、定期実行、通知の完了記録
 - [`phase-5-implementation-prompt.md`](phase-5-implementation-prompt.md) — Phase 5「新作・セール5選」を安全に調査・実装するための依頼文
+- [`phase-5-implementation-report.md`](phase-5-implementation-report.md) — Phase 5の手入力方式、検証、下書き生成、テスト、保留事項
 
 監査資料は当時の状態を残す記録であり、現在の操作方法と異なる場合がある。現在の公開操作は `publishing-workflow.md`、現在の進捗は `roadmap.md` を優先する。
 

@@ -1,6 +1,6 @@
-version: "1.6"
-updated_at: "2026-08-02"
-status: phase_4_completed_phase_5_ready
+version: "1.7"
+updated_at: "2026-08-08"
+status: phase_5_live_research_and_discord_webhook_implemented_publication_pending
 
 document_set:
   human_spec: docs/blog_automation_spec.md
@@ -90,9 +90,16 @@ implementation_status:
     - phase_4_safe_backup_error_workflow
     - phase_4_encrypted_google_drive_backup
     - phase_4_windows_scheduled_tasks
+    - phase_5_manual_candidate_input
+    - phase_5_week_window_and_validation
+    - phase_5_deterministic_selection
+    - phase_5_draft_and_social_asset_generation
+    - phase_5_ai_fact_allowlist
+    - phase_5_gemini_candidate_research
+    - phase_5_human_selection_to_draft_pipeline
+    - phase_5_discord_pdf_webhook
   not_implemented:
-    - external_fact_check_search
-    - weekly_release_sale_generation
+    - phase_5_schedule_activation
     - ai_editor_in_chief
     - social_posting
     - ga4
@@ -127,6 +134,8 @@ change_history:
     summary: "Phase 4の容量調査と外部接続なしのバックアップ・復元基盤をローカル実装"
   - date: "2026-08-02"
     summary: "Phase 4の暗号化Google Driveバックアップ、復元、定期実行、Actions通知、commit・pushを完了"
+  - date: "2026-08-08"
+    summary: "Phase 5のGemini候補調査、人による5本選択、下書き生成、Discord PDF通知を実装・検証"
 
 site:
   working_title: "game logs"
@@ -173,6 +182,21 @@ content:
     ai_may_draft_full_article: true
     author_comment_deadline: "Sunday 24:00 Asia/Tokyo"
     publish_without_author_comment: true
+    collection_mode: gemini_candidate_and_source_collection_then_program_validation
+    discovery_sources: [steam_upcoming, steam_specials, steam_wishlist, optional_steamdb_discovery_only]
+    final_sources: [steam_store, developer_official, publisher_official]
+    region: JP
+    currency: JPY
+    selection_mix: at_least_one_release_and_one_sale
+    if_fewer_than_five_valid_candidates: stop_and_attention
+    week_id_format: "YYYY-Www"
+    slug_format: "weekly-picks-yyyy-www"
+    initial_execution: manual_live_research_then_human_selection
+    monday_0600_initial_action: draft_and_local_social_assets_only
+    automatic_publish: false
+    schedule_status: not_registered
+    discord_webhook_secret: DISCORD_WEBHOOK_WEEKLY_RESEARCH
+    live_operation_status: research_and_manual_discord_verified_webhook_connection_pending
   monthly_essay:
     enabled_when_capacity_allows: true
     purpose: "ゲーム体験を題材に自由に書く私小説的なレビューエッセイ"

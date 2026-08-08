@@ -1,0 +1,25 @@
+{
+  "week_id": "YYYY-Www",
+  "candidates": [
+    {
+      "kind": "release",
+      "app_id": "STEAM_APP_ID",
+      "title": "作品名",
+      "steam_url": "https://store.steampowered.com/app/STEAM_APP_ID/",
+      "release_date": "YYYY-MM-DD",
+      "release_status": "upcoming",
+      "verification_flags": [],
+      "region": "JP",
+      "currency": "JPY",
+      "current_price_yen": 0,
+      "original_price_yen": null,
+      "discount_percent": null,
+      "japanese": {"interface": true, "subtitles": true, "full_audio": false},
+      "sources": [{"kind": "primary", "url": "https://store.steampowered.com/app/STEAM_APP_ID/"}],
+      "verified_at": "YYYY-MM-DDThh:mm:ss+09:00",
+      "editorial_rank": 80,
+      "editorial_reason": "公式情報から確認できる選定理由を入力",
+      "personal_comment": ""
+    }
+  ]
+}

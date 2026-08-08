@@ -114,7 +114,7 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <div class="eyebrow">Version 1.6 · Phase 4 complete · Phase 5 ready</div>
+          <div class="eyebrow">Version 1.7 · Phase 5 live workflow verified</div>
           <h1>遊ぶ。書く。<br>運営はAIと仕組みに任せる。</h1>
           <p>やまもとがゲームプレイと文章執筆に集中し、企画選定・校正提案・公開・SEO・分析・SNS運用をAIと自動処理が担うための確定仕様。</p>
         </div>
@@ -130,7 +130,7 @@
         <div class="section-head"><h2>編集方針</h2><p>アクセスと収益を意識しつつ、文章を書く趣味として無理なく続ける。攻略メディアではなく、面白いPCゲームを探す人と文章を読む人の双方へ届ける。</p></div>
         <div class="cards">
           <article class="card"><span class="tag">WEEKLY</span><h3>プレイ途中記</h3><p>週1本。最低5時間を目安に、その週に遊べるだけ遊んで執筆。完走レビューとはせず、プレイ時間を明記する。星評価や明確な購入判定は載せない。</p></article>
-          <article class="card"><span class="tag">MONDAY</span><h3>新作・セール5選</h3><p>翌月曜から日曜までの新作と20%以上のセールから5本を掲載。AIが公式情報を基に作成し、やまもとが日曜24時までに短い私感を追記する。</p></article>
+          <article class="card"><span class="tag">MONDAY</span><h3>新作・セール5選</h3><p>Steamの近日中リリース、スペシャル、ウィッシュリストから人が候補を集め、公式情報を手入力する。検証後に新作・セール各1本以上の5本を選び、日曜24時まで私感を追記できる。</p></article>
           <article class="card"><span class="tag">MONTHLY</span><h3>レビューエッセイ</h3><p>余力がある月に公開。フルプレイしたゲーム体験を題材に、私小説的な読み物として自由に書く。アクセスやSEOを強く要求しない保護領域とする。</p></article>
         </div>
         <div class="split" style="margin-top:16px">
@@ -144,7 +144,7 @@
       <div class="shell">
         <div class="section-head">
           <h2>現在地</h2>
-          <p>Phase 3までの公開・通知基盤に加え、Phase 4の暗号化Google Driveバックアップ、月次12世代、容量停止、復元検証、定期実行、Actions経由エラー通知まで完了した。次はPhase 5の新作・セール5選を安全な調査と下書きから実装する。</p>
+          <p>Phase 4までの基盤に加え、Phase 5のGemini候補調査、人による5本選択、重複防止、未プレイ下書き、Discord確認資料まで実運用で確認した。Obsidian保存、schedule、公開は別承認で確認する。</p>
         </div>
         <div class="status">
           <article class="card"><span class="tag">VERIFIED</span><h3>本文を書き換えない校正基盤</h3><ul><li>校正前後のSHA-256確認</li><li>AI入力の限定と秘密情報検査</li><li>6分類のreview-report</li><li>外部APIなしの固定応答テスト</li></ul></article>
@@ -240,7 +240,7 @@
           <article class="phase"><small>PHASE 2 / LIVE SMOKE VERIFIED</small><h3>本文を書き換えない校正</h3><p>本文ハッシュ検査、6分類レポート、固定応答テストを実装。gemini-3.6-flashへ架空原稿1件の最小疎通も成功した。</p></article>
           <article class="phase"><small>PHASE 3 / COMPLETE</small><h3>GitHub PagesとDiscord通知</h3><p>公開・エラー・要確認通知、各チャンネル1件の実疎通、push、Actions、Pages、Node.js 24公式v5を確認済み。</p></article>
           <article class="phase"><small>PHASE 4 / LOCAL VERIFIED</small><h3>復元可能なバックアップ</h3><p>日次は除外後の全体約229 MB、月次12世代はブログ重要範囲約8.75 MBに限定。容量停止、暗号化した架空1件の復元も確認済み。</p></article>
-          <article class="phase"><small>PHASE 5–9 / LATER</small><h3>企画・SNS・分析・収益化</h3><p>新作・セール記事、AI編集長、SNS、GA4とSearch Console、月報、問い合わせ、収益化、費用制御をデータ蓄積に合わせて導入する。</p></article>
+          <article class="phase"><small>PHASE 5 / LIVE WORKFLOW VERIFIED</small><h3>新作・セール5選</h3><p>Geminiで新作5件・セール5件を収集し、人が5本を選ぶ。検証済み下書きとSNS素材、Discord用PDF・Webhook送信を実装。公開は未実施。</p></article>
         </div>
       </div>
     </section>
@@ -332,9 +332,9 @@
 
     <section>
       <div class="shell decision">
-        <div class="eyebrow" style="color:#ffd4c1">Phase 4 complete · Phase 5 ready</div>
+        <div class="eyebrow" style="color:#ffd4c1">Phase 5 live workflow verified</div>
         <h2>暗号化バックアップと復元経路を実運用へ。</h2>
-        <p>削除を伝播しない日次copy、ブログ重要範囲の月次12世代、容量不足停止、暗号化、復元検証、定期実行、エラー通知を確認した。次は公式情報に基づく新作・セール5選を実装する。</p>
+        <p>Phase 4の安全なバックアップを維持したまま、Gemini収集、プログラム検証、人による選択、Discord確認までを接続した。公開と定期実行は別承認とする。</p>
         <div class="next">
           <div><b>01</b>Steam等の公式情報取得方法を調査</div>
           <div><b>02</b>候補収集・検証・5本選定をローカル実装</div>
@@ -344,6 +344,6 @@
     </section>
   </main>
 
-  <footer><div class="shell">my-game-blog 運営仕様書 v1.6 · 2026-08-02 · Phase 4完了、Phase 5新作・セール5選の実装準備中 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.7 · 2026-08-08 · Phase 5実運用フロー確認済み、公開・定期実行は保留 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
 </body>
 </html>

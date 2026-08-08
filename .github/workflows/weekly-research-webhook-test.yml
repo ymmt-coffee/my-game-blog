@@ -1,0 +1,33 @@
+name: Weekly research webhook test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Build safe test report
+        run: >-
+          python scripts/weekly_research.py
+          --week 2026-W33
+          --response-file data/editorial/weekly-research-fake-response.json
+          --output output/webhook-test
+      - name: Send connection test
+        env:
+          DISCORD_WEBHOOK_WEEKLY_RESEARCH: ${{ secrets.DISCORD_WEBHOOK_WEEKLY_RESEARCH }}
+        run: >-
+          python scripts/weekly_research_notify.py
+          --summary output/webhook-test/discord-summary.json
+          --pdf output/webhook-test/weekly-research.pdf
+          --connection-test

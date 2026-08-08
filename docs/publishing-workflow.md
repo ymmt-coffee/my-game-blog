@@ -168,6 +168,12 @@ AIが返したJSONを取り込む場合は、`data/editorial/review-response-tem
 
 ## プレビュー
 
+### 新作・セール5選の下書きを作る
+
+Phase 5は、Geminiが候補と出典を集め、プログラムが価格・日時・区分を検証し、人が10候補から5本を選ぶ方式です。詳しい手順は [`weekly-picks-workflow.md`](weekly-picks-workflow.md) を参照してください。
+
+候補調査とDiscord確認資料の送信は外部接続を伴いますが、選択後の下書き生成自体は保存済みの検証結果だけを使います。生成物は常に `draft: true` で、既存の明示承認なしに公開できません。月曜6時のscheduleは未登録です。
+
 現在は次のように実行します。`sample-game` は記事フォルダ名です。
 
 ```powershell
