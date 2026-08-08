@@ -226,7 +226,7 @@ Obsidian原稿、画像、校正証跡、各プロジェクトを端末障害と
 - [x] 専用Discordチャンネルへ要約とPDFを手動送信
 - [x] PDF添付Webhook送信処理とGitHub Secretを用意
 - [x] 公式情報を再確認した実下書きをObsidianへ`draft: true`で配置
-- [ ] schedule登録・有効化（別承認）
+- [x] 毎週日曜18時（JST）の候補調査・Discord PDF通知scheduleを登録
 - [ ] 記事単位の明示承認後に実公開
 
 ### 完了条件

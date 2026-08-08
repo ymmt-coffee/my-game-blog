@@ -4,7 +4,7 @@
 
 `scripts/weekly_research.py`はGeminiのGoogle検索とURL参照を使い、作品候補と公式情報を収集します。その後、App ID、記事区分、割引率、JP/JPY、確認日時をプログラム側で整えてから既存のPhase 5検証へ渡します。通過した候補から、ローカルHTML、Discordで読みやすいPDF、メンション無効のDiscord要約JSON、選択用JSON、再利用可能な検証済み結果JSONを作ります。
 
-実Geminiで新作5件・セール5件を取得し、Discordへの手動PDF投稿まで確認済みです。Google Drive保存、定期実行、記事公開は行っていません。HTMLとPDFは確認資料であり、公開前にはSteam等の公式ページを人が再確認します。
+実Geminiで新作5件・セール5件を取得し、DiscordへのPDF投稿まで確認済みです。毎週日曜18時（日本時間）の定期調査も有効です。Google Drive保存と記事公開は行っていません。HTMLとPDFは確認資料であり、公開前にはSteam等の公式ページを人が再確認します。
 
 ## Gemini API側の準備
 
@@ -45,4 +45,4 @@ python scripts\weekly_research.py --week YYYY-Www --gemini --output output\weekl
 
 推奨運用は、HTMLをローカルの正本として保管し、専用の「週次リサーチ」チャンネルへ3行の要約とPDFを投稿する形です。Google Driveへ置く場合もHTMLの直接表示には向かないため、保管・バックアップ先として扱います。
 
-Discordは専用の`週次リサーチ`チャンネルを使い、Secret名は`DISCORD_WEBHOOK_WEEKLY_RESEARCH`です。Webhook URLはGitHub Actions Secretだけに保存し、要約ではメンションを無効化します。Driveアップロードとschedule有効化は行っていません。
+Discordは専用の`週次リサーチ`チャンネルを使い、Secret名は`DISCORD_WEBHOOK_WEEKLY_RESEARCH`です。Webhook URLはGitHub Actions Secretだけに保存し、要約ではメンションを無効化します。GitHub Actionsは毎週日曜18時に実行し、確認資料を14日間保存します。Driveアップロードは行いません。

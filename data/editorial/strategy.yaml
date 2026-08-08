@@ -194,7 +194,7 @@ content:
     initial_execution: manual_live_research_then_human_selection
     monday_0600_initial_action: draft_and_local_social_assets_only
     automatic_publish: false
-    schedule_status: not_registered
+    schedule_status: github_actions_sunday_1800_jst
     discord_webhook_secret: DISCORD_WEBHOOK_WEEKLY_RESEARCH
     live_operation_status: corrected_research_selection_draft_discord_and_obsidian_verified
   monthly_essay:
@@ -404,6 +404,7 @@ publishing:
 
 schedule:
   timezone: Asia/Tokyo
+  weekly_research_discord: "Sunday 18:00"
   weekly_article_publish: "Sunday"
   roundup_publish: "Monday 06:00"
   editor_candidates_discord: "Monday 06:05"

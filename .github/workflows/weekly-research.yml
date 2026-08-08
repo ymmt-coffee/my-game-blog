@@ -1,0 +1,67 @@
+name: Weekly game research
+
+on:
+  schedule:
+    - cron: "0 9 * * 0" # Sunday 18:00 Asia/Tokyo
+  workflow_dispatch:
+    inputs:
+      week_id:
+        description: Optional ISO week (YYYY-Www); blank uses the current JST week
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-game-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Resolve target week
+        id: week
+        env:
+          REQUESTED_WEEK: ${{ inputs.week_id }}
+        shell: bash
+        run: |
+          if [[ -n "$REQUESTED_WEEK" ]]; then
+            [[ "$REQUESTED_WEEK" =~ ^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$ ]] || exit 1
+            week_id="$REQUESTED_WEEK"
+          else
+            week_id="$(TZ=Asia/Tokyo date +%G-W%V)"
+          fi
+          echo "week_id=$week_id" >> "$GITHUB_OUTPUT"
+      - name: Research ten candidates
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: >-
+          python scripts/weekly_research.py
+          --week ${{ steps.week.outputs.week_id }}
+          --gemini
+          --output output/weekly-research
+      - name: Save selection materials
+        uses: actions/upload-artifact@v6
+        with:
+          name: weekly-research-${{ steps.week.outputs.week_id }}
+          path: output/weekly-research/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Send summary and PDF to Discord
+        env:
+          DISCORD_WEBHOOK_WEEKLY_RESEARCH: ${{ secrets.DISCORD_WEBHOOK_WEEKLY_RESEARCH }}
+        run: >-
+          python scripts/weekly_research_notify.py
+          --summary output/weekly-research/discord-summary.json
+          --pdf output/weekly-research/weekly-research.pdf

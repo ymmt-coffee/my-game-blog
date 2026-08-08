@@ -87,4 +87,6 @@ Gemini実リサーチを1回だけ再実行し、新作5件・セール5件を�
 
 最終下書きはUTF-8、5本、`draft: true`、旧誤候補なし、日本語修正反映を機械確認し、`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog\weekly-picks-2026-w32\index.md`へ新規配置した。生成元と配置先のSHA-256一致を確認した。記事公開、SNS投稿、`draft: false`変更は行っていない。
 
-残る運用項目は、schedule時刻の決定と有効化、記事内容の人による確認、記事単位の明示承認後の公開である。Phase 6は先行実装しない。
+ユーザー承認により、毎週日曜18時（Asia/Tokyo、cronは日曜09:00 UTC）にGeminiで10候補を調査し、Discordへ要約とPDFを送るGitHub Actions scheduleを追加した。選択用の全成果物は14日間保存する。scheduleは記事生成、公開、SNS投稿を行わない。
+
+残る運用項目は、記事内容の人による確認と、記事単位の明示承認後の公開である。Phase 6は先行実装しない。

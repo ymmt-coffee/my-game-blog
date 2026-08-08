@@ -14,6 +14,8 @@ python scripts/apply_weekly_selection.py --research-result output/weekly-researc
 
 Discord通知は`weekly_research_notify.py`が要約JSONとPDFを専用Webhookへ送ります。Webhook URLは`DISCORD_WEBHOOK_WEEKLY_RESEARCH`だけから読み、リポジトリやログへ保存しません。
 
+通常運用では、GitHub Actionsが毎週日曜18時（日本時間）に10候補を調査し、要約とPDFをDiscordへ送ります。HTML、PDF、`selection.json`、`research-result.json`はGitHub Actionsの成果物として14日間保存します。ここでは記事生成、公開、SNS投稿を行いません。
+
 ## 日曜までに候補を集める
 
 1. Steamの「近日中リリース」で対象週の新作を確認する
