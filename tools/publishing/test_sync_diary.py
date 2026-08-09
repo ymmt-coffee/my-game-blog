@@ -9,7 +9,8 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("sync_diary.py")
-PROJECT_ROOT = SCRIPT.parent.parent
+PROJECT_ROOT = SCRIPT.parents[2]
+BLOG_ROOT = PROJECT_ROOT / "blog"
 
 
 class SyncDiaryTests(unittest.TestCase):
@@ -76,7 +77,7 @@ class SyncDiaryTests(unittest.TestCase):
                     "--contentDir",
                     str(content_root),
                 ],
-                cwd=PROJECT_ROOT,
+                cwd=BLOG_ROOT,
                 capture_output=True,
                 encoding="utf-8",
                 check=False,

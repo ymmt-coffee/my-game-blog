@@ -5,7 +5,9 @@ param(
 
 $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Set-Location $PSScriptRoot
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$BlogRoot = Join-Path $ProjectRoot "blog"
+Set-Location $ProjectRoot
 $ErrorActionPreference = "Stop"
 
 $previewRoot = Join-Path ([System.IO.Path]::GetTempPath()) "my-game-blog-preview-$PID"
@@ -58,7 +60,7 @@ try {
     $Article = Resolve-ArticleSlug -ExplicitArticle $Article -ActiveSourceFile $SourceFile
     New-Item -ItemType Directory -Path $previewPosts -Force | Out-Null
 
-    $syncArgs = @("scripts/sync_diary.py", "--output", $previewPosts)
+    $syncArgs = @((Join-Path $PSScriptRoot "sync_diary.py"), "--output", $previewPosts)
     if ($Article) {
         $syncArgs += @("--article", $Article)
     }
@@ -66,7 +68,7 @@ try {
     Write-Host ""
     Write-Host "=== game blog preview ===" -ForegroundColor Cyan
     if ($Article) {
-        python scripts/review_article.py --article $Article --status
+        python (Join-Path $PSScriptRoot "review_article.py") --article $Article --status
         if ($LASTEXITCODE -ne 0) {
             throw "Review report safety check failed."
         }
@@ -78,7 +80,7 @@ try {
 
     Write-Host ""
     Write-Host "--- Preview content checks ---" -ForegroundColor Cyan
-    $validateArgs = @("scripts/validate_blog.py", "--content-dir", $previewContent)
+    $validateArgs = @((Join-Path $PSScriptRoot "validate_blog.py"), "--content-dir", $previewContent)
     if ($Article) {
         $validateArgs += @("--article", $Article)
     }
@@ -90,7 +92,7 @@ try {
     Write-Host ""
     Write-Host "Open http://localhost:1313/my-game-blog/ in your browser." -ForegroundColor Green
     Write-Host "Press Ctrl+C in this window to stop the preview."
-    hugo server --buildDrafts --contentDir $previewContent --disableFastRender
+    hugo server --source $BlogRoot --buildDrafts --contentDir $previewContent --disableFastRender
     if ($LASTEXITCODE -ne 0) {
         throw "Hugo preview failed to start."
     }

@@ -23,9 +23,10 @@ except ImportError:
     sys.exit(1)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BLOG_ROOT = PROJECT_ROOT / "blog"
 DEFAULT_BLOG_DIR = Path(r"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog")
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "content" / "posts"
+DEFAULT_OUTPUT_DIR = BLOG_ROOT / "content" / "posts"
 JST = timezone(timedelta(hours=9))
 
 REVIEW_REPORT_NAME = "review-report.md"

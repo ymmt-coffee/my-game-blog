@@ -21,10 +21,11 @@ from pathlib import Path, PurePosixPath
 from typing import Iterable, Mapping, Sequence
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = PROJECT_ROOT / "data" / "backup" / "phase4.json"
-FILTER_PATH = PROJECT_ROOT / "data" / "backup" / "exclude-rules.txt"
-MONTHLY_FILTER_PATH = PROJECT_ROOT / "data" / "backup" / "monthly-filter-rules.txt"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BACKUP_TOOLS = PROJECT_ROOT / "tools" / "backup"
+CONFIG_PATH = PROJECT_ROOT / "config" / "backup" / "phase4.json"
+FILTER_PATH = PROJECT_ROOT / "config" / "backup" / "exclude-rules.txt"
+MONTHLY_FILTER_PATH = PROJECT_ROOT / "config" / "backup" / "monthly-filter-rules.txt"
 MONTH_RE = re.compile(r"20\d{2}-(?:0[1-9]|1[0-2])")
 RUN_ID_RE = re.compile(r"[0-9a-f]{32}")
 SAFE_FAILURES = {"connection_test", "capacity", "authentication", "network", "drive_api", "source_changed", "verification", "configuration"}
@@ -404,7 +405,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise BackupError("configuration", "タスク設定の出力先をバックアップ元内に指定できません。")
             output.parent.mkdir(parents=True, exist_ok=True)
             temporary = output.with_suffix(output.suffix + ".tmp")
-            temporary.write_text(task_xml(PROJECT_ROOT / "scripts" / "run_phase4_backup.ps1", PROJECT_ROOT, args.remote, args.mode), encoding="utf-16")
+            temporary.write_text(task_xml(BACKUP_TOOLS / "run_phase4_backup.ps1", PROJECT_ROOT, args.remote, args.mode), encoding="utf-16")
             os.replace(temporary, output)
             print("Task XML generated without registration.")
         return 0

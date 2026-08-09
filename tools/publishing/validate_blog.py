@@ -16,7 +16,8 @@ from urllib.parse import unquote, urlparse
 import frontmatter
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BLOG_ROOT = PROJECT_ROOT / "blog"
 BASE_PATH = "/my-game-blog/"
 ARTICLE_TYPES = {"play_note", "weekly_picks", "monthly_essay"}
 COMMON_REQUIRED = ("title", "date", "lastmod", "draft", "description", "images", "article_type", "author")
@@ -123,7 +124,7 @@ class PageParser(HTMLParser):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--content-dir", type=Path, default=PROJECT_ROOT / "content")
+    parser.add_argument("--content-dir", type=Path, default=BLOG_ROOT / "content")
     parser.add_argument("--public-dir", type=Path)
     parser.add_argument("--article", help="posts配下で厳格検査する記事slug")
     parser.add_argument("--production", action="store_true", help="本番公開用の厳格検査")

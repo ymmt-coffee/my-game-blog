@@ -1,16 +1,13 @@
-# Hugo build output
-/public/
-/resources/_gen/
-/output/
-/tmp/
-.hugo_build.lock
+# Generated output and temporary files
+/var/
+/blog/.hugo_build.lock
 
 # OS
 .DS_Store
 Thumbs.db
 
 # スクリプトの同期記録
-scripts/.synced_files.json
+tools/publishing/.synced_files.json
 
 # Pythonのテスト・構文確認で生成されるキャッシュ
 __pycache__/

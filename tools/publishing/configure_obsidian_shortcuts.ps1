@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$projectRoot = Split-Path $PSScriptRoot -Parent
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $settingsDir = Join-Path $VaultRoot ".obsidian"
 $shellConfigPath = Join-Path $settingsDir "plugins\obsidian-shellcommands\data.json"
 $hotkeysPath = Join-Path $settingsDir "hotkeys.json"
@@ -40,9 +40,9 @@ if ($publishCommand.Count -ne 1) {
     throw "Expected exactly one existing publish command with id $publishCommandId."
 }
 
-$previewLauncher = Join-Path $projectRoot "launch-preview.ps1"
-$reviewLauncher = Join-Path $projectRoot "launch-review.ps1"
-$publishLauncher = Join-Path $projectRoot "launch-publish.ps1"
+$previewLauncher = Join-Path $PSScriptRoot "launch-preview.ps1"
+$reviewLauncher = Join-Path $PSScriptRoot "launch-review.ps1"
+$publishLauncher = Join-Path $PSScriptRoot "launch-publish.ps1"
 $publishCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$publishLauncher`" -SourceFile {{file_path:absolute}}"
 $previewCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$previewLauncher`" -SourceFile {{file_path:absolute}}"
 $reviewCommandText = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$reviewLauncher`" -SourceFile {{file_path:absolute}}"

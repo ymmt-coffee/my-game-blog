@@ -5,6 +5,8 @@ title = "game logs"
 theme = "PaperMod"
 buildFuture = false
 enableRobotsTXT = true
+publishDir = "../var/public"
+resourceDir = "../var/resources"
 
 [frontmatter]
   date = ["date", "publishDate"]

@@ -31,7 +31,7 @@
 ## 校正
 
 ```powershell
-.\review.ps1 -Article <記事slug> -Gemini
+.\tools\publishing\review.ps1 -Article <記事slug> -Gemini
 ```
 
 校正は本文を自動修正しない。指摘を確認し、採用する内容だけ人が本文へ反映する。APIキーは環境変数からだけ読み、値を表示しない。
@@ -39,7 +39,7 @@
 ## プレビュー
 
 ```powershell
-.\preview.ps1 -Article <記事slug>
+.\tools\publishing\preview.ps1 -Article <記事slug>
 ```
 
 必須項目、画像、内部リンク、秘密情報を検査してからローカルHugoサーバーを起動する。
@@ -47,7 +47,7 @@
 ## 公開
 
 ```powershell
-.\publish.ps1 -Article <記事slug> -Approve
+.\tools\publishing\publish.ps1 -Article <記事slug> -Approve
 ```
 
 公開処理は校正状態、front matter、画像、リンク、Hugo本番ビルドを検査し、対象記事だけをcommit・pushする。GitHub Pagesの成功と公開URLのHTTP 200を確認する。commitとpushを伴うため、実行前に毎回ユーザー承認を得る。

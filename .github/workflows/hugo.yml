@@ -29,10 +29,10 @@ jobs:
           hugo-version: '0.163.2'
           extended: true
       - name: Build
-        run: hugo --minify
+        run: hugo --source blog --minify
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: ./public
+          path: ./var/public
 
   deploy:
     needs: build

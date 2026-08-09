@@ -10,8 +10,9 @@ import shutil
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VALIDATOR = PROJECT_ROOT / "scripts" / "validate_blog.py"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BLOG_ROOT = PROJECT_ROOT / "blog"
+VALIDATOR = Path(__file__).with_name("validate_blog.py")
 
 
 def solid_png(width: int, height: int) -> bytes:
@@ -55,7 +56,7 @@ class Phase1HugoTests(unittest.TestCase):
             public = root / "public"
 
             for page in ("about", "privacy", "editorial-policy", "review-key-policy"):
-                shutil.copytree(PROJECT_ROOT / "content" / page, content / page)
+                shutil.copytree(BLOG_ROOT / "content" / page, content / page)
 
             play = write_article(
                 content,
@@ -86,7 +87,7 @@ class Phase1HugoTests(unittest.TestCase):
                     "--minify",
                     "--cleanDestinationDir",
                 ],
-                cwd=PROJECT_ROOT,
+                cwd=BLOG_ROOT,
                 capture_output=True,
                 encoding="utf-8",
                 check=False,

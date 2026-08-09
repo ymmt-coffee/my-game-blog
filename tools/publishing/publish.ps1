@@ -8,7 +8,9 @@ param(
 
 $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Set-Location $PSScriptRoot
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$BlogRoot = Join-Path $ProjectRoot "blog"
+Set-Location $ProjectRoot
 $ErrorActionPreference = "Stop"
 $validationRoot = $null
 $validationContent = $null
@@ -127,7 +129,7 @@ try {
     }
 
     Invoke-CheckedCommand "Check proofreading report safety and freshness" {
-        python scripts/review_article.py --article $Article --status
+        python (Join-Path $PSScriptRoot "review_article.py") --article $Article --status
     }
 
     if ($Article -match '(^|[\\/])\.\.([\\/]|$)' -or [System.IO.Path]::IsPathRooted($Article)) {
@@ -139,7 +141,7 @@ try {
         throw "Staged changes already exist. Publishing stopped to avoid mixing changes."
     }
 
-    $articlePath = "content/posts/$($Article.Replace('\', '/').Trim('/'))"
+    $articlePath = "blog/content/posts/$($Article.Replace('\', '/').Trim('/'))"
     $managedChanges = @(git status --porcelain -- $articlePath)
     if ($LASTEXITCODE -ne 0) {
         throw "Could not inspect the article Git status."
@@ -152,26 +154,26 @@ try {
     $validationContent = Join-Path $validationRoot "content"
     $validationSite = Join-Path $validationRoot "public"
     New-Item -ItemType Directory -Path $validationRoot -Force | Out-Null
-    Copy-Item -LiteralPath "content" -Destination $validationContent -Recurse
+    Copy-Item -LiteralPath (Join-Path $BlogRoot "content") -Destination $validationContent -Recurse
 
     Invoke-CheckedCommand "Sync approved article to the validation area" {
-        python scripts/sync_diary.py --article $Article --require-publishable --output (Join-Path $validationContent "posts")
+        python (Join-Path $PSScriptRoot "sync_diary.py") --article $Article --require-publishable --output (Join-Path $validationContent "posts")
     }
 
     Invoke-CheckedCommand "Validate publishable content" {
-        python scripts/validate_blog.py --content-dir $validationContent --article $Article --production
+        python (Join-Path $PSScriptRoot "validate_blog.py") --content-dir $validationContent --article $Article --production
     }
 
     Invoke-CheckedCommand "Pre-publish Hugo build" {
-        hugo --minify --environment production --contentDir $validationContent --destination $validationSite --cleanDestinationDir
+        hugo --source $BlogRoot --minify --environment production --contentDir $validationContent --destination $validationSite --cleanDestinationDir
     }
 
     Invoke-CheckedCommand "Validate generated site" {
-        python scripts/validate_blog.py --content-dir $validationContent --article $Article --production --public-dir $validationSite
+        python (Join-Path $PSScriptRoot "validate_blog.py") --content-dir $validationContent --article $Article --production --public-dir $validationSite
     }
 
     Invoke-CheckedCommand "Sync approved article as a Page Bundle" {
-        python scripts/sync_diary.py --article $Article --require-publishable
+        python (Join-Path $PSScriptRoot "sync_diary.py") --article $Article --require-publishable
     }
 
     Invoke-CheckedCommand "Stage only the selected article" {

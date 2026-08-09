@@ -7,10 +7,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
-$ConfigPath = Join-Path $ProjectRoot "data\backup\phase4.json"
-$FilterPath = Join-Path $ProjectRoot "data\backup\exclude-rules.txt"
-$MonthlyFilterPath = Join-Path $ProjectRoot "data\backup\monthly-filter-rules.txt"
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$ConfigPath = Join-Path $ProjectRoot "config\backup\phase4.json"
+$FilterPath = Join-Path $ProjectRoot "config\backup\exclude-rules.txt"
+$MonthlyFilterPath = Join-Path $ProjectRoot "config\backup\monthly-filter-rules.txt"
 $StateRoot = Join-Path $env:LOCALAPPDATA "my-game-blog\phase4-backup"
 $LockPath = Join-Path $StateRoot "backup.lock"
 $RunId = [Guid]::NewGuid().ToString("N")

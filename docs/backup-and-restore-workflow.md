@@ -20,7 +20,7 @@ Get-ScheduledTask -TaskName "my-game-blog Phase4 Daily Backup","my-game-blog Pha
 計画確認は外部へ書き込まない。
 
 ```powershell
-.\scripts\run_phase4_backup.ps1 -Mode Plan
+.\tools\backup\run_phase4_backup.ps1 -Mode Plan
 ```
 
 ## 安全策

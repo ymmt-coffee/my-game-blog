@@ -10,7 +10,7 @@
 2. `docs/README.md`
 3. `docs/blog_automation_spec.md`
 4. `docs/roadmap.md`
-5. `data/editorial/strategy.yaml`
+5. `config/editorial/strategy.yaml`
 6. `docs/publishing-workflow.md`
 7. バックアップを扱う場合は `docs/backup-and-restore-workflow.md`
 
@@ -19,7 +19,7 @@
 ## 判断の優先順位
 
 - 現在のコード、テスト、`docs/publishing-workflow.md`、最新の実装報告を過去の監査記録より優先する。
-- 方針の意図は `docs/blog_automation_spec.md`、確定値は `data/editorial/strategy.yaml` で確認する。
+- 方針の意図は `docs/blog_automation_spec.md`、確定値は `config/editorial/strategy.yaml` で確認する。
 - 資料同士、または資料と実装が矛盾する場合は、影響を確認し、ユーザー判断が必要な内容を勝手に決めない。
 - モデル、サービス、ショートカット、Secret名、外部通知条件など変更され得る値は、このファイルへ重複記載しない。
 
@@ -34,7 +34,7 @@
 - 架空のSecret、APIキー、Webhook URL、モデルID、料金を設定しない。
 - テストから外部AI、Discord、SNSなどの実サービスを呼ばない。fakeまたはstubを使う。
 - `docs/roadmap.md` の現在対象より後の機能を先行実装しない。
-- `old/` のコード、ワークフロー、資料を現行実装として実行しない。
+- `archive/` のコード、ワークフロー、資料を現行実装として実行しない。
 - 外部サービスの変更、実送信、Obsidian設定変更、commit、push、公開は、ユーザーの明示承認範囲でだけ行う。
 
 ## 作業の進め方

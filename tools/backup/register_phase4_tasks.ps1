@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Runner = Join-Path $PSScriptRoot "run_phase4_backup.ps1"
 $Remote = "gdrive-phase4-crypt:"
 $DailyName = "my-game-blog Phase4 Daily Backup"

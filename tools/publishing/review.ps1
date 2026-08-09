@@ -13,7 +13,8 @@ param(
 
 $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Set-Location $PSScriptRoot
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+Set-Location $ProjectRoot
 $ErrorActionPreference = "Stop"
 
 function Resolve-ArticleSlug {
@@ -35,7 +36,7 @@ function Resolve-ArticleSlug {
 
 try {
     $Article = Resolve-ArticleSlug -ExplicitArticle $Article -ActiveSourceFile $SourceFile
-    $argsList = @("scripts/review_article.py", "--article", $Article)
+    $argsList = @((Join-Path $PSScriptRoot "review_article.py"), "--article", $Article)
     if ($DryRun) { $argsList += "--dry-run" }
     elseif ($PrintRequest) { $argsList += "--print-request" }
     elseif ($Fake) { $argsList += "--fake" }

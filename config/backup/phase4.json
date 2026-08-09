@@ -3,7 +3,7 @@
   "source": "C:\\Users\\ymmt_\\Documents\\Life_and_Div",
   "daily_destination": "daily",
   "monthly_destination": "monthly",
-  "monthly_filter_file": "data/backup/monthly-filter-rules.txt",
+  "monthly_filter_file": "config/backup/monthly-filter-rules.txt",
   "monthly_include_scopes": [
     ".obsidian",
     "30_Projects/01_blog",

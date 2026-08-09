@@ -25,7 +25,8 @@ if (-not $Interactive) {
 }
 
 Add-Type -AssemblyName System.Windows.Forms
-$messagesPath = Join-Path $PSScriptRoot "data\editorial\review-launcher-ja.json"
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$messagesPath = Join-Path $projectRoot "config\editorial\review-launcher-ja.json"
 $messages = Get-Content -LiteralPath $messagesPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $message = $messages.lines -join [Environment]::NewLine
 $answer = [System.Windows.Forms.MessageBox]::Show(
@@ -38,6 +39,5 @@ if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) {
     exit 0
 }
 
-$projectRoot = $PSScriptRoot
-$reviewScript = Join-Path $projectRoot "review.ps1"
+$reviewScript = Join-Path $PSScriptRoot "review.ps1"
 & $reviewScript -SourceFile $SourceFile -Gemini -Replace

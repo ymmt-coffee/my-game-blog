@@ -12,10 +12,11 @@
 5. `backup-and-restore-workflow.md` - 継続稼働するバックアップ手順
 6. `game-blog-operation-plan.html` - ブラウザで確認する新構想の概要
 7. `admin-restructure-report.md` - 旧機能の退避と停止内容
+8. `folder-structure-report.md` - ブログ本体とツールの分離内容
 
-機械可読な現在値は `../data/editorial/strategy.yaml` を参照する。
+機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 
 ## 保留資料
 
-過去Phase、Discord、週次AI調査などの資料とコードは `../old/` に退避した。
-`old/` は参考資料であり、現在の操作手順や実装対象ではない。再利用する場合は、現在の安全基準で再設計する。
+過去Phase、Discord、週次AI調査などの資料とコードは `../archive/` に退避した。
+`archive/` は参考資料であり、現在の操作手順や実装対象ではない。再利用する場合は、現在の安全基準で再設計する。

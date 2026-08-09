@@ -13,7 +13,8 @@ from unittest.mock import patch
 
 SCRIPT = Path(__file__).with_name("review_article.py")
 SYNC_SCRIPT = Path(__file__).with_name("sync_diary.py")
-PROJECT_ROOT = SCRIPT.parent.parent
+PROJECT_ROOT = SCRIPT.parents[2]
+PUBLISHING_ROOT = PROJECT_ROOT / "tools" / "publishing"
 SPEC = importlib.util.spec_from_file_location("review_article", SCRIPT)
 assert SPEC and SPEC.loader
 review_article = importlib.util.module_from_spec(SPEC)
@@ -284,10 +285,10 @@ class ReviewArticleTests(unittest.TestCase):
             self.assertFalse(any(output.rglob("review-report.md")))
 
     def test_shortcut_contract_is_unchanged(self) -> None:
-        config = (PROJECT_ROOT / "scripts" / "configure_obsidian_shortcuts.ps1").read_text(encoding="utf-8")
-        preview = (PROJECT_ROOT / "preview.ps1").read_text(encoding="utf-8")
-        publish = (PROJECT_ROOT / "publish.ps1").read_text(encoding="utf-8")
-        review = (PROJECT_ROOT / "review.ps1").read_text(encoding="utf-8")
+        config = (PUBLISHING_ROOT / "configure_obsidian_shortcuts.ps1").read_text(encoding="utf-8")
+        preview = (PUBLISHING_ROOT / "preview.ps1").read_text(encoding="utf-8")
+        publish = (PUBLISHING_ROOT / "publish.ps1").read_text(encoding="utf-8")
+        review = (PUBLISHING_ROOT / "review.ps1").read_text(encoding="utf-8")
         self.assertIn('key = "V"', config)
         self.assertIn('key = "K"', config)
         self.assertIn('key = "P"', config)
@@ -298,9 +299,9 @@ class ReviewArticleTests(unittest.TestCase):
         self.assertIn("hugo server", preview)
         self.assertIn("if (-not $Approve)", publish)
         self.assertIn("[\\\\/]", review)
-        launcher = (PROJECT_ROOT / "launch-review.ps1").read_text(encoding="utf-8")
+        launcher = (PUBLISHING_ROOT / "launch-review.ps1").read_text(encoding="utf-8")
         messages = json.loads(
-            (PROJECT_ROOT / "data" / "editorial" / "review-launcher-ja.json").read_text(
+            (PROJECT_ROOT / "config" / "editorial" / "review-launcher-ja.json").read_text(
                 encoding="utf-8"
             )
         )

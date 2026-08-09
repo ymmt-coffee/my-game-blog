@@ -12,9 +12,9 @@ Hugoのブログ本体と安全な公開基盤を維持しながら、Obsidian�
 2. `docs/publishing-workflow.md`
 3. `docs/blog_automation_spec.md`
 4. `docs/roadmap.md`
-5. `data/editorial/strategy.yaml`
+5. `config/editorial/strategy.yaml`
 
-`old/` は過去の記録であり、現行仕様の根拠にしない。
+`archive/` は過去の記録であり、現行仕様の根拠にしない。
 
 ## 3. 必ず守る安全策
 
@@ -40,7 +40,7 @@ Hugoのブログ本体と安全な公開基盤を維持しながら、Obsidian�
 
 ## 5. 保留機能
 
-`old/` に退避したコードとワークフローは実行対象に戻さない。再利用時は、管理画面の共通データ構造と承認フローへ接続し、fake・stubテストを作り直す。
+`archive/` に退避したコードとワークフローは実行対象に戻さない。再利用時は、管理画面の共通データ構造と承認フローへ接続し、fake・stubテストを作り直す。
 
 ## 6. バックアップ
 
@@ -60,4 +60,4 @@ Hugoのブログ本体と安全な公開基盤を維持しながら、Obsidian�
 
 ## 8. 資料同期
 
-方針、操作、確定値を変えた場合は、README、仕様、roadmap、操作手順、strategyを同時に更新する。過去資料は `old/` に残し、現行値へ書き換えない。
+方針、操作、確定値を変えた場合は、README、仕様、roadmap、操作手順、strategyを同時に更新する。過去資料は `archive/` に残し、現行値へ書き換えない。

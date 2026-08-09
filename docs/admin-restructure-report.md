@@ -23,7 +23,7 @@ Hugoブログと安全な記事公開機能を残し、Discord、週次AI調査�
 - バックアップ失敗時のDiscord通知
 - 旧Phase 6「AI編集長」実装案
 
-コード、ワークフロー、データ、資料は削除せず `old/` に保存した。GitHub Actionsが認識する `.github/workflows/` にはPages公開用の `hugo.yml` だけを残した。
+コード、ワークフロー、データ、資料は削除せず、当初 `old/`、現在は `archive/` に保存している。GitHub Actionsが認識する `.github/workflows/` にはPages公開用の `hugo.yml` だけを残した。
 
 ## バックアップ
 

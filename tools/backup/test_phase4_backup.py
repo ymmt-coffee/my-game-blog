@@ -58,7 +58,7 @@ class Phase4BackupTests(unittest.TestCase):
     def test_monthly_scope_includes_only_blog_essentials(self):
         included_paths = [
             ".obsidian/settings.json", "30_Projects/01_blog/article/index.md",
-            "30_Projects/10_Apps/my-blog/config.toml", "30_Projects/10_Apps/my-game-blog/hugo.toml",
+            "30_Projects/10_Apps/my-blog/config.toml", "30_Projects/10_Apps/my-game-blog/blog/hugo.toml",
         ]
         for relative in included_paths + ["30_Projects/10_Apps/other-tool/source.py"]:
             path = self.source.joinpath(*PurePosixPath(relative).parts)
@@ -218,9 +218,9 @@ class Phase4BackupTests(unittest.TestCase):
         self.assertIn("-Mode Monthly", xml)
 
     def test_windows_protection_and_tasks_are_safe_by_default(self):
-        runner = (backup.PROJECT_ROOT / "scripts" / "run_phase4_backup.ps1").read_text(encoding="utf-8")
-        protector = (backup.PROJECT_ROOT / "scripts" / "protect_rclone_config.ps1").read_text(encoding="utf-8")
-        register = (backup.PROJECT_ROOT / "scripts" / "register_phase4_tasks.ps1").read_text(encoding="utf-8")
+        runner = (backup.BACKUP_TOOLS / "run_phase4_backup.ps1").read_text(encoding="utf-8")
+        protector = (backup.BACKUP_TOOLS / "protect_rclone_config.ps1").read_text(encoding="utf-8")
+        register = (backup.BACKUP_TOOLS / "register_phase4_tasks.ps1").read_text(encoding="utf-8")
         self.assertIn("--password-command", runner)
         self.assertIn('Invoke-Rclone @("size", $Source', runner)
         self.assertIn("$MonthlySize.count", runner)

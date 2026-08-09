@@ -1,7 +1,8 @@
-# Phase 4専用。上から評価するrclone filter規則。
-# Life_and_Div内の名前だけを対象にし、.gitignoreは参照しない。
+# Phase 4月次専用。除外を先に評価し、重要なブログ範囲だけを許可する。
+# 日次はexclude-rules.txtを使用してLife_and_Div全体を対象にする。
 - **/.git/**
 - **/.git
+- **/var/**
 - **/public/**
 - **/__pycache__/**
 - **/.pytest_cache/**
@@ -11,9 +12,6 @@
 - **/.venv/**
 - **/venv/**
 - **/node_modules/**
-- 30_Projects/10_Apps/time-log/build/**
-- 30_Projects/10_Apps/cardgame/packages/client/dist/**
-- 30_Projects/10_Apps/cardgame/packages/core/dist/**
 - **/resources/_gen/**
 - **/.codex-temp-*/**
 - **/*.tmp
@@ -26,7 +24,10 @@
 - **/*.crdownload
 - **/.~lock.*#
 - **/~$*
-- **/~*
 - **/.env
 - **/.env.*
-+ **
++ .obsidian/**
++ 30_Projects/01_blog/**
++ 30_Projects/10_Apps/my-blog/**
++ 30_Projects/10_Apps/my-game-blog/**
+- **
