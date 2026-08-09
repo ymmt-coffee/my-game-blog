@@ -5,6 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -66,7 +67,43 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertIn("テスト記事", edit.text)
         self.assertIn("article-picker-item active", edit.text)
         self.assertIn("/static/workspace.js", edit.text)
+        self.assertLess(edit.text.index("手動保存"), edit.text.index('aria-label="本文"'))
+        self.assertNotIn("アーカイブする", edit.text)
         self.assertEqual(record["state"], "draft")
+
+    def test_new_article_uses_daily_sequential_slug(self) -> None:
+        form = {
+            "csrf_token": self.csrf, "title": "自動付番", "article_type": "play_note",
+            "author": "テスト作者", "description": "自動付番の確認です。", "play_time": "1時間",
+        }
+        first = self.client.post("/articles/new", data=form, follow_redirects=False)
+        second = self.client.post("/articles/new", data=form, follow_redirects=False)
+        prefix = date.today().strftime("%Y%m%d")
+        self.assertEqual(first.status_code, 303)
+        self.assertEqual(second.status_code, 303)
+        self.assertTrue((self.content_root / f"{prefix}-001" / "index.md").is_file())
+        self.assertTrue((self.content_root / f"{prefix}-002" / "index.md").is_file())
+        self.assertNotIn("name=\"slug\"", self.client.get("/articles/new").text)
+
+    def test_article_picker_has_search(self) -> None:
+        self.create_article()
+        page = self.client.get("/articles")
+        self.assertIn('id="article-search"', page.text)
+        self.assertIn('data-search="テスト記事 sample-note"', page.text)
+        self.assertIn('class="active" href="/articles?status=draft">下書き', page.text)
+        self.assertIn('href="/articles?status=published">公開済', page.text)
+        self.assertNotIn("既存原稿を確認", page.text)
+
+    def test_article_picker_switches_draft_and_published_tabs(self) -> None:
+        article_id, _record = self.create_article()
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            connection.execute("UPDATE articles SET state='published',published_at=? WHERE id=?", (db.utc_now(), article_id))
+            connection.commit()
+        draft_page = self.client.get("/articles?status=draft")
+        published_page = self.client.get("/articles?status=published")
+        self.assertNotIn("テスト記事", draft_page.text)
+        self.assertIn("テスト記事", published_page.text)
+        self.assertIn('class="active" href="/articles?status=published">公開済', published_page.text)
 
     def test_manual_save_creates_history_and_increments_revision(self) -> None:
         article_id, record = self.create_article()
@@ -90,6 +127,33 @@ class PhaseCArticleTests(unittest.TestCase):
         text = (self.content_root / "sample-note" / "index.md").read_text(encoding="utf-8")
         self.assertIn("更新した本文", text)
         self.assertEqual(len(articles.history_files(self.state_root, article_id)), 1)
+        saved_page = self.client.get(f"/articles/{article_id}/edit?saved=1")
+        self.assertIn("<h1>編集: 更新タイトル</h1>", saved_page.text)
+        self.assertNotIn("<h1>編集: sample-note</h1>", saved_page.text)
+
+    def test_published_edit_becomes_identified_update_draft(self) -> None:
+        article_id, _record = self.create_article()
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            connection.execute("UPDATE articles SET state='published',published_at=? WHERE id=?", (db.utc_now(), article_id))
+            connection.commit()
+        published = db.get_article(article_id, self.db_path)
+        edit = self.client.get(f"/articles/{article_id}/edit")
+        self.assertIn("公開済み記事を編集中", edit.text)
+        self.assertIn("アーカイブする", edit.text)
+        saved = self.client.post(f"/articles/{article_id}/save", data={
+            "csrf_token": self.csrf, "expected_hash": published["file_hash"],
+            "revision": published["revision"], "tab_id": "tab-12345678",
+            "title": "公開記事の更新", "description": "更新概要", "article_type": "play_note",
+            "play_time": "4時間", "body": "更新途中の本文",
+        }, follow_redirects=False)
+        self.assertEqual(saved.status_code, 303, saved.text)
+        updated = db.get_article(article_id, self.db_path)
+        self.assertEqual(updated["state"], "draft")
+        self.assertEqual(updated["previous_state"], "published")
+        update_page = self.client.get(f"/articles/{article_id}/edit")
+        self.assertIn("公開記事の更新下書き", update_page.text)
+        self.assertIn("現在の公開ページは旧版のまま", update_page.text)
+        self.assertNotIn("アーカイブする", update_page.text)
 
     def test_autosave_does_not_modify_canonical_file(self) -> None:
         article_id, record = self.create_article()
@@ -147,6 +211,15 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertEqual(len(saved_images), 1)
         self.assertEqual(saved_images[0].suffix, ".jpg")
         self.assertEqual(saved_images[0].read_bytes(), b"fake-jpg")
+        image_name = saved_images[0].name
+        markdown = f"![{saved_images[0].stem}](images/{image_name})"
+        edit = self.client.get(f"/articles/{article_id}/edit")
+        self.assertIn('class="image-thumb"', edit.text)
+        self.assertIn(f'data-copy-markdown="{markdown}"', edit.text)
+        self.assertIn('class="image-upload"', edit.text)
+        served = self.client.get(f"/articles/{article_id}/images/{image_name}")
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served.content, b"fake-jpg")
 
     def test_unsupported_image_extension_is_rejected(self) -> None:
         article_id, _record = self.create_article()
@@ -165,6 +238,11 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertEqual(archived.status_code, 303)
         self.assertEqual(db.get_article(article_id, self.db_path)["state"], "archived")
         self.assertEqual(index.read_bytes(), before)
+        self.assertNotIn("テスト記事", self.client.get("/articles").text)
+        settings = self.client.get("/settings")
+        self.assertIn("削除した記事の復元", settings.text)
+        self.assertIn("テスト記事", settings.text)
+        self.assertIn("復元", settings.text)
         restored = self.client.post(f"/articles/{article_id}/restore", data={"csrf_token": self.csrf}, follow_redirects=False)
         self.assertEqual(restored.status_code, 303)
         self.assertEqual(db.get_article(article_id, self.db_path)["state"], "draft")

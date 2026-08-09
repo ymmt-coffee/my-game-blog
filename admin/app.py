@@ -22,6 +22,7 @@ from admin import article_templates, articles, db, publishing
 ADMIN_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = ADMIN_ROOT / "static"
 APP_VERSION = (ADMIN_ROOT / "app-version.txt").read_text(encoding="utf-8").strip()
+AI_REVIEW_ENABLED = False
 STATE_LABELS = {
     "draft": "下書き", "review_pending": "校正待ち", "ready": "公開準備完了",
     "scheduled": "予約済み", "published": "公開済み", "archived": "アーカイブ",
@@ -35,6 +36,14 @@ NAV_ITEMS = (
 )
 
 
+def state_label(record: dict[str, object]) -> str:
+    if str(record.get("state")) == "ready" and record.get("published_at"):
+        return "更新版・公開準備完了"
+    if str(record.get("state")) == "draft" and (str(record.get("previous_state")) == "published" or record.get("published_at")):
+        return "公開記事の更新下書き"
+    return STATE_LABELS.get(str(record.get("state")), str(record.get("state")))
+
+
 def layout(
     title: str,
     current: str,
@@ -44,7 +53,7 @@ def layout(
     body_class: str = "",
 ) -> str:
     nav = "".join(
-        f'<a class="nav-item{" active" if path == current else ""}" href="{path}"><span>{escape(label)}</span><small>{escape(phase)}</small></a>'
+        f'<a class="nav-item{" active" if path == current else ""}" href="{path}">{escape(label)}</a>'
         for path, label, phase in NAV_ITEMS
     )
     meta = f'<meta name="csrf-token" content="{escape(csrf_token)}">' if csrf_token else ""
@@ -53,8 +62,8 @@ def layout(
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">{meta}
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)} | ゲームブログ管理</title>
 <link rel="stylesheet" href="/static/admin.css">{script_tag}</head><body class="{escape(body_class)}">
-<aside><a class="brand" href="/">ゲームブログ管理<small>このPC内だけで動作</small></a><nav>{nav}</nav></aside>
-<main><header><div><p class="eyebrow">LOCAL ADMIN</p><h1>{escape(title)}</h1></div><span class="local-badge">● localhost</span></header>{body}</main></body></html>"""
+<aside><a class="brand" href="/">ゲームブログ管理</a><nav>{nav}</nav></aside>
+<main><header><h1>{escape(title)}</h1></header>{body}</main></body></html>"""
 
 
 def error_page(message: str, csrf_token: str, status_code: int = 400) -> HTMLResponse:
@@ -74,6 +83,10 @@ def article_workspace(
     extra_script: str = "",
 ) -> str:
     records = db.list_articles(request.app.state.db_path, include_archived=True)
+    selected = db.get_article(selected_id, request.app.state.db_path) if selected_id else None
+    requested_tab = request.query_params.get("status", "")
+    active_tab = requested_tab if requested_tab in {"draft", "published"} else ("published" if selected and str(selected["state"]) == "published" else "draft")
+    records = [item for item in records if str(item["state"]) != "archived" and ((bool(item.get("published_at")) if active_tab == "published" else str(item["state"]) != "published"))]
     links: list[str] = []
     for item in records:
         item_title = str(item["slug"])
@@ -85,15 +98,17 @@ def article_workspace(
         except articles.ArticleError:
             pass
         active = " active" if str(item["id"]) == selected_id else ""
-        links.append(
-            f'<a class="article-picker-item{active}" href="/articles/{item["id"]}/edit">'
-            f'<span class="picker-title">{escape(item_title)}</span><span class="picker-meta">{escape(item_date)} · {escape(STATE_LABELS.get(str(item["state"]), str(item["state"])))}</span></a>'
-        )
+        search_text = escape(f"{item_title} {item['slug']}".casefold())
+        links.append(f'''<div class="picker-item-row" data-search="{search_text}"><a class="article-picker-item{active}" href="/articles/{item["id"]}/edit">
+<span class="picker-title">{escape(item_title)}</span><span class="picker-meta">{escape(item_date)} · {escape(state_label(item))}</span></a>
+<form method="post" action="/articles/{item["id"]}/archive">{hidden_csrf(request.app.state.csrf_token)}<button class="picker-delete" type="submit" title="削除">削除</button></form></div>''')
     article_links = "".join(links) or '<p class="picker-empty">記事はまだありません。</p>'
     middle = f"""<section class="article-picker" id="article-picker"><div class="picker-top">
 <button class="picker-toggle" type="button" aria-expanded="true" aria-controls="picker-content" title="記事一覧を折り畳む"><span aria-hidden="true">◀</span><b>記事一覧</b></button></div>
 <div class="picker-content" id="picker-content"><a class="button picker-new" href="/articles/new">＋ 新規作成</a>
-<div class="picker-list">{article_links}</div><a class="picker-migration" href="/articles/migration">既存原稿を確認</a></div></section>"""
+<div class="picker-tabs"><a class="{'active' if active_tab == 'draft' else ''}" href="/articles?status=draft">下書き</a><a class="{'active' if active_tab == 'published' else ''}" href="/articles?status=published">公開済</a></div>
+<input class="picker-search" id="article-search" type="search" placeholder="記事を検索" aria-label="記事を検索">
+<div class="picker-list">{article_links}</div></div></section>"""
     body = f'<div class="article-workspace">{middle}<section class="article-detail">{detail}</section></div>'
     scripts: tuple[str, ...] = ("/static/workspace.js",) + ((extra_script,) if extra_script else ())
     return layout(title, "/articles", body, request.app.state.csrf_token, scripts, "article-mode")
@@ -157,30 +172,23 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request) -> str:
-        count = len(db.list_articles(db_path))
-        body = f"""<section class="hero card"><div><span class="phase">Phase E</span><h2>管理画面から記事を公開できます</h2>
-<p>校正、プレビュー、公開前チェック、最終確認を一つの画面で進められます。</p></div>
-<div class="status-box"><strong>{count}件の記事</strong><span>外部公開なし</span><span>自動保存あり</span></div></section>
-<section class="grid"><article class="card"><h3>記事管理</h3><p>作成、編集、校正、プレビュー、投稿まで利用できます。</p><a class="button" href="/articles">記事一覧を開く</a></article>
-<article class="card"><h3>既存原稿</h3><p>移行前の原稿は読み取り専用で検査できます。</p><a class="button secondary" href="/articles/migration">移行dry-run</a></article></section>"""
+        body = """<section class="home-actions"><a class="button" href="/articles">記事管理</a><a class="text-link" href="/articles/migration">既存原稿</a></section>"""
         return layout("ホーム", "/", body, request.app.state.csrf_token)
 
     @app.get("/articles", response_class=HTMLResponse)
-    async def article_list(request: Request, archived: int = 0) -> str:
-        detail = """<section class="card empty article-empty"><span class="phase">ARTICLE MANAGEMENT</span><h2>記事を選択してください</h2>
-<p>中央の記事一覧から編集する記事を選ぶか、「新規作成」で新しい下書きを作成します。</p></section>"""
+    async def article_list(request: Request, status: str = "draft") -> str:
+        detail = '''<section class="card empty article-empty"><h2>記事を選択</h2></section>'''
         return article_workspace(request, "記事管理", detail)
 
     @app.get("/articles/new", response_class=HTMLResponse)
     async def article_new(request: Request) -> str:
         options = "".join(f'<option value="{key}">{escape(label)}</option>' for key, label in TYPE_LABELS.items())
-        guidance = "".join(f'<p data-template-help="{key}"{"" if key == "play_note" else " hidden"}><strong>{escape(template.label)}</strong><br>{escape(template.guidance)}</p>' for key, template in article_templates.TEMPLATES.items())
         body = f"""<section class="card form-card"><form method="post" action="/articles/new">{hidden_csrf(request.app.state.csrf_token)}
-<label>タイトル<input name="title" required maxlength="160"></label><label>slug（URL用の名前）<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-game-note"></label>
-<label>概要<textarea name="description" rows="2" required maxlength="300"></textarea><small class="field-help">検索結果などに使う、記事の短い紹介文です。</small></label>
-<label>カテゴリー<select name="article_type" id="new-article-type">{options}</select><small class="field-help">選んだカテゴリーに合う本文の雛形を作成します。</small></label>
-<div class="template-guidance">{guidance}</div><label data-play-time>プレイ時間<input name="play_time" placeholder="例：12時間"><small class="field-help">プレイ途中記だけの必須項目です。</small></label><label>著者<input name="author" required value="やまもと"></label>
-<p class="muted">作成時は必ず下書きになります。公開処理はまだ行いません。</p><button class="button" type="submit">下書きを作成</button></form></section>"""
+<label>タイトル<input name="title" required maxlength="160"></label>
+<label>概要<textarea name="description" rows="2" required maxlength="300"></textarea></label>
+<label>カテゴリー<select name="article_type" id="new-article-type">{options}</select></label>
+<label data-play-time>プレイ時間<input name="play_time" placeholder="例：12時間"></label><label>著者<input name="author" required value="やまもと"></label>
+<button class="button" type="submit">作成</button></form></section>"""
         return article_workspace(request, "新しい記事", body, extra_script="/static/template-form.js")
 
     @app.post("/articles/new")
@@ -188,7 +196,8 @@ def create_app(
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
-            article_id, path, digest = articles.create_article_files(content_root, str(form.get("slug") or ""), str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""))
+            slug = str(form.get("slug") or "").strip() or articles.next_daily_slug(content_root)
+            article_id, path, digest = articles.create_article_files(content_root, slug, str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""))
             db.create_article(article_id, path.name, str(form.get("article_type")), str(path.resolve()), digest, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
         except (articles.ArticleError, Exception) as exc:
@@ -230,16 +239,25 @@ def create_app(
         conflict = db_hash != article.file_hash
         images = articles.list_images(article)
         options = "".join(f'<option value="{key}"{" selected" if key == str(record["article_type"]) else ""}>{escape(label)}</option>' for key, label in TYPE_LABELS.items())
-        image_rows = "".join(f'<li><code>images/{escape(str(item["name"]))}</code> <span class="muted">{item["size"]} bytes</span></li>' for item in images) or '<li class="muted">画像はありません。</li>'
+        image_rows_parts: list[str] = []
+        for item in images:
+            image_name = str(item["name"])
+            markdown = f"![{Path(image_name).stem}](images/{image_name})"
+            image_rows_parts.append(f'''<li class="image-row"><img class="image-thumb" src="/articles/{article_id}/images/{escape(image_name)}" alt=""><div class="image-info"><code>{escape(markdown)}</code><span class="muted">{item["size"]} bytes</span></div><button class="button secondary image-copy" type="button" data-copy-markdown="{escape(markdown)}">コピー</button></li>''')
+        image_rows = "".join(image_rows_parts) or '<li class="muted">画像はありません。</li>'
         notice = recovery_notice + ('<div class="flash success">記事を保存しました。</div>' if saved else ('<div class="flash success">下書きを作成しました。</div>' if created else ""))
+        if articles.has_uncommitted_autosave(state_root, article):
+            notice += f'<div class="flash error"><strong>手動保存されていない編集内容があります。</strong> <a href="/articles/{article_id}/history">履歴・復元から自動保存内容を確認</a>し、必要な内容を手動保存してください。</div>'
+        if str(record["state"]) == "published":
+            notice += '<div class="flash publish-note"><strong>公開済み記事を編集中です。</strong> 入力中と自動保存は公開ページへ反映されません。手動保存すると更新下書きになり、公開前チェックと投稿の完了後に公開ページが更新されます。</div>'
+        elif str(record["state"]) == "draft" and str(record.get("previous_state")) == "published":
+            notice += '<div class="flash publish-note"><strong>公開記事の更新下書きです。</strong> 現在の公開ページは旧版のまま維持されています。</div>'
         if conflict:
             notice += f'<div class="flash error"><strong>外部変更を検出しました。保存を停止しています。</strong><p>ファイル内容を確認し、この内容を管理画面へ取り込む場合だけ次を押してください。</p><form method="post" action="/articles/{article_id}/accept-external">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="revision" value="{record["revision"]}"><input type="hidden" name="actual_hash" value="{escape(article.file_hash)}"><button class="button danger" type="submit">外部変更を取り込む</button></form></div>'
         archived = str(record["state"]) == "archived"
         inspection = article_templates.validate_metadata(article.metadata)
-        inspection_rows = "".join(f'<li>{escape(message)}</li>' for message in inspection)
-        inspection_box = (f'<section class="template-check warning"><strong>必須項目：要確認</strong><ul>{inspection_rows}</ul></section>' if inspection else '<section class="template-check success"><strong>必須項目：すべて入力済み</strong></section>')
+        inspection_badge = f'<span class="validation-count" title="{escape(" ".join(inspection))}">未入力 {len(inspection)}</span>' if inspection else ""
         current_type = str(article.metadata.get("article_type") or record["article_type"])
-        template = article_templates.TEMPLATES.get(current_type, article_templates.TEMPLATES["play_note"])
         play_time_hidden = "" if current_type == "play_note" else " hidden"
         review = publishing.load_review(state_root, article)
         review_fresh = review is not None and review.get("file_hash") == article.file_hash
@@ -258,24 +276,25 @@ def create_app(
         body = f"""{notice}<form class="editor" method="post" action="/articles/{article_id}/save" data-article-id="{article_id}" data-conflict="{str(conflict).lower()}">
 {hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="expected_hash" value="{escape(article.file_hash)}"><input type="hidden" name="revision" value="{record['revision']}">
 <input type="hidden" name="tab_id" id="tab-id"><section class="card editor-meta"><label>タイトル<input name="title" value="{escape(str(article.metadata.get('title') or ''))}" required></label>
-<label>概要<textarea name="description" rows="2">{escape(str(article.metadata.get('description') or ''))}</textarea><small class="field-help">記事の短い紹介文です。記事ページ冒頭、検索結果、SNS共有時の説明などに使われます。本文の要点を1〜2文で入力します。</small></label><label>カテゴリー<select name="article_type" id="edit-article-type">{options}</select><small class="field-help">カテゴリーを変更しても本文は自動置換しません。</small></label>
-<label data-play-time{play_time_hidden}>プレイ時間<input name="play_time" value="{escape(str(article.metadata.get('play_time') or ''))}" placeholder="例：12時間"><small class="field-help">プレイ途中記だけの必須項目です。</small></label>
-<div class="template-guidance"><strong>{escape(template.label)}</strong><p>{escape(template.guidance)}</p></div>{inspection_box}
-<div class="save-line"><span>状態: <b>{escape(STATE_LABELS.get(str(record['state']), str(record['state'])))}</b></span><span id="save-status">保存済み</span></div></section>
-<section class="card"><label>本文<textarea class="body-editor" name="body" rows="24">{escape(article.body)}</textarea></label>
-<div class="editor-actions"><button class="button" type="submit" {'disabled' if conflict or archived else ''}>手動保存</button><a class="button secondary" href="/articles/{article_id}/history">履歴・復元</a></div></section></form>
-<section class="card"><h2>画像</h2><ul class="image-list">{image_rows}</ul><form method="post" action="/articles/{article_id}/images" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}
-<input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" required><p class="field-help">JPG、PNG、GIF、WebP、AVIF、10MB以下。日本語や空白を含むファイル名は安全な半角名へ自動変換します。</p><button class="button secondary" type="submit" {'disabled' if archived else ''}>画像を追加</button></form></section>
-<section class="card"><h2>校正</h2>{review_html}<form method="post" action="/articles/{article_id}/review">{hidden_csrf(request.app.state.csrf_token)}<p class="field-help">記事本文だけをGeminiへ送信し、本文は自動変更しません。API利用料が発生する場合があります。</p><button class="button secondary" type="submit" {'disabled' if conflict or archived else ''}>AI校正を実行</button></form></section>
-<section class="card"><h2>プレビュー・投稿</h2><p>プレビューと公開前チェックでは、現在の原稿を変更せず一時コピーを検査します。</p><div class="editor-actions"><form method="post" action="/articles/{article_id}/preview">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" {'disabled' if conflict or archived else ''}>プレビューを作成</button></form><form method="post" action="/articles/{article_id}/prepublish">{hidden_csrf(request.app.state.csrf_token)}<button class="button" {'disabled' if conflict or archived else ''}>公開前チェック</button></form></div><p class="field-help">投稿は検査後の最終確認画面からだけ実行できます。</p></section>
-<section class="card danger-zone"><h2>{'アーカイブから戻す' if archived else 'アーカイブ'}</h2><p>ファイルは削除も移動もしません。</p><form method="post" action="/articles/{article_id}/{'restore' if archived else 'archive'}">{hidden_csrf(request.app.state.csrf_token)}<button class="button {'secondary' if archived else 'danger'}" type="submit">{'下書きへ戻す' if archived else 'アーカイブする'}</button></form></section>"""
-        return article_workspace(request, f"編集: {record['slug']}", body, article_id, "/static/editor.js")
+<label>概要<textarea name="description" rows="2">{escape(str(article.metadata.get('description') or ''))}</textarea></label><label>カテゴリー<select name="article_type" id="edit-article-type">{options}</select></label>
+<label data-play-time{play_time_hidden}>プレイ時間<input name="play_time" value="{escape(str(article.metadata.get('play_time') or ''))}" placeholder="例：12時間"></label>
+<div class="save-line"><span>{escape(state_label(record))} {inspection_badge}</span><span id="save-status">保存済み</span></div></section>
+<section class="card body-card"><div class="section-head"><h2>本文</h2><div class="editor-actions"><button class="button" type="submit" {'disabled' if conflict or archived else ''}>手動保存</button><a class="button secondary" href="/articles/{article_id}/history">履歴・復元</a></div></div>
+<textarea class="body-editor" name="body" rows="24" aria-label="本文">{escape(article.body)}</textarea></section></form>
+<section class="card"><h2>画像</h2><ul class="image-list">{image_rows}</ul><form class="image-upload" method="post" action="/articles/{article_id}/images" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}
+<input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" required><button class="button secondary" type="submit" {'disabled' if archived else ''}>追加</button></form></section>
+<section class="card"><h2>公開</h2><div class="editor-actions"><form method="post" action="/articles/{article_id}/preview">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" {'disabled' if conflict or archived else ''}>プレビュー</button></form><form method="post" action="/articles/{article_id}/prepublish">{hidden_csrf(request.app.state.csrf_token)}<button class="button" {'disabled' if conflict or archived else ''}>公開前チェック</button></form></div></section>
+{(f'''<section class="card danger-zone"><h2>{'アーカイブから戻す' if archived else 'アーカイブ'}</h2><p>ファイルは削除も移動もしません。</p><form method="post" action="/articles/{article_id}/{'restore' if archived else 'archive'}">{hidden_csrf(request.app.state.csrf_token)}<button class="button {'secondary' if archived else 'danger'}" type="submit">{'下書きへ戻す' if archived else 'アーカイブする'}</button></form></section>''' if archived or str(record['state']) == 'published' else '')}"""
+        saved_title = str(article.metadata.get("title") or record["slug"])
+        return article_workspace(request, f"編集: {saved_title}", body, article_id, "/static/editor.js")
 
     @app.post("/articles/{article_id}/review")
     async def article_review(article_id: str, request: Request):
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
+            if not AI_REVIEW_ENABLED:
+                raise publishing.PublishError("AI校正は現在停止しています。")
             record, article = load_record(article_id, request)
             if str(record["file_hash"]) != article.file_hash:
                 raise publishing.PublishError("外部変更があるため校正を停止しました。")
@@ -291,6 +310,8 @@ def create_app(
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
+            if not AI_REVIEW_ENABLED:
+                raise publishing.PublishError("AI校正は現在停止しています。")
             _record, article = load_record(article_id, request)
             publishing.save_decision(state_root, article, str(form.get("finding_key") or ""), str(form.get("decision") or ""))
             db.record_article_event(article_id, "review_decision", "success", "review_decision_saved", "校正指摘の判断を保存しました。", db_path)
@@ -306,6 +327,8 @@ def create_app(
             record, article = load_record(article_id, request)
             if str(record["file_hash"]) != article.file_hash:
                 raise publishing.PublishError("外部変更があるためプレビューを停止しました。")
+            if articles.has_uncommitted_autosave(state_root, article):
+                raise publishing.PublishError("手動保存されていない編集内容があります。手動保存してからプレビューをやり直してください。")
             result = publishing.build_preview(article, state_root, request.app.state.command_runner)
             if not result.ok:
                 raise publishing.PublishError(" ".join(result.errors))
@@ -328,7 +351,7 @@ def create_app(
             return HTMLResponse("Not found", status_code=404)
         return FileResponse(requested)
 
-    @app.post("/articles/{article_id}/prepublish")
+    @app.post("/articles/{article_id}/prepublish", response_class=HTMLResponse)
     async def article_prepublish(article_id: str, request: Request):
         form = await request.form()
         try:
@@ -336,6 +359,8 @@ def create_app(
             record, article = load_record(article_id, request)
             if str(record["file_hash"]) != article.file_hash:
                 raise publishing.PublishError("外部変更があるため公開前チェックを停止しました。")
+            if articles.has_uncommitted_autosave(state_root, article):
+                raise publishing.PublishError("手動保存されていない編集内容があります。手動保存してから公開前チェックをやり直してください。")
             result, prepared = publishing.prepublish_check(article, state_root, request.app.state.command_runner)
             if not result.ok or prepared is None:
                 raise publishing.PublishError(" ".join(result.errors))
@@ -349,7 +374,7 @@ def create_app(
             db.record_article_event(article_id, "prepublish", "failure", "prepublish_failed", "公開前チェックを安全停止しました。", db_path)
             return error_page(str(exc), request.app.state.csrf_token)
 
-    @app.post("/articles/{article_id}/publish")
+    @app.post("/articles/{article_id}/publish", response_class=HTMLResponse)
     async def article_publish(article_id: str, request: Request):
         form = await request.form()
         attempt_id = str(form.get("attempt_id") or "")
@@ -378,6 +403,8 @@ def create_app(
         except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
             if attempt_id and db.get_publish_attempt(attempt_id, db_path):
                 db.update_publish_attempt(attempt_id, "failure", "公開処理を安全停止しました。", db_path=db_path)
+            if isinstance(exc, publishing.PublishError) and exc.before_commit and 'article' in locals():
+                db.restore_after_precommit_publish_failure(article_id, article.file_hash, db_path)
             return error_page(str(exc), request.app.state.csrf_token)
 
     @app.post("/api/articles/{article_id}/autosave")
@@ -439,6 +466,20 @@ def create_app(
             return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
         except articles.ArticleError as exc:
             return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.get("/articles/{article_id}/images/{filename}")
+    async def article_image(article_id: str, filename: str, request: Request):
+        try:
+            _record, article = load_record(article_id, request)
+            if Path(filename).name != filename:
+                raise articles.ArticleError("画像名が正しくありません。")
+            image_path = (article.path / "images" / filename).resolve()
+            image_path.relative_to((article.path / "images").resolve())
+            if not image_path.is_file() or image_path.suffix.casefold() not in articles.IMAGE_EXTENSIONS:
+                raise articles.ArticleError("画像が見つかりません。")
+            return FileResponse(image_path)
+        except (articles.ArticleError, ValueError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token, 404)
 
     @app.post("/articles/{article_id}/accept-external")
     async def accept_external(article_id: str, request: Request):
@@ -517,8 +558,20 @@ def create_app(
     async def settings(request: Request) -> str:
         events = db.recent_events(db_path)
         rows = "".join(f"<tr><td>{escape(str(item['created_at']))}</td><td>{escape(str(item['event_type']))}</td><td>{escape(str(item['result']))}</td><td>{escape(str(item['safe_message']))}</td></tr>" for item in events) or '<tr><td colspan="4">履歴はありません。</td></tr>'
+        deleted_rows: list[str] = []
+        for item in db.list_articles(db_path, include_archived=True):
+            if str(item["state"]) != "archived":
+                continue
+            title = str(item["slug"])
+            try:
+                deleted = articles.read_article(Path(str(item["source_path"])), str(item["id"]), str(item["slug"]))
+                title = str(deleted.metadata.get("title") or item["slug"])
+            except articles.ArticleError:
+                pass
+            deleted_rows.append(f'''<tr><td>{escape(title)}</td><td>{escape(str(item["slug"]))}</td><td><form method="post" action="/articles/{item["id"]}/restore">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">復元</button></form></td></tr>''')
+        deleted_table = "".join(deleted_rows) or '<tr><td colspan="3">削除した記事はありません。</td></tr>'
         body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase E有効</dd></dl></article>
-<article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
+<article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
 
     @app.get("/health")

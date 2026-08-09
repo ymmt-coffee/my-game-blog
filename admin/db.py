@@ -238,7 +238,8 @@ def update_saved_article(
     now = utc_now()
     with closing(connect(db_path)) as connection:
         cursor = connection.execute(
-            """UPDATE articles SET article_type = ?, state = 'draft', previous_state = NULL,
+            """UPDATE articles SET article_type = ?, state = 'draft',
+               previous_state = CASE WHEN state = 'published' OR previous_state = 'published' THEN 'published' ELSE NULL END,
                file_hash = ?, last_saved_at = ?, revision = revision + 1, updated_at = ?,
                reviewed_file_hash = NULL
                WHERE id = ? AND revision = ? AND file_hash = ?""",
@@ -368,11 +369,31 @@ def mark_ready(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH)
     with closing(connect(db_path)) as connection:
         cursor = connection.execute(
             """UPDATE articles SET state='ready',updated_at=?
-               WHERE id=? AND file_hash=? AND reviewed_file_hash=?""",
-            (now, article_id, file_hash, file_hash),
+               WHERE id=? AND file_hash=?""",
+            (now, article_id, file_hash),
         )
         if cursor.rowcount != 1:
-            raise RuntimeError("現在の原稿に有効な校正結果がありません。")
+            raise RuntimeError("公開前チェック後に記事の状態が変わりました。")
+        connection.commit()
+
+
+def restore_after_precommit_publish_failure(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        row = connection.execute("SELECT state,published_at FROM articles WHERE id=? AND file_hash=?", (article_id, file_hash)).fetchone()
+        if row is None or str(row["state"]) != "ready":
+            return
+        previous = "published" if row["published_at"] else None
+        connection.execute(
+            "UPDATE articles SET state='draft',previous_state=?,updated_at=? WHERE id=? AND file_hash=?",
+            (previous, now, article_id, file_hash),
+        )
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,from_state,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'publish','ready','draft','warning',?,'publish_reverted_to_draft','投稿失敗後に更新下書きへ戻しました。',?)""",
+            (article_id, file_hash, now),
+        )
         connection.commit()
 
 
@@ -409,7 +430,7 @@ def mark_published(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_P
     now = utc_now()
     with closing(connect(db_path)) as connection:
         cursor = connection.execute(
-            """UPDATE articles SET state='published',published_at=?,updated_at=?
+            """UPDATE articles SET state='published',previous_state=NULL,published_at=?,updated_at=?
                WHERE id=? AND file_hash=?""",
             (now, now, article_id, file_hash),
         )

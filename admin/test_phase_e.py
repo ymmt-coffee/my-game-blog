@@ -3,7 +3,10 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+import os
+import time
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,40 +58,62 @@ class PhaseEPublishingTests(unittest.TestCase):
         self.context.__exit__(None, None, None)
         self.temporary.cleanup()
 
-    def test_fake_review_never_changes_body_and_report_is_private(self) -> None:
+    def test_ai_review_is_hidden_and_disabled(self) -> None:
         index = self.content / "phase-e-test" / "index.md"
         before = index.read_bytes()
+        edit = self.client.get(f"/articles/{self.article_id}/edit")
+        self.assertNotIn("AI校正", edit.text)
         result = self.client.post(f"/articles/{self.article_id}/review", data={"csrf_token": self.csrf}, follow_redirects=False)
-        self.assertEqual(result.status_code, 303, result.text)
+        self.assertEqual(result.status_code, 400, result.text)
+        self.assertIn("現在停止", result.text)
         self.assertEqual(index.read_bytes(), before)
         report, structured = publishing.review_paths(self.state, self.article_id)
-        self.assertTrue(report.is_file())
-        self.assertTrue(structured.is_file())
+        self.assertFalse(report.exists())
+        self.assertFalse(structured.exists())
         self.assertFalse((index.parent / "review-report.md").exists())
-        updated = db.get_article(self.article_id, self.db_path)
-        self.assertEqual(updated["state"], "review_pending")
-        self.assertEqual(updated["reviewed_file_hash"], updated["file_hash"])
 
-    def test_review_decision_is_recorded_without_applying_suggestion(self) -> None:
-        self.client.post(f"/articles/{self.article_id}/review", data={"csrf_token": self.csrf})
-        index = self.content / "phase-e-test" / "index.md"
-        before = index.read_bytes()
+    def test_ai_review_decision_endpoint_is_disabled(self) -> None:
         response = self.client.post(f"/articles/{self.article_id}/review/decision", data={
             "csrf_token": self.csrf, "finding_key": "typos:0", "decision": "accepted",
         }, follow_redirects=False)
-        self.assertEqual(response.status_code, 303)
-        article = articles.read_article(index.parent, self.article_id, "phase-e-test")
-        review = publishing.load_review(self.state, article)
-        self.assertEqual(review["decisions"]["typos:0"], "accepted")
-        self.assertEqual(index.read_bytes(), before)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("現在停止", response.text)
 
     def test_changed_article_invalidates_review_and_blocks_prepublish(self) -> None:
-        self.client.post(f"/articles/{self.article_id}/review", data={"csrf_token": self.csrf})
         index = self.content / "phase-e-test" / "index.md"
         index.write_bytes(index.read_bytes() + b"\nchanged\n")
         response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
         self.assertEqual(response.status_code, 400)
         self.assertIn("外部変更", response.text)
+
+    def test_prepublish_confirmation_is_rendered_as_html(self) -> None:
+        response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("text/html"))
+        self.assertTrue(response.text.startswith("<!doctype html>"))
+        self.assertIn("投稿の最終確認", response.text)
+
+    def test_newer_autosave_requires_manual_save_before_prepublish(self) -> None:
+        article = articles.read_article(self.content / "phase-e-test", self.article_id, "phase-e-test")
+        autosave = articles.save_autosave(self.state, self.article_id, "autosave-12345678", b"unsaved changes")
+        future = time.time() + 2
+        os.utime(autosave, (future, future))
+        response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("手動保存されていない編集内容", response.text)
+        self.assertEqual(db.get_article(self.article_id, self.db_path)["state"], "draft")
+        edit = self.client.get(f"/articles/{self.article_id}/edit")
+        self.assertIn("履歴・復元から自動保存内容を確認", edit.text)
+
+    def test_precommit_failure_restores_published_update_draft(self) -> None:
+        record = db.get_article(self.article_id, self.db_path)
+        with closing(db.connect(self.db_path)) as connection:
+            connection.execute("UPDATE articles SET state='ready',published_at=? WHERE id=?", (db.utc_now(), self.article_id))
+            connection.commit()
+        db.restore_after_precommit_publish_failure(self.article_id, str(record["file_hash"]), self.db_path)
+        restored = db.get_article(self.article_id, self.db_path)
+        self.assertEqual(restored["state"], "draft")
+        self.assertEqual(restored["previous_state"], "published")
 
     def test_hugo_preview_failure_does_not_modify_article(self) -> None:
         def failing_runner(args, **_kwargs):
@@ -146,6 +171,30 @@ class PhaseEPublishingTests(unittest.TestCase):
                 publishing.publish_article(article, prepared, runner)
             self.assertFalse(any(call[:2] == ["git", "commit"] for call in calls))
             self.assertFalse(any(call[:2] == ["git", "push"] for call in calls))
+        finally:
+            publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
+
+    def test_no_publish_diff_reports_manual_save_and_is_precommit_failure(self) -> None:
+        original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
+        try:
+            publishing.PROJECT_ROOT = self.root
+            publishing.PUBLIC_POSTS = self.root / "blog/content/posts"
+            source = self.root / "content/articles/no-diff"
+            (source / "images").mkdir(parents=True)
+            (source / "index.md").write_text("---\ntitle: x\n---\nbody\n", encoding="utf-8")
+            prepared = self.root / "prepared" / ("e" * 64)
+            prepared.mkdir(parents=True)
+            (prepared / "index.md").write_text("---\ndraft: false\n---\nbody\n", encoding="utf-8")
+            article = articles.ArticleFile("id", "no-diff", source, {}, "body", "e" * 64)
+
+            def runner(args, **_kwargs):
+                if args[:4] == ["git", "diff", "--cached", "--name-only"]:
+                    return subprocess.CompletedProcess(args, 0, "", "")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            with self.assertRaisesRegex(publishing.PublishError, "確定保存済みの変更がありません") as caught:
+                publishing.publish_article(article, prepared, runner)
+            self.assertTrue(caught.exception.before_commit)
         finally:
             publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
 

@@ -100,8 +100,9 @@ class PhaseDTemplateTests(unittest.TestCase):
         db.accept_external_change(str(record["id"]), articles.file_hash(index), int(record["revision"]), self.db_path)
         before = index.read_bytes()
         page = self.client.get(f'/articles/{record["id"]}/edit')
-        self.assertIn("必須項目：要確認", page.text)
-        self.assertIn("概要が未入力", page.text)
+        self.assertIn("未入力 1", page.text)
+        self.assertIn('title="概要が未入力です。"', page.text)
+        self.assertNotIn("必須項目：要確認", page.text)
         self.assertEqual(index.read_bytes(), before)
 
     def test_new_form_explains_templates_and_switches_play_time(self) -> None:

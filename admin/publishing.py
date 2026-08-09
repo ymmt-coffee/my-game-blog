@@ -35,6 +35,10 @@ CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 class PublishError(RuntimeError):
     """公開を安全停止する利用者向けエラー。"""
 
+    def __init__(self, message: str, *, before_commit: bool = False):
+        super().__init__(message)
+        self.before_commit = before_commit
+
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -186,8 +190,6 @@ def prepublish_check(article: articles.ArticleFile, state_root: Path, runner: Co
         review_article.require_no_secrets((article.path / "index.md").read_text(encoding="utf-8"), "原稿")
     except review_article.ReviewError as exc:
         return CheckResult((str(exc),), ()), None
-    if not review_is_complete(state_root, article):
-        return CheckResult(("現在の原稿に対応する校正と、全指摘の採否確認が必要です。",), ()), None
     staging = Path(tempfile.mkdtemp(prefix="publish-check-", dir=state_root))
     content = staging / "content"
     public = staging / "public"
@@ -225,10 +227,10 @@ def token_matches(token: str, expected_hash: str) -> bool:
 
 def publish_article(article: articles.ArticleFile, prepared: Path, runner: CommandRunner = run_command) -> tuple[str, str]:
     if not prepared.is_dir() or prepared.name != article.file_hash:
-        raise PublishError("公開前チェック済みのコピーが見つかりません。")
+        raise PublishError("公開前チェック済みのコピーが見つかりません。", before_commit=True)
     staged = runner(["git", "diff", "--cached", "--quiet"], timeout=30)
     if staged.returncode != 0:
-        raise PublishError("すでに登録済みの変更があるため公開を停止しました。")
+        raise PublishError("すでに登録済みの変更があるため公開を停止しました。", before_commit=True)
     destination = PUBLIC_POSTS / article.slug
     backup = destination.with_name(destination.name + ".publish-backup")
     committed = False
@@ -263,7 +265,9 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
         names = runner(["git", "diff", "--cached", "--name-only"], timeout=30)
         allowed = (source_rel + "/", public_rel + "/")
         changed = [line.strip().replace("\\", "/") for line in names.stdout.splitlines() if line.strip()]
-        if not changed or any(not path.startswith(allowed) for path in changed):
+        if not changed:
+            raise PublishError("公開する確定保存済みの変更がありません。編集内容を手動保存してから、公開前チェックをやり直してください。")
+        if any(not path.startswith(allowed) for path in changed):
             raise PublishError("対象記事以外の変更が混ざったため公開を停止しました。")
         committed = runner(["git", "commit", "-m", f"publish: {article.slug}", "--", source_index, source_images, public_rel], timeout=60)
         if committed.returncode != 0:
@@ -279,13 +283,15 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
         if backup.exists():
             shutil.rmtree(backup)
         return sha, pages
-    except Exception:
+    except Exception as exc:
         if not committed:
             runner(["git", "restore", "--staged", "--", str(article.path.relative_to(PROJECT_ROOT)), str(destination.relative_to(PROJECT_ROOT))], timeout=30)
             if destination.exists():
                 shutil.rmtree(destination)
             if backup.exists():
                 backup.rename(destination)
+            if isinstance(exc, PublishError):
+                exc.before_commit = True
         raise
 
 

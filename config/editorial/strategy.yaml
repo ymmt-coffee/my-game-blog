@@ -6,7 +6,7 @@ direction:
   admin_network_scope: localhost_only
   first_goal: article_management_and_publishing
   public_target: hugo_blog_only
-  obsidian_role: interim_article_editor_until_admin_migration
+  obsidian_role: retired_for_current_articles
   discord_enabled: false
 
 current:
@@ -32,9 +32,28 @@ article_management:
   image_storage: page_bundle_images
   state_storage: sqlite_for_metadata_only
   states: [draft, review_pending, ready, scheduled, published, archived]
-  operations: [save, proofread, preview, prepublish_check, publish, schedule, archive]
+  operations: [save, search, preview, prepublish_check, publish, schedule, delete_to_trash, restore]
   require_confirmation_before_publish: true
   recoverable_archive: true
+  slug_format: YYYYMMDD-NNN
+  slug_sequence_scope: daily
+  article_search_fields: [title, slug]
+  delete_behavior: recoverable_logical_trash
+  article_list_tabs: [draft, published]
+  trash_restore_location: settings_history
+  legacy_dry_run_link_visible: false
+  editor_heading_uses_saved_title: true
+  image_thumbnail_enabled: true
+  image_markdown_copy_enabled: true
+  image_markdown_format: "![alt](images/filename)"
+  published_edit_behavior: working_draft_keeps_live_version
+  published_update_draft_label: 公開記事の更新下書き
+  draft_editor_archive_section_visible: false
+  body_actions_position: top_right
+  uncommitted_autosave_blocks_preview_and_prepublish: true
+  precommit_publish_failure_returns_to_update_draft: true
+  published_tab_includes_articles_with_live_version: true
+  zero_diff_publish_message: manual_save_required
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
@@ -51,6 +70,9 @@ phase_a_design:
   legacy_source_minimum_retention_days: 30
   legacy_source_requires_monthly_backup_after_migration: true
   legacy_source_deletion_requires_separate_approval: true
+  legacy_source_count: 0
+  legacy_test_articles_recycled_at: "2026-08-09"
+  legacy_test_article_deletion_authorized: true
   phase_b_implementation_started: true
   phase_b_implementation_completed: true
   migration_authorized: false
@@ -70,6 +92,10 @@ admin_app:
   desktop_shortcut: ゲームブログ管理.lnk
   desktop_shortcut_auto_restarts_outdated_version: true
   launcher_window_visible: false
+  ui_font: Noto Sans JP
+  ui_density: compact
+  ui_shape: low_radius_linear
+  personal_tool_reduces_explanatory_text: true
 
 phase_c:
   completed_at: "2026-08-09"
@@ -95,6 +121,8 @@ phase_d:
 phase_e:
   completed_at: "2026-08-09"
   ai_review_changes_body: false
+  ai_review_enabled: false
+  ai_review_required_for_publish: false
   review_storage: var/admin/reviews
   preview_uses_temporary_content: true
   prepublish_checks_required: true

@@ -69,6 +69,24 @@ def validate_slug(slug: str) -> str:
     return slug
 
 
+def next_daily_slug(content_root: Path, day: date | None = None) -> str:
+    """Return YYYYMMDD-NNN using the next unused number for that day."""
+    content_root.mkdir(parents=True, exist_ok=True)
+    prefix = (day or date.today()).strftime("%Y%m%d")
+    pattern = re.compile(rf"{prefix}-(\d{{3}})")
+    used = {
+        int(match.group(1))
+        for path in content_root.iterdir() if path.is_dir()
+        if (match := pattern.fullmatch(path.name))
+    }
+    number = 1
+    while number in used:
+        number += 1
+    if number > 999:
+        raise ArticleError("本日作成できる記事番号の上限に達しました。")
+    return f"{prefix}-{number:03d}"
+
+
 def validate_article_type(article_type: str) -> str:
     if article_type not in ARTICLE_TYPES:
         raise ArticleError("カテゴリーが正しくありません。")
@@ -273,6 +291,13 @@ def history_files(state_root: Path, article_id: str) -> list[Path]:
 def autosave_files(state_root: Path, article_id: str) -> list[Path]:
     root = state_root / "autosave" / article_id
     return sorted(root.glob("*.md"), key=lambda path: path.stat().st_mtime, reverse=True) if root.exists() else []
+
+
+def has_uncommitted_autosave(state_root: Path, article: ArticleFile) -> bool:
+    index = article.path / "index.md"
+    canonical = index.read_bytes()
+    canonical_time = index.stat().st_mtime_ns
+    return any(path.stat().st_mtime_ns > canonical_time and path.read_bytes() != canonical for path in autosave_files(state_root, article.article_id))
 
 
 def read_recovery_candidate(state_root: Path, article_id: str, name: str) -> frontmatter.Post:

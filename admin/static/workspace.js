@@ -17,4 +17,13 @@
     localStorage.setItem("article-picker-collapsed", String(collapsed));
     apply(collapsed);
   });
+
+  const search = panel.querySelector("#article-search");
+  const rows = [...panel.querySelectorAll(".picker-item-row")];
+  search?.addEventListener("input", () => {
+    const query = search.value.trim().toLocaleLowerCase("ja");
+    rows.forEach((row) => {
+      row.hidden = query !== "" && !row.dataset.search.includes(query);
+    });
+  });
 })();

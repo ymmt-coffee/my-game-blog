@@ -60,4 +60,13 @@
     timer = setTimeout(autosave, Math.min(2000, maxWait));
   });
   form.addEventListener("submit", () => { status.textContent = "保存中"; });
+
+  document.querySelectorAll("[data-copy-markdown]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(button.dataset.copyMarkdown);
+      const original = button.textContent;
+      button.textContent = "コピー済み";
+      setTimeout(() => { button.textContent = original; }, 1200);
+    });
+  });
 })();
