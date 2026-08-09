@@ -1,5 +1,4 @@
 import json
-import os
 import tempfile
 import unittest
 from datetime import datetime
@@ -7,7 +6,6 @@ from pathlib import Path, PurePosixPath
 from unittest.mock import patch
 
 import phase4_backup as backup
-import backup_error_notify
 
 
 class Phase4BackupTests(unittest.TestCase):
@@ -162,20 +160,6 @@ class Phase4BackupTests(unittest.TestCase):
     def test_notification_rejects_file_names_and_free_text(self):
         with self.assertRaises(backup.BackupError):
             backup.safe_notification_request("network: personal-note.md", "a" * 32, "2026-08-02T12:34:56+09:00")
-
-    def test_discord_notification_is_stubbed_and_contains_no_personal_file_name(self):
-        environment = {
-            "FAILURE_KIND": "network", "BACKUP_RUN_ID": "c" * 32,
-            "OCCURRED_AT": "2026-08-02T12:34:56+09:00", "DISCORD_WEBHOOK_ERROR": "not-sent",
-            "ACTIONS_RUN_URL": "https://github.example/actions/1",
-        }
-        with patch.dict(os.environ, environment, clear=True), patch("sys.argv", ["backup_error_notify.py", "send"]), patch(
-            "backup_error_notify.send_notification"
-        ) as send:
-            self.assertEqual(backup_error_notify.main(), 0)
-            payload = send.call_args.args[1]
-            self.assertNotIn("personal-note.md", json.dumps(payload))
-            self.assertNotIn("not-sent", json.dumps(payload))
 
     def test_state_contains_only_summary_not_file_names_or_secrets(self):
         state = self.root / "state.json"

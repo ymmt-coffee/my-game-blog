@@ -1,36 +1,21 @@
-# my-game-blog ドキュメント案内
+# my-game-blog 現行ドキュメント
 
-このフォルダには、人が読む仕様、計画、監査記録、操作手順をまとめる。
+2026-08-09から、日常操作をローカル管理画面へ集約する方針へ切り替えた。
+最初の目標は、管理画面だけで記事を作成、校正、プレビュー、公開できる状態である。
 
-## 最初に読む資料
+## 現行資料
 
-1. [`../AGENTS.md`](../AGENTS.md) — このリポジトリでAIが必ず守る短い共通指示
-2. [`automation-common-rules.md`](automation-common-rules.md) — 全Phase共通の安全、テスト、Git、資料更新ルール
-3. [`game-blog-operation-plan.html`](game-blog-operation-plan.html) — 運営方針と現在地の概要
-4. [`blog_automation_spec.md`](blog_automation_spec.md) — 詳細な運営・自動化仕様
-5. [`roadmap.md`](roadmap.md) — 実装順、進捗、完了条件
+1. `automation-common-rules.md` - 安全、外部変更、テストの共通ルール
+2. `blog_automation_spec.md` - 新しい管理画面とデータの基本仕様
+3. `roadmap.md` - 実装順と完了条件
+4. `publishing-workflow.md` - 管理画面完成前の暫定的な記事更新手順
+5. `backup-and-restore-workflow.md` - 継続稼働するバックアップ手順
+6. `game-blog-operation-plan.html` - ブラウザで確認する新構想の概要
+7. `admin-restructure-report.md` - 旧機能の退避と停止内容
 
-## 運用時に使う資料
+機械可読な現在値は `../data/editorial/strategy.yaml` を参照する。
 
-- [`publishing-workflow.md`](publishing-workflow.md) — Obsidianから校正・プレビュー・公開する手順
-- [`backup-and-restore-workflow.md`](backup-and-restore-workflow.md) — Phase 4のバックアップ、容量停止、復元、承認手順
-- [`weekly-picks-workflow.md`](weekly-picks-workflow.md) — Phase 5の候補収集、手入力、検証済み下書き生成手順
+## 保留資料
 
-## 記録資料
-
-- [`phase-0-audit.md`](phase-0-audit.md) — Phase 0実施時点の現状監査結果
-- [`phase-1-implementation-report.md`](phase-1-implementation-report.md) — Phase 1の実装内容、テスト結果、保留事項
-- [`phase-2-implementation-report.md`](phase-2-implementation-report.md) — Phase 2の本文保護、校正レポート、テスト結果、保留事項
-- [`phase-3-implementation-report.md`](phase-3-implementation-report.md) — Phase 3のDiscord通知、Pages確認、実Discord疎通、Node.js 24対応の完了記録
-- [`gemini-weekly-research-setup.md`](gemini-weekly-research-setup.md) — Gemini候補調査、HTML/PDF確認資料、API設定の手順
-- [`phase-4-implementation-report.md`](phase-4-implementation-report.md) — Phase 4の容量実測、暗号化バックアップ、復元、定期実行、通知の完了記録
-- [`phase-5-implementation-prompt.md`](phase-5-implementation-prompt.md) — Phase 5「新作・セール5選」を安全に調査・実装するための依頼文
-- [`phase-5-implementation-report.md`](phase-5-implementation-report.md) — Phase 5の手入力方式、検証、下書き生成、テスト、保留事項
-
-監査資料は当時の状態を残す記録であり、現在の操作方法と異なる場合がある。現在の公開操作は `publishing-workflow.md`、現在の進捗は `roadmap.md` を優先する。
-
-## 文書以外の関連設定
-
-- `../data/editorial/strategy.yaml` — AIと自動処理が参照する機械可読な運営設定
-
-方針を変更するときは、`blog_automation_spec.md`、`roadmap.md`、`game-blog-operation-plan.html`、`publishing-workflow.md`、該当Phaseの実装報告、`../data/editorial/strategy.yaml` を同時に更新する。共通の作業・安全ルールを変更するときは、`../AGENTS.md` と `automation-common-rules.md` も同期する。
+過去Phase、Discord、週次AI調査などの資料とコードは `../old/` に退避した。
+`old/` は参考資料であり、現在の操作手順や実装対象ではない。再利用する場合は、現在の安全基準で再設計する。

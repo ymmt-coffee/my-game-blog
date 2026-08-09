@@ -129,20 +129,6 @@ try {
     $OccurredAt = Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz"
     $StatePath = Join-Path $StateRoot "$RunId-status.json"
     @{ status = "failure"; failure_kind = $FailureKind; run_id = $RunId; occurred_at = $OccurredAt } | ConvertTo-Json -Compress | Set-Content -LiteralPath $StatePath -Encoding UTF8
-    $Gh = Get-Command gh -ErrorAction SilentlyContinue
-    if ($Gh) {
-        $PreviousPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = "Continue"
-            $null = & gh auth status 2>$null
-            $GhAuthenticated = $LASTEXITCODE -eq 0
-            if ($GhAuthenticated) {
-                $null = & gh workflow run backup-error-notify.yml --ref main -f "failure_kind=$FailureKind" -f "backup_run_id=$RunId" -f "occurred_at=$OccurredAt" 2>$null
-            }
-        } finally {
-            $ErrorActionPreference = $PreviousPreference
-        }
-    }
     throw "The backup did not complete safely. Check the local non-secret status record."
 } finally {
     if ($Lock) { $Lock.Dispose() }

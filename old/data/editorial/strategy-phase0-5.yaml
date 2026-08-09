@@ -1,0 +1,621 @@
+version: "1.7"
+updated_at: "2026-08-08"
+status: phase_5_implementation_and_test_publication_completed
+
+document_set:
+  human_spec: docs/blog_automation_spec.md
+  implementation_roadmap: docs/roadmap.md
+  human_overview: docs/game-blog-operation-plan.html
+  machine_config: data/editorial/strategy.yaml
+  synchronization_rule: "方針変更時は4ファイルを同時に更新する"
+
+implementation_status:
+  phase_0_audit: completed
+  phase_1_overall: completed
+  phase_2_overall: completed
+  phase_2_external_ai_connection: live_smoke_test_verified
+  phase_3_overall: completed
+  phase_4_local_implementation: completed
+  phase_4_external_drive_connection: completed
+  phase_4_overall: completed
+  verified_at: "2026-08-02"
+  verified_operations:
+    - obsidian_local_preview
+    - explicit_publish_approval
+    - article_scoped_git_commit_and_push
+    - github_pages_deployment
+    - public_url_http_200
+    - gemini_3_6_flash_fictional_article_live_smoke_test
+    - gemini_source_hash_unchanged
+    - gemini_six_category_report_parsed
+    - gemini_smoke_temporary_data_removed
+    - phase_3_fake_discord_tests
+    - discord_publish_channel_live_connection_test
+    - discord_error_channel_live_connection_test
+    - discord_attention_channel_live_connection_test
+    - node24_native_pages_actions_verified
+    - github_pages_top_http_200_after_phase_3
+    - github_pages_existing_article_http_200_after_phase_3
+    - phase_4_read_only_capacity_inventory
+    - phase_4_offline_copy_snapshot_restore_tests
+    - phase_4_encrypted_fictional_file_upload_restore_sha256_verified
+    - phase_4_initial_daily_backup_verified
+    - phase_4_initial_monthly_snapshot_verified
+    - phase_4_windows_tasks_enabled
+    - phase_4_backup_error_actions_connection_test
+  implemented:
+    - page_bundle_sync
+    - per_article_images
+    - review_report_exclusion
+    - missing_image_validation
+    - draft_false_publish_gate
+    - temporary_local_preview
+    - separate_preview_and_publish_shortcuts
+    - article_scoped_commit
+    - github_actions_result_check
+    - public_url_check
+    - pinned_hugo_version_0_163_2_extended
+    - three_article_archetypes
+    - article_type_disclosures
+    - seo_metadata_validation
+    - responsive_images_and_webp
+    - internal_link_validation
+    - required_front_matter_validation
+    - static_policy_pages
+    - review_input_allowlist_and_dry_run
+    - source_hash_before_and_after_review
+    - six_category_review_report
+    - atomic_review_report_save
+    - secret_detection_before_ai_and_before_save
+    - review_report_freshness_warning
+    - fake_ai_review_for_offline_tests
+    - gemini_3_6_flash_adapter
+    - gemini_structured_output_schema
+    - gemini_missing_key_guard
+    - gemini_fictional_article_smoke_test
+    - gemini_live_smoke_test
+    - obsidian_gemini_review_shortcut
+    - discord_trigger_classification
+    - discord_publish_error_attention_routing
+    - pages_and_article_url_verification
+    - discord_mentions_disabled
+    - discord_limited_retry_for_429_and_5xx
+    - node24_actions_execution
+    - phase_4_explicit_exclusion_rules
+    - phase_4_copy_without_destination_deletes
+    - phase_4_monthly_snapshot_and_retention_candidates
+    - phase_4_run_lock_and_source_change_detection
+    - phase_4_capacity_guard
+    - phase_4_temporary_restore_hash_verification
+    - phase_4_safe_backup_error_workflow
+    - phase_4_encrypted_google_drive_backup
+    - phase_4_windows_scheduled_tasks
+    - phase_5_manual_candidate_input
+    - phase_5_week_window_and_validation
+    - phase_5_deterministic_selection
+    - phase_5_draft_and_social_asset_generation
+    - phase_5_ai_fact_allowlist
+    - phase_5_gemini_candidate_research
+    - phase_5_human_selection_to_draft_pipeline
+    - phase_5_discord_pdf_webhook
+  not_implemented:
+    - phase_5_schedule_activation
+    - ai_editor_in_chief
+    - social_posting
+    - ga4
+    - search_console
+    - monthly_reporting
+    - contact_form
+    - advertising_and_affiliates
+    - automation_cost_enforcement
+
+change_history:
+  - date: "2026-08-01"
+    summary: "Phase 0監査と安全なPage Bundle同期・公開基盤を実装"
+  - date: "2026-08-01"
+    summary: "テスト記事のcommit、push、GitHub Pages公開を確認"
+  - date: "2026-08-02"
+    summary: "Obsidianからプレビューと本番投稿を確認し、ショートカット構成を整理"
+  - date: "2026-08-02"
+    summary: "Phase 1の記事形式、SEO、画像最適化、検査、固定ページをローカル実装・検証"
+  - date: "2026-08-02"
+    summary: "Phase 1をcommit・pushし、GitHub ActionsとGitHub Pagesの公開を確認"
+  - date: "2026-08-02"
+    summary: "Phase 2の本文保護、秘密情報検査、校正レポート、鮮度確認をローカル実装"
+  - date: "2026-08-02"
+    summary: "Gemini最小疎通を確認し、Obsidian操作をCtrl+Altへ統一してPhase 2をローカルcommit"
+  - date: "2026-08-02"
+    summary: "Phase 2をpushし、GitHub Actionsのbuild・deployとGitHub Pagesへの配置を確認"
+  - date: "2026-08-02"
+    summary: "Phase 3のDiscord通知、Pages・記事URL確認、Node.js 24対応をローカル実装"
+  - date: "2026-08-02"
+    summary: "Phase 3のSecrets、実Discord3件、commit・push・Actions・Pages、Node.js 24公式v5を確認"
+  - date: "2026-08-02"
+    summary: "Phase 4の容量調査と外部接続なしのバックアップ・復元基盤をローカル実装"
+  - date: "2026-08-02"
+    summary: "Phase 4の暗号化Google Driveバックアップ、復元、定期実行、Actions通知、commit・pushを完了"
+  - date: "2026-08-08"
+    summary: "Phase 5のGemini候補調査、人による5本選択、下書き生成、Discord PDF通知を実装・検証"
+
+site:
+  working_title: "game logs"
+  title_is_temporary: true
+  language: ja
+  locale: ja-JP
+  author: "やまもと"
+  platform_focus:
+    - PC
+    - Steam
+  custom_domain_planned: true
+  comments_enabled: false
+  copyright: "© やまもと"
+
+mission:
+  primary: "文章を定期的に書く趣味を無理なく続ける"
+  secondary:
+    - "面白いゲームを探している日本語読者へ作品を紹介する"
+    - "文章を読むこと自体を好む再訪読者を増やす"
+    - "アクセスと収益を意識して改善する"
+  revenue_goal:
+    target_monthly_jpy: 10000
+    target_after_months: 12
+    purpose: "ブログ運営費とゲーム購入費"
+
+content:
+  weekly_impression:
+    enabled: true
+    frequency: weekly
+    series_name: "プレイ途中記"
+    minimum_play_hours_target: 5
+    disclose_play_hours: true
+    completion_required: false
+    score_or_stars: false
+    explicit_purchase_verdict: false
+    title_tone: neutral
+    spoilers: avoid
+  weekly_release_sale:
+    enabled: true
+    publish_day: monday
+    item_count: 5
+    release_window: monday_to_sunday
+    minimum_sale_discount_percent: 20
+    ai_may_draft_full_article: true
+    author_comment_deadline: "Sunday 24:00 Asia/Tokyo"
+    publish_without_author_comment: true
+    collection_mode: gemini_candidate_and_source_collection_then_program_validation
+    discovery_sources: [steam_upcoming, steam_specials, steam_wishlist, optional_steamdb_discovery_only]
+    final_sources: [steam_store, developer_official, publisher_official]
+    region: JP
+    currency: JPY
+    selection_mix: at_least_one_release_and_one_sale
+    if_fewer_than_five_valid_candidates: stop_and_attention
+    week_id_format: "YYYY-Www"
+    slug_format: "weekly-picks-yyyy-www"
+    initial_execution: manual_live_research_then_human_selection
+    monday_0600_initial_action: draft_and_local_social_assets_only
+    automatic_publish: false
+    schedule_status: github_actions_sunday_1800_jst
+    discord_webhook_secret: DISCORD_WEBHOOK_WEEKLY_RESEARCH
+    live_operation_status: scheduled_research_and_test_publication_verified
+  monthly_essay:
+    enabled_when_capacity_allows: true
+    purpose: "ゲーム体験を題材に自由に書く私小説的なレビューエッセイ"
+    seo_priority: low
+  article_types:
+    play_note:
+      archetype_kind: play-note
+      requires: [title, date, lastmod, draft, description, images, article_type, play_time, author]
+      automatic_notice: play_time_and_not_full_review
+    weekly_picks:
+      archetype_kind: weekly-picks
+      requires: [title, date, lastmod, draft, description, images, article_type, author]
+      automatic_notice: unplayed_information_article
+    monthly_essay:
+      archetype_kind: monthly-essay
+      requires: [title, date, lastmod, draft, description, images, article_type, author]
+      automatic_notice: none_unless_spoiler_or_provided
+  optional_front_matter:
+    spoiler_warning: "空なら非表示。警告文がある場合だけ表示"
+    provided: "trueの場合だけ提供と編集上の独立性を表示"
+    corrections: "dateとsummaryによる訂正・更新履歴"
+
+editorial_boundaries:
+  author_writes_article_body: true
+  ai_may_modify_article_body: false
+  ai_may_report:
+    - typos
+    - grammatical_discomfort
+    - subject_predicate_mismatch
+    - unclear_passages
+    - fact_check_needed
+    - seo_suggestions
+    - structure_suggestions
+  suggestions_are_optional: true
+  report_location: "article sibling note named review-report.md"
+  retain_reports: true
+  publish_reports: false
+  disclose_ai_usage_on_about_page: true
+  review_implementation:
+    input_scope: one_article_allowlisted_front_matter_and_body
+    image_payload: filenames_and_alt_text_only
+    image_binary_sent: false
+    source_hash_algorithm: sha256
+    source_hash_checked_before_and_after: true
+    response_format: strict_json_six_categories
+    report_atomic_write: true
+    same_input_result_reused: true
+    existing_report_default: refuse_overwrite_without_explicit_replace
+    history_mode: single_report_with_explicit_replace
+    proofreading_shortcut: "Ctrl+Alt+K"
+    proofreading_shortcut_status: configured_and_verified
+    external_ai_service: google_gemini_developer_api
+    external_ai_model: gemini-3.6-flash
+    alternate_ai_service_status: deferred_until_needed
+    external_fact_search_status: disabled_deferred
+    interactions_api_recheck: required_on_sdk_update
+    production_article_quality_and_usage_review: pending
+    github_actions_node20_deprecation_followup: addressed_with_node24_native_official_actions
+    model_version_policy: pin_stable_model_id
+    api_connection_status: live_smoke_test_verified
+    planned_usage_tier: free_tier
+    free_tier_data_notice: "無料枠では送信内容がGoogleの製品改善に使われる"
+    external_fact_check_search: disabled
+    api_key_source: GEMINI_API_KEY_environment_variable_only
+    interaction_store: false
+    google_search_tool_enabled: false
+    interactions_sdk_warning: experimental_api_may_change
+    fake_provider_for_tests: true
+  review_input_excludes:
+    - api_keys
+    - webhook_urls
+    - git_credentials
+    - whole_obsidian_vault
+    - other_articles
+    - prior_review_report
+    - .git
+    - .env
+    - os_user_information
+    - non_blog_personal_notes
+    - image_binaries
+    - my-blog
+
+game_selection:
+  candidates_per_week: 3
+  candidate_source: unowned_games
+  selection_input:
+    steam_library: true
+    steam_wishlist: true
+  priorities:
+    - release_recency_and_buzz
+    - search_demand
+    - author_taste_fit
+    - low_competitor_coverage
+    - steam_user_rating
+    - low_price
+    - japanese_language_support
+    - suitability_for_weekly_article
+    - potential_for_monthly_essay
+  author_preferences:
+    genres:
+      - MMO
+      - strategy
+      - visual_novel
+      - simulation
+      - hack_and_slash
+      - roguelike
+    examples:
+      - Albion Online
+      - VA-11 Hall-A
+      - Etrian Odyssey
+      - Tooth and Tail
+      - Mystery Dungeon series
+    avoid:
+      - poor_pacing
+      - shoot_em_up
+  scope:
+    prefer_indie_and_small_studios: true
+    allow_major_titles_when_high_interest: true
+    allow_early_access: true
+    allow_ai_asset_heavy_games: true
+    exclude_adult_content: true
+    exclude_strong_gore: true
+    allow_general_combat_horror_and_light_blood: true
+  language:
+    english_only_allowed: true
+    limit_to_accessible_for_general_japanese_readers: true
+  purchase_budget_jpy:
+    normal_monthly: 15000
+    exceptional_monthly_max: 30000
+  if_no_candidate_selected_by_deadline: choose_rank_1
+  if_article_delayed: carry_over_to_next_week
+
+publishing:
+  source: Obsidian
+  source_directory_hint: "Life_and_Div/30_Projects/01_blog"
+  images_subdirectory: images
+  author_controls_image_selection_and_captions: true
+  review_report_filename: review-report.md
+  require_local_preview: true
+  require_separate_publish_approval: true
+  current_shortcuts:
+    preview_game_blog: "Ctrl+Alt+V"
+    review_game_blog: "Ctrl+Alt+K"
+    publish_game_blog: "Ctrl+Alt+P"
+    publish_logs_blog: "Ctrl+Alt+L"
+    claude_code_shortcut: removed
+  logs_blog_is_separate_site: true
+  current_pipeline:
+    - resolve_current_article
+    - require_explicit_approval
+    - check_review_report_safety_and_freshness
+    - protect_unrelated_worktree_changes
+    - sync_one_page_bundle_to_validation_area
+    - validate_draft_false_and_images
+    - validate_front_matter_internal_links_and_test_content
+    - hugo_production_build_to_temporary_directory
+    - validate_generated_seo_and_site_links
+    - sync_one_page_bundle_after_validation
+    - git_commit_one_article
+    - git_push
+    - wait_for_github_actions
+    - verify_public_url
+    - verify_published_article_url
+    - classify_push_schedule_and_workflow_dispatch
+    - notify_discord_publish_error_or_attention
+  automation_after_approval:
+    - sync_to_hugo
+    - git_commit
+    - git_push
+    - deploy
+    - social_schedule
+  block_publish_on:
+    - article_modified_during_review
+    - possible_secret_in_review_input_or_report
+    - unsafe_or_unparseable_ai_output_or_review_report
+    - review_report_save_failure
+    - hugo_build_failure
+    - missing_required_article_file
+    - missing_required_image
+    - missing_required_front_matter
+    - missing_article_type_specific_field
+    - broken_internal_link
+    - review_report_in_public_content
+    - invalid_or_duplicate_canonical_and_social_metadata
+    - draft_or_unapproved_test_content
+    - deployment_failure
+  warn_publish_on:
+    - review_report_missing
+    - review_report_stale
+    - proofreading_suggestions_unresolved
+  corrections:
+    silent_for_minor_typos: true
+    show_history_for_material_changes: true
+  image_delivery:
+    keep_obsidian_originals: true
+    keep_bundle_source_images: true
+    raster_formats_with_responsive_webp: [jpg, jpeg, png, webp]
+    maximum_display_width_px: 1440
+    webp_quality: 82
+    gif_policy: preserve_animation_without_webp_conversion
+    svg_policy: pass_through_without_raster_conversion
+    avif_policy: pass_through_without_reencoding
+    no_image_fallback: no_broken_placeholder_and_summary_twitter_card
+    generated_files_are_not_committed: true
+
+schedule:
+  timezone: Asia/Tokyo
+  weekly_research_discord: "Sunday 18:00"
+  weekly_article_publish: "Sunday"
+  roundup_publish: "Monday 06:00"
+  editor_candidates_discord: "Monday 06:05"
+  first_social_post: "Monday 07:30"
+  second_social_post: "Monday 20:00"
+  game_selection_deadline: "Monday 24:00"
+  monthly_report: "Day 1 06:00"
+  quarterly_review_months: [1, 4, 7, 10]
+
+social:
+  accounts_pending_until_brand_decided: true
+  primary: X
+  secondary: Bluesky
+  official_account_tone: factual_and_calm
+  personal_account_is_publicly_the_author: true
+  automatic_replies: false
+  author_handles_replies: true
+  ai_may_summarize_articles: true
+  ai_must_not_invent_first_person_experience: true
+  monthly_essay_posts_use_author_excerpt: true
+  repost_windows:
+    - immediately
+    - next_day
+    - one_week
+    - one_month
+    - relevant_sale
+    - major_update_or_full_release
+  routine_reposts_max_article_age_days: 31
+  publish_only_after_site_deploy_success: true
+
+discord:
+  category: "編集室"
+  mode: incoming_webhooks
+  channels:
+    assignments: "今週の指示"
+    publish: "公開通知"
+    social: "sns予定"
+    monthly_report: "アクセス月報"
+    errors: "エラー通知"
+    attention: "要確認"
+  secrets_must_not_be_stored_here: true
+  secret_names:
+    publish: DISCORD_WEBHOOK_PUBLISH
+    errors: DISCORD_WEBHOOK_ERROR
+    attention: DISCORD_WEBHOOK_ATTENTION
+  implementation_status: completed
+  notification_rules:
+    publish_success: "push後のHEAD commitがpublish: <安全なslug>で、push全体の変更範囲が対象記事だけ、build・deploy・Pages・記事URL確認が成功"
+    normal_push_success: no_notification
+    schedule_success: no_notification
+    workflow_dispatch_success: no_notification
+    technical_failure_all_triggers: errors
+    unsafe_publish_identification_after_successful_deploy: attention
+    missing_or_stale_review_report: deferred_transfer_design
+  payload_allowlist:
+    - notification_type
+    - article_slug_or_failure_stage
+    - public_url
+    - commit_short_sha
+    - trigger
+    - actions_run_url
+  payload_excludes:
+    - webhook_url
+    - article_body
+    - review_report_body
+    - secrets
+    - full_logs
+  allowed_mentions: disabled
+  retry:
+    statuses: [429, "500-599"]
+    maximum_total_attempts: 3
+    other_statuses: no_retry
+    uncertain_connection_result: no_retry_to_reduce_duplicates
+  notification_failure_marks_actions_failed: true
+  notification_failure_rolls_back_published_content: false
+  workflow_rerun_may_duplicate: true
+  duplicate_identifiers: [commit_short_sha, actions_run_url]
+  live_test_messages_sent: 3
+
+analytics:
+  google_analytics_4: planned
+  google_search_console: planned
+  current_provider: none
+  umami_configuration_present_but_disabled_by_empty_website_id: true
+  ga4_configuration_present_but_disabled_by_empty_measurement_id: true
+  plausible_configuration_present_but_disabled_by_empty_domain: true
+  repository_must_not_store_real_ids: true
+  detailed_monthly_report_in_obsidian: true
+  summary_monthly_report_in_discord: true
+  quarterly_strategy_review: true
+  priorities:
+    - sustainable_writing
+    - returning_readers
+    - search_and_social_access
+    - revenue_toward_game_costs
+
+monetization:
+  display_ads_at_launch: false
+  add_display_ads_after_content_base_exists: true
+  initial_article_target_before_ads: 20
+  avoid:
+    - interstitial_ads
+    - sticky_ads
+    - excessive_in_content_ads
+  steam_links_without_revenue_are_allowed: true
+  affiliate_stores_must_be_authorized_resellers: true
+  disclosure_pages_required: true
+
+automation_budget:
+  monthly_jpy: 3000
+  warning_percent: 80
+  shutdown_order:
+    - opportunistic_social_reposts
+    - detailed_social_analysis
+    - ad_hoc_ai_research
+    - routine_social_reposts
+  preserve:
+    - publishing
+    - weekly_game_selection
+    - minimum_monthly_report
+
+backup:
+  provider: google_drive
+  setup_status: local_implementation_completed_external_setup_pending
+  provider_account: dedicated_blog_account
+  provider_account_ready: true
+  provider_storage_total_bytes_verified: 16106127360
+  provider_storage_used_bytes_verified: 0
+  provider_storage_free_bytes_verified: 16106113631
+  source_scope: Life_and_Div
+  source_absolute_path: "C:/Users/ymmt_/Documents/Life_and_Div"
+  measured_source_files: 19068
+  measured_source_bytes: 2754084310
+  estimated_included_files: 882
+  estimated_included_bytes: 229112114
+  tool: rclone
+  tool_version_candidate: "1.75.0"
+  tool_install_status: installed_sha256_verified
+  daily_time: "02:00"
+  daily_policy: copy_without_destination_deletes
+  daily_scope: entire_Life_and_Div_after_exclusions
+  monthly_snapshot_name: YYYY-MM
+  monthly_snapshots_to_keep: 12
+  monthly_scope_policy: blog_essentials_only
+  monthly_include_scopes:
+    - .obsidian
+    - 30_Projects/01_blog
+    - 30_Projects/10_Apps/my-blog
+    - 30_Projects/10_Apps/my-game-blog
+  monthly_estimated_files: 397
+  monthly_estimated_bytes: 8751823
+  monthly_twelve_snapshots_estimated_bytes: 105021876
+  client_side_encryption: rclone_crypt_configured
+  oauth_status: configured_and_capacity_read_verified
+  normal_remote_logical_name: gdrive-phase4
+  crypt_remote_logical_name: gdrive-phase4-crypt
+  crypt_underlying_path: "gdrive-phase4:my-game-blog-backup"
+  encrypted_smoke_test_status: upload_restore_sha256_verified
+  encrypted_smoke_test_plaintext_files: 1
+  encrypted_smoke_test_plaintext_bytes: 79
+  encrypted_smoke_test_remote_data: retained_by_user_approval
+  rclone_config_protection: encrypted_with_dpapi_current_user
+  initial_daily_backup_status: copy_and_verification_succeeded
+  initial_monthly_snapshot: "2026-08"
+  initial_monthly_backup_status: copy_and_verification_succeeded
+  task_scheduler_status: registered_enabled
+  backup_error_actions_status: pushed_and_connection_test_succeeded
+  backup_error_discord_test_count: 1
+  registered_task_count: 2
+  monthly_time: "day_1_03:00"
+  wake_to_run: true
+  start_when_available: true
+  start_on_battery: false
+  duplicate_run_policy: reject_with_lock
+  restore_to_active_source_allowed: false
+  capacity_reserve:
+    minimum_bytes: 1073741824
+    minimum_percent: 20
+  exclude:
+    - .git
+    - public
+    - caches
+    - temporary_files
+    - virtual_environments
+    - downloadable_dependencies
+    - reparse_points
+    - local_secret_configuration
+  notify_failure_in_discord: true
+  notification_route: github_actions_using_existing_error_secret
+  notification_activation_status: pushed_and_live_connection_test_verified
+
+contact:
+  form_planned: true
+  dedicated_email_planned: true
+  fields:
+    - name
+    - email
+    - category
+    - message
+  accept_categories:
+    - correction
+    - feedback
+    - game_recommendation
+    - review_key_offer
+    - advertising_or_work
+  attachments_allowed: false
+  spam_protection: required
+  discord_notification_contains_personal_data: false
+
+review_keys:
+  accepted: true
+  publication_guaranteed: false
+  editorial_control_required: true
+  disclosure_required: true

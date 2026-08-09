@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ゲームブログの編集方針、AI運営、SNS、公開フローを定めた運営仕様書">
+  <title>ゲームブログ運営仕様書</title>
+  <style>
+    :root {
+      --ink: #152018;
+      --muted: #667169;
+      --paper: #f7f4ec;
+      --card: #fffdf8;
+      --line: #dfe3d8;
+      --green: #1f6b4f;
+      --green-soft: #dcece2;
+      --orange: #d16b3c;
+      --navy: #243a52;
+      --shadow: 0 18px 50px rgba(28, 48, 36, .09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 90% 3%, rgba(209,107,60,.12), transparent 25rem),
+        radial-gradient(circle at 5% 35%, rgba(31,107,79,.09), transparent 28rem),
+        var(--paper);
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+      line-height: 1.75;
+    }
+    a { color: inherit; }
+    .shell { width: min(1120px, calc(100% - 40px)); margin: auto; }
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(223,227,216,.9);
+      background: rgba(247,244,236,.88); backdrop-filter: blur(14px);
+    }
+    .topbar .shell { display: flex; align-items: center; justify-content: space-between; min-height: 62px; }
+    .brand { font-weight: 800; letter-spacing: .04em; }
+    .topbar nav { display: flex; gap: 20px; font-size: .87rem; color: var(--muted); }
+    .topbar nav a { text-decoration: none; }
+    .hero { padding: 92px 0 68px; }
+    .eyebrow { color: var(--green); font-size: .82rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { max-width: 850px; margin: 14px 0 22px; font-size: clamp(2.7rem, 7vw, 5.8rem); line-height: 1.03; letter-spacing: -.055em; }
+    .hero p { max-width: 720px; margin: 0; color: var(--muted); font-size: clamp(1rem, 2vw, 1.2rem); }
+    .hero-grid { display: grid; grid-template-columns: 1.5fr .7fr; gap: 36px; align-items: end; }
+    .principle { padding: 24px; color: white; background: var(--navy); border-radius: 4px 28px 4px 4px; box-shadow: var(--shadow); }
+    .principle b { display: block; margin-bottom: 8px; color: #bde8d2; font-size: .8rem; letter-spacing: .1em; }
+    section { padding: 62px 0; }
+    .section-head { display: grid; grid-template-columns: .65fr 1.35fr; gap: 34px; margin-bottom: 32px; align-items: start; }
+    h2 { margin: 0; font-size: clamp(1.9rem, 4vw, 3.3rem); line-height: 1.13; letter-spacing: -.035em; }
+    .section-head p { margin: 5px 0 0; color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { padding: 25px; border: 1px solid var(--line); background: rgba(255,253,248,.75); box-shadow: 0 8px 24px rgba(28,48,36,.035); }
+    .card:first-child { border-top: 4px solid var(--green); }
+    .card h3 { margin: 0 0 10px; font-size: 1.05rem; }
+    .card p, .card li { color: var(--muted); font-size: .92rem; }
+    .card ul { margin: 10px 0 0; padding-left: 18px; }
+    .status { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .status .card { min-height: 185px; }
+    .tag { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--green-soft); color: var(--green); font-size: .72rem; font-weight: 800; }
+    .flow { overflow-x: auto; padding: 32px; color: white; background: var(--navy); box-shadow: var(--shadow); }
+    .flow-row { min-width: 780px; display: flex; align-items: stretch; gap: 10px; }
+    .node { flex: 1; padding: 18px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); }
+    .node strong { display: block; color: #bde8d2; }
+    .arrow { align-self: center; color: #f4a07b; font-size: 1.5rem; }
+    .timeline { border-left: 2px solid var(--green); margin-left: 12px; }
+    .phase { position: relative; padding: 0 0 42px 36px; }
+    .phase::before { content: ""; position: absolute; left: -8px; top: 7px; width: 14px; height: 14px; border-radius: 50%; background: var(--paper); border: 3px solid var(--green); }
+    .phase:last-child { padding-bottom: 0; }
+    .phase small { color: var(--orange); font-weight: 800; letter-spacing: .08em; }
+    .phase h3 { margin: 3px 0 7px; font-size: 1.3rem; }
+    .phase p { max-width: 760px; margin: 0; color: var(--muted); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .75rem; letter-spacing: .08em; }
+    td:last-child { font-weight: 700; white-space: nowrap; }
+    .decision { padding: 40px; border-radius: 4px 34px 4px 4px; background: var(--green); color: white; }
+    .decision h2 { max-width: 720px; }
+    .decision p { max-width: 780px; color: #d9f1e5; }
+    .next { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 26px; background: rgba(255,255,255,.25); }
+    .next div { padding: 22px; background: var(--green); }
+    .next b { display: block; color: #ffd4c1; font-size: 1.8rem; }
+    footer { padding: 40px 0 56px; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 760px) {
+      .topbar nav { display: none; }
+      .hero { padding-top: 65px; }
+      .hero-grid, .section-head, .cards, .status, .split, .next { grid-template-columns: 1fr; }
+      section { padding: 44px 0; }
+      .decision { padding: 28px; }
+    }
+    @media print {
+      .topbar { display: none; }
+      body { background: white; }
+      .hero { padding-top: 40px; }
+      .card, .flow { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell">
+      <div class="brand">GAME BLOG / OPERATING SPEC</div>
+      <nav aria-label="ページ内ナビゲーション">
+        <a href="#current">現状</a><a href="#architecture">構成</a><a href="#social">SNS</a><a href="#roadmap">導入</a><a href="#cost">費用</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">Version 1.7 · Phase 5 live workflow verified</div>
+          <h1>遊ぶ。書く。<br>運営はAIと仕組みに任せる。</h1>
+          <p>やまもとがゲームプレイと文章執筆に集中し、企画選定・校正提案・公開・SEO・分析・SNS運用をAIと自動処理が担うための確定仕様。</p>
+        </div>
+        <aside class="principle">
+          <b>最優先原則</b>
+          文章はやまもとが書く。AIは本文を書き換えず、企画・指摘・整理・分析・通知を担当する。
+        </aside>
+      </div>
+    </section>
+
+    <section id="policy">
+      <div class="shell">
+        <div class="section-head"><h2>編集方針</h2><p>アクセスと収益を意識しつつ、文章を書く趣味として無理なく続ける。攻略メディアではなく、面白いPCゲームを探す人と文章を読む人の双方へ届ける。</p></div>
+        <div class="cards">
+          <article class="card"><span class="tag">WEEKLY</span><h3>プレイ途中記</h3><p>週1本。最低5時間を目安に、その週に遊べるだけ遊んで執筆。完走レビューとはせず、プレイ時間を明記する。星評価や明確な購入判定は載せない。</p></article>
+          <article class="card"><span class="tag">MONDAY</span><h3>新作・セール5選</h3><p>Steamの近日中リリース、スペシャル、ウィッシュリストから人が候補を集め、公式情報を手入力する。検証後に新作・セール各1本以上の5本を選び、日曜24時まで私感を追記できる。</p></article>
+          <article class="card"><span class="tag">MONTHLY</span><h3>レビューエッセイ</h3><p>余力がある月に公開。フルプレイしたゲーム体験を題材に、私小説的な読み物として自由に書く。アクセスやSEOを強く要求しない保護領域とする。</p></article>
+        </div>
+        <div class="split" style="margin-top:16px">
+          <article class="card"><h3>扱う作品</h3><ul><li>PC / Steam中心</li><li>インディー・小規模開発を優先</li><li>特に関心が高い場合は大手作品も対象</li><li>英語作品は日本の一般読者が抵抗を感じにくい範囲</li><li>一般的な戦闘・ホラー・軽度の流血は対象</li></ul></article>
+          <article class="card"><h3>扱わない領域</h3><ul><li>攻略を主目的とする記事</li><li>成人向け作品</li><li>強い残虐表現を中心とする作品</li><li>リークや確認できない発売情報</li><li>具体的なネタバレ（避けられない場合は冒頭警告）</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="current">
+      <div class="shell">
+        <div class="section-head">
+          <h2>現在地</h2>
+          <p>Phase 4までの基盤に加え、Phase 5のGemini候補調査、人による5本選択、重複防止、未プレイ下書き、Discord確認資料、Obsidian保存まで実運用で確認した。候補調査は毎週日曜18時に実行し、公開は別承認とする。</p>
+        </div>
+        <div class="status">
+          <article class="card"><span class="tag">VERIFIED</span><h3>本文を書き換えない校正基盤</h3><ul><li>校正前後のSHA-256確認</li><li>AI入力の限定と秘密情報検査</li><li>6分類のreview-report</li><li>外部APIなしの固定応答テスト</li></ul></article>
+          <article class="card"><span class="tag">VERIFIED</span><h3>Gemini最小疎通成功</h3><ul><li>安定版 gemini-3.6-flash</li><li>架空原稿1件だけを送信</li><li>本文ハッシュ不変</li><li>検索・会話保存は無効</li></ul></article>
+          <article class="card"><span class="tag">LOCAL VERIFIED</span><h3>安全なDiscord通知</h3><ul><li>公開・エラー・要確認を分離</li><li>Pagesと記事URL確認後に成功通知</li><li>メンションと秘密情報を除外</li><li>429・5xxだけ最大3回</li></ul></article>
+        </div>
+        <div class="card" style="margin-top:16px"><span class="tag">CHANGE LOG</span><h3>2026-08-01〜02の主な変更</h3><p>Phase 0〜2の安全な公開・校正基盤に続き、Phase 3では通常push・schedule・手動実行を区別し、公開成功、技術的失敗、人の確認が必要な状態をDiscordの別チャンネルへ送る処理を追加した。GitHub公式ActionもNode.js 24ネイティブ対応版へ更新した。独立したlogsブログと既存ショートカットは維持している。</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="shell">
+        <div class="section-head">
+          <h2>目指す編集室</h2>
+          <p>原稿の正本はObsidian、公開用Page Bundleと変更履歴はHugo・GitHubで管理する。将来は定期処理がAI編集会議を実行し、Discordを通知先の編集室として使う。</p>
+        </div>
+        <div class="flow" aria-label="運営フロー">
+          <div class="flow-row">
+            <div class="node"><strong>01 PLAY</strong>ゲームプレイ<br>気づき・画像を記録</div><div class="arrow">→</div>
+            <div class="node"><strong>02 WRITE</strong>Obsidianで<br>一次体験を書く</div><div class="arrow">→</div>
+            <div class="node"><strong>03 REVIEW</strong>AIが構成・SEO・<br>リンクを検査</div><div class="arrow">→</div>
+            <div class="node"><strong>04 PUBLISH</strong>ブログ公開と<br>SNS予約投稿</div><div class="arrow">→</div>
+            <div class="node"><strong>05 LEARN</strong>検索・閲覧・SNS反応から<br>次の指示を決定</div>
+          </div>
+        </div>
+        <div class="cards" style="margin-top:16px">
+          <article class="card"><h3>AI編集長</h3><p>プレイ状況、記事在庫、検索機会、更新時期を基に、今週書く記事とリライトの優先順位を決める。</p></article>
+          <article class="card"><h3>AI編集者 / SEO</h3><p>タイトル、見出し、検索意図、説明文、内部リンク、古い情報の可能性を公開前に確認する。</p></article>
+          <article class="card"><h3>分析担当AI</h3><p>Search Consoleとアクセス解析を週次集計し、伸ばす記事・直す記事・止める企画を提案する。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="social">
+      <div class="shell">
+        <div class="section-head">
+          <h2>SNS運用もAIへ</h2>
+          <p>ブログ記事を起点に、投稿企画・文面・画像案・予約・効果測定・再利用までを一つの流れにする。フォロワー数より、記事への質の高い流入と読者との信頼を評価する。</p>
+        </div>
+        <div class="cards">
+          <article class="card"><h3>投稿を作る</h3><p>記事公開時に、告知、役立つ小ネタ、プレイ中の発見、後日の再紹介という複数の切り口をAIが生成。各SNSの文字数と文化に合わせて書き分ける。</p></article>
+          <article class="card"><h3>投稿を配信する</h3><p>公開直後、翌日、1週間後などに予約投稿。投稿ID、記事ID、キャンペーン情報を記録し、どの投稿が読者を連れてきたか追跡する。</p></article>
+          <article class="card"><h3>反応から学ぶ</h3><p>表示、クリック、保存、反応、ブログ滞在を集計。反応の良いゲーム・切り口・時間帯を次の記事選定と投稿計画へ戻す。</p></article>
+        </div>
+
+        <div class="split" style="margin-top:16px">
+          <article class="card">
+            <span class="tag">AUTOMATIC</span>
+            <h3>自動化してよい範囲</h3>
+            <ul>
+              <li>公開済み記事の告知と再紹介</li>
+              <li>ユーザーが確認済みのプレイメモの再構成</li>
+              <li>定型の更新通知、訂正通知、週次まとめ</li>
+              <li>反応データ収集と投稿案の改善</li>
+            </ul>
+          </article>
+          <article class="card">
+            <span class="tag">APPROVAL REQUIRED</span>
+            <h3>人が確認する範囲</h3>
+            <ul>
+              <li>他者への返信、批評、議論への参加</li>
+              <li>未確認の攻略情報、リーク、発売前情報</li>
+              <li>強いネタバレ、権利関係が不明な画像</li>
+              <li>広告、提供、アフィリエイトを含む投稿</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="flow" style="margin-top:16px" aria-label="SNS投稿フロー">
+          <div class="flow-row">
+            <div class="node"><strong>ARTICLE</strong>公開記事と<br>プレイメモ</div><div class="arrow">→</div>
+            <div class="node"><strong>DRAFT</strong>AIが投稿群を<br>構造化生成</div><div class="arrow">→</div>
+            <div class="node"><strong>GUARD</strong>ネタバレ・事実・<br>権利を検査</div><div class="arrow">→</div>
+            <div class="node"><strong>QUEUE</strong>Discord承認または<br>自動予約</div><div class="arrow">→</div>
+            <div class="node"><strong>MEASURE</strong>反応と流入を<br>記事企画へ還元</div>
+          </div>
+        </div>
+
+        <div class="cards" style="margin-top:16px">
+          <article class="card"><h3>X</h3><p>日本のゲーム話題との相性を想定した主配信先。APIは従量課金で、URL付き投稿は公式価格上コストが高いため、投稿頻度と月額上限を先に決める。</p></article>
+          <article class="card"><h3>Bluesky</h3><p>短文投稿の第2配信先候補。X向け文面の単純コピーではなく、タグや書き出しを調整して配信する。</p></article>
+          <article class="card"><h3>YouTube / Shorts</h3><p>後期拡張。動画素材がある場合に、AIがタイトル、説明、章、短尺構成を作る。自動アップロードは監査・権利確認を経て導入する。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="shell">
+        <div class="section-head"><h2>段階導入</h2><p>最初から万能Botを作らず、記事が増えるほど判断材料と自動化範囲を広げる。</p></div>
+        <div class="timeline">
+          <article class="phase"><small>PHASE 0 / COMPLETE</small><h3>現状監査と安全対策</h3><p>旧ブログ由来の設定、Hugo、Obsidian、GitHub Pagesを監査。誤公開や別変更の巻き込みを防ぐ公開基盤へ更新し、本番動作を確認した。</p></article>
+          <article class="phase"><small>PHASE 1 / COMPLETE</small><h3>記事形式とHugo基盤</h3><p>3種のarchetype、定型表示、SEO、画像最適化、固定ページ、公開前検査を実装。9件の自動テスト、Actions、GitHub Pages公開を確認した。</p></article>
+          <article class="phase"><small>PHASE 2 / LIVE SMOKE VERIFIED</small><h3>本文を書き換えない校正</h3><p>本文ハッシュ検査、6分類レポート、固定応答テストを実装。gemini-3.6-flashへ架空原稿1件の最小疎通も成功した。</p></article>
+          <article class="phase"><small>PHASE 3 / COMPLETE</small><h3>GitHub PagesとDiscord通知</h3><p>公開・エラー・要確認通知、各チャンネル1件の実疎通、push、Actions、Pages、Node.js 24公式v5を確認済み。</p></article>
+          <article class="phase"><small>PHASE 4 / LOCAL VERIFIED</small><h3>復元可能なバックアップ</h3><p>日次は除外後の全体約229 MB、月次12世代はブログ重要範囲約8.75 MBに限定。容量停止、暗号化した架空1件の復元も確認済み。</p></article>
+          <article class="phase"><small>PHASE 5 / LIVE WORKFLOW VERIFIED</small><h3>新作・セール5選</h3><p>Geminiで新作5件・セール5件を収集し、人が5本を選ぶ。検証済み下書きとSNS素材、Discord用PDF・Webhook送信を実装。公開は未実施。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="schedule">
+      <div class="shell">
+        <div class="section-head"><h2>週間スケジュール</h2><p>時刻は日本時間。最初の3か月は固定運用し、その後は実測したクリックとアクセスから調整する。</p></div>
+        <table>
+          <thead><tr><th>時刻</th><th>処理</th></tr></thead>
+          <tbody>
+            <tr><td>日曜 18:00</td><td>新作5件・セール5件を調査し、Discordへ比較PDFを送信</td></tr>
+            <tr><td>日曜 24:00</td><td>新作・セール記事への私感入力期限</td></tr>
+            <tr><td>月曜 06:00</td><td>新作・セール5選を公開</td></tr>
+            <tr><td>月曜 06:05</td><td>Discord「今週の指示」へ候補3本を通知</td></tr>
+            <tr><td>月曜 07:30 / 20:00</td><td>SNSで異なる切り口の告知</td></tr>
+            <tr><td>月曜 24:00</td><td>Obsidianでゲームを選択。未選択なら第1候補を採用</td></tr>
+            <tr><td>火曜–土曜</td><td>プレイ、スクリーンショット、メモ、執筆</td></tr>
+            <tr><td>日曜</td><td>校正レポート、最終プレビュー、承認後に公開</td></tr>
+            <tr><td>毎月1日 06:00</td><td>Discord要約＋Obsidian詳細月報</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="selection">
+      <div class="shell">
+        <div class="section-head"><h2>AI編集長の選定</h2><p>毎週3本を提示し、ゲーム名、選定理由、価格、日本語対応、Steam評価、検索・話題性、やまもと適合度を表示する。</p></div>
+        <div class="cards">
+          <article class="card"><h3>優先順位 1–3</h3><ol><li>発売直後などの話題性</li><li>検索需要</li><li>やまもとの好みとの一致</li></ol></article>
+          <article class="card"><h3>優先順位 4–6</h3><ol start="4"><li>他ブログの情報不足</li><li>Steamでの評価</li><li>価格の安さ</li></ol></article>
+          <article class="card"><h3>優先順位 7–9</h3><ol start="7"><li>日本語対応</li><li>週次記事への適性</li><li>月次エッセイへの発展性</li></ol></article>
+        </div>
+        <p style="color:var(--muted);margin-top:18px">通常購入予算は月15,000円。特に注目すべき作品がある月のみ最大30,000円。候補は原則未所有作品とし、Steamライブラリとウィッシュリストを参照する。</p>
+      </div>
+    </section>
+
+    <section id="publishing">
+      <div class="shell">
+        <div class="section-head"><h2>執筆と公開</h2><p>Obsidianの原稿とHugoの公開データを分離し、AI校正は本文を一切変更せず別レポートへ提案だけを残す。レポートなし・古い結果は警告、秘密情報や不正形式は公開停止とする。</p></div>
+        <div class="flow" aria-label="公開承認フロー">
+          <div class="flow-row">
+            <div class="node"><strong>WRITE</strong>Obsidianで<br>本文と画像を作成</div><div class="arrow">→</div>
+            <div class="node"><strong>REVIEW</strong>本文を変えず<br>提案を別保存</div><div class="arrow">→</div>
+            <div class="node"><strong>PREVIEW</strong>一時領域で<br>ローカル確認</div><div class="arrow">→</div>
+            <div class="node"><strong>APPROVE</strong>別操作で<br>公開承認</div><div class="arrow">→</div>
+            <div class="node"><strong>VALIDATE</strong>下書き・画像・<br>ビルドを検査</div><div class="arrow">→</div>
+            <div class="node"><strong>SHIP</strong>記事だけをGitへ記録し<br>公開結果を確認</div>
+          </div>
+        </div>
+        <div class="split" style="margin-top:16px">
+          <article class="card"><h3>記事フォルダ</h3><pre>article-name/
+├─ index.md
+├─ review-report.md
+└─ images/
+   ├─ 01.png
+   └─ 02.gif</pre><p>元画像は保持し、Hugoが表示用の縮小画像とWebPを生成する。校正レポートは証跡として保存するが公開しない。</p></article>
+          <article class="card"><h3>公開を止める条件</h3><ul><li>本文変更、秘密情報、不正レポート</li><li>Hugoビルドエラー</li><li>必須情報・画像・内部リンクの欠落</li><li>下書き・テスト記事の誤公開</li><li>公開先への反映失敗</li></ul><p>レポートなし・古い結果、誤字、SEO、構成提案は警告に留め、確認後は公開できる。</p></article>
+        </div>
+        <div class="card" style="margin-top:16px"><h3>現在のObsidianショートカット</h3><p><code>Ctrl+Alt+V</code> はゲームブログのプレビュー、<code>Ctrl+Alt+K</code> は確認付きGemini校正、<code>Ctrl+Alt+P</code> は確認付き本番公開、<code>Ctrl+Alt+L</code> は独立したlogsブログの公開に使用する。Claude Code用の旧 <code>Alt+Shift+C</code> は削除済み。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-head"><h2>日々の役割分担</h2><p>AIは運営判断を支援するが、未プレイ情報を事実として書かないための境界を明確にする。</p></div>
+        <div class="split">
+          <article class="card"><span class="tag">HUMAN</span><h3>ユーザーが担当</h3><ul><li>ゲームをプレイする</li><li>体験・条件・バージョンを記録する</li><li>記事本文を書く</li><li>事実確認と最終公開を承認する</li></ul></article>
+          <article class="card"><span class="tag">AI + AUTOMATION</span><h3>仕組みが担当</h3><ul><li>記事候補と優先順位を決める</li><li>構成・SEO・内部リンクを提案する</li><li>SNS投稿を作成・予約し、反応を分析する</li><li>Discordへ指示・週報・公開通知を送る</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="cost">
+      <div class="shell">
+        <div class="section-head"><h2>費用の目安</h2><p>静的サイトとWebhook中心なら固定費を抑えられる。AI利用量だけ予算上限を設定する。</p></div>
+        <table>
+          <thead><tr><th>項目</th><th>想定</th></tr></thead>
+          <tbody>
+            <tr><td>Hugo / GitHub Pages / Discord Webhook</td><td>無料</td></tr>
+            <tr><td>Search Console / GA4 または軽量解析</td><td>無料枠中心</td></tr>
+            <tr><td>独自ドメイン</td><td>年 約1,000–4,000円</td></tr>
+            <tr><td>AI API（週次指示・記事レビュー）</td><td>月額上限内で従量</td></tr>
+            <tr><td>SNS投稿API / 予約投稿サービス</td><td>媒体・頻度により従量または月額</td></tr>
+            <tr><td>常駐Discord Bot</td><td>初期は不要</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);margin-top:16px">AI・X API・問い合わせフォーム等の自動化費用は合計月3,000円を上限とする。80%で警告し、上限到達時は臨時SNS投稿、詳細分析、臨時調査、通常の再紹介の順で停止する。</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell decision">
+        <div class="eyebrow" style="color:#ffd4c1">Phase 5 live workflow verified</div>
+        <h2>暗号化バックアップと復元経路を実運用へ。</h2>
+        <p>Phase 4の安全なバックアップを維持したまま、Gemini収集、プログラム検証、人による選択、Discord確認、Obsidian保存を接続した。候補調査は毎週日曜18時に定期実行し、公開だけを別承認とする。</p>
+        <div class="next">
+          <div><b>01</b>Steam等の公式情報取得方法を調査</div>
+          <div><b>02</b>候補収集・検証・5本選定をローカル実装</div>
+          <div><b>03</b>架空データで下書き・重複防止を検証</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell">my-game-blog 運営仕様書 v1.7 · 2026-08-08 · Phase 5実運用と定期調査を有効化、記事公開は保留 · 名称とデザインは仮 · 詳細仕様とYAML設定に同期</div></footer>
+</body>
+</html>

@@ -12,7 +12,7 @@
 4. `docs/roadmap.md`
 5. `data/editorial/strategy.yaml`
 6. `docs/publishing-workflow.md`
-7. 対象Phaseの直前までの実装報告
+7. バックアップを扱う場合は `docs/backup-and-restore-workflow.md`
 
 ユーザーが追加の確認資料を指定した場合は、それもすべて確認する。
 
@@ -33,7 +33,8 @@
 - APIキー、Webhook URL、token、Cookie、認証情報、非公開の個人情報を表示、保存、commit、通知しない。
 - 架空のSecret、APIキー、Webhook URL、モデルID、料金を設定しない。
 - テストから外部AI、Discord、SNSなどの実サービスを呼ばない。fakeまたはstubを使う。
-- 現在対象のPhaseより後の機能を先行実装しない。
+- `docs/roadmap.md` の現在対象より後の機能を先行実装しない。
+- `old/` のコード、ワークフロー、資料を現行実装として実行しない。
 - 外部サービスの変更、実送信、Obsidian設定変更、commit、push、公開は、ユーザーの明示承認範囲でだけ行う。
 
 ## 作業の進め方
@@ -50,5 +51,5 @@
 
 - 方針や現在状態を変えた場合は、`docs/automation-common-rules.md` の資料同期ルールに従う。
 - 過去Phaseの監査・実装報告は当時の記録として扱い、現在値へ一律に書き換えない。
-- Phaseの結果は専用の実装報告へ残し、決定事項、保留事項、テスト、外部変更を明記する。
+- 各段階の結果は専用の実装報告へ残し、決定事項、保留事項、テスト、外部変更を明記する。
 - 完了報告は非エンジニアにも判断できる言葉で、実装内容、安全策、テスト、保留事項、commit・push・公開状態を説明する。

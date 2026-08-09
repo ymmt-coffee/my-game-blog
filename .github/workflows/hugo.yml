@@ -4,14 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      discord_test:
-        description: 'Send one clearly marked connection test to each Phase 3 Discord channel'
-        required: false
-        type: boolean
-        default: false
   schedule:
-    - cron: '0 23 * * *'  # 日本時間 毎朝8時にビルド
+    - cron: '0 23 * * *' # 日本時間 毎朝8時。予約記事を反映するため維持する。
 
 concurrency:
   group: github-pages
@@ -26,36 +20,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
-      notification_kind: ${{ steps.classify.outputs.notification_kind }}
-      article_slug: ${{ steps.classify.outputs.article_slug }}
-      attention_reason: ${{ steps.classify.outputs.attention_reason }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: true
-          fetch-depth: 0
-
-      - name: Classify this deployment
-        id: classify
-        run: >-
-          python scripts/discord_notify.py classify
-          --event "$GITHUB_EVENT_NAME"
-          --sha "$GITHUB_SHA"
-          --before "${{ github.event.before }}"
-          --output "$GITHUB_OUTPUT"
-
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3.2.0
+      - uses: peaceiris/actions-hugo@v3.2.0
         with:
           hugo-version: '0.163.2'
           extended: true
-
       - name: Build
         run: hugo --minify
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ./public
 
@@ -63,8 +38,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -72,152 +45,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
-  verify:
-    needs: [build, deploy]
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Verify Pages and the published article URL
-        run: >-
-          python scripts/discord_notify.py verify
-          --page-url "${{ needs.deploy.outputs.page_url }}"
-          --kind "${{ needs.build.outputs.notification_kind }}"
-          --slug "${{ needs.build.outputs.article_slug }}"
-
-  notify_publish:
-    needs: [build, deploy, verify]
-    if: needs.build.outputs.notification_kind == 'publish'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Notify publish success
-        env:
-          DISCORD_WEBHOOK_PUBLISH: ${{ secrets.DISCORD_WEBHOOK_PUBLISH }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind publish
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --page-url "${{ needs.deploy.outputs.page_url }}"
-          --slug "${{ needs.build.outputs.article_slug }}"
-
-  notify_attention:
-    needs: [build, deploy, verify]
-    if: needs.build.outputs.notification_kind == 'attention'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Notify that human review is needed
-        env:
-          DISCORD_WEBHOOK_ATTENTION: ${{ secrets.DISCORD_WEBHOOK_ATTENTION }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind attention
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --page-url "${{ needs.deploy.outputs.page_url }}"
-          --reason "${{ needs.build.outputs.attention_reason }}"
-
-  notify_connection_test:
-    needs: [build, deploy, verify]
-    if: github.event_name == 'workflow_dispatch' && inputs.discord_test == true
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Test the publish notification channel
-        id: test_publish
-        continue-on-error: true
-        env:
-          DISCORD_WEBHOOK_PUBLISH: ${{ secrets.DISCORD_WEBHOOK_PUBLISH }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind publish
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --test-message
-
-      - name: Test the error notification channel
-        id: test_error
-        continue-on-error: true
-        env:
-          DISCORD_WEBHOOK_ERROR: ${{ secrets.DISCORD_WEBHOOK_ERROR }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind error
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --test-message
-
-      - name: Test the attention notification channel
-        id: test_attention
-        continue-on-error: true
-        env:
-          DISCORD_WEBHOOK_ATTENTION: ${{ secrets.DISCORD_WEBHOOK_ATTENTION }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind attention
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --test-message
-
-      - name: Confirm all three connection tests succeeded
-        if: always()
-        env:
-          PUBLISH_RESULT: ${{ steps.test_publish.outcome }}
-          ERROR_RESULT: ${{ steps.test_error.outcome }}
-          ATTENTION_RESULT: ${{ steps.test_attention.outcome }}
-        run: |
-          if [[ "$PUBLISH_RESULT" != "success" || "$ERROR_RESULT" != "success" || "$ATTENTION_RESULT" != "success" ]]; then
-            echo "One or more Discord connection tests failed. Secret values and response bodies are not displayed."
-            exit 1
-          fi
-          echo "All three Discord connection tests succeeded."
-
-  notify_error:
-    needs: [build, deploy, verify, notify_publish, notify_attention]
-    if: >-
-      always() &&
-      (needs.build.result == 'failure' || needs.build.result == 'cancelled' ||
-       needs.deploy.result == 'failure' || needs.deploy.result == 'cancelled' ||
-       needs.verify.result == 'failure' || needs.verify.result == 'cancelled' ||
-       needs.notify_publish.result == 'failure' || needs.notify_publish.result == 'cancelled' ||
-       needs.notify_attention.result == 'failure' || needs.notify_attention.result == 'cancelled')
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Notify technical failure
-        env:
-          DISCORD_WEBHOOK_ERROR: ${{ secrets.DISCORD_WEBHOOK_ERROR }}
-        run: >-
-          python scripts/discord_notify.py send
-          --kind error
-          --repository "$GITHUB_REPOSITORY"
-          --sha "$GITHUB_SHA"
-          --event "$GITHUB_EVENT_NAME"
-          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --build-result "${{ needs.build.result }}"
-          --deploy-result "${{ needs.deploy.result }}"
-          --verify-result "${{ needs.verify.result }}"
-          --publish-notice-result "${{ needs.notify_publish.result }}"
-          --attention-notice-result "${{ needs.notify_attention.result }}"
