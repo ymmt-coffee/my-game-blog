@@ -17,6 +17,8 @@ from typing import BinaryIO
 
 import frontmatter
 
+from admin import article_templates
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONTENT_ROOT = PROJECT_ROOT / "content" / "articles"
@@ -119,32 +121,27 @@ def create_article_files(
     title: str,
     article_type: str,
     author: str,
+    description: str = "",
+    play_time: str = "",
 ) -> tuple[str, Path, str]:
     slug = validate_slug(slug)
     article_type = validate_article_type(article_type)
     title = title.strip()
     author = author.strip()
-    if not title or not author:
-        raise ArticleError("タイトルと著者を入力してください。")
+    description = description.strip()
+    if not title or not author or not description:
+        raise ArticleError("タイトル、概要、著者を入力してください。")
+    if article_type == "play_note" and not play_time.strip():
+        raise ArticleError("プレイ途中記ではプレイ時間を入力してください。")
     target = article_dir(content_root, slug)
     if target.exists():
         raise ArticleError("同じslugの記事がすでにあります。")
     article_id = uuid.uuid5(uuid.NAMESPACE_URL, f"my-game-blog:{slug}").hex
-    today = date.today().isoformat()
-    metadata: dict[str, object] = {
-        "title": title,
-        "date": today,
-        "lastmod": today,
-        "draft": True,
-        "description": "",
-        "images": [],
-        "article_type": article_type,
-        "author": author,
-    }
+    metadata = article_templates.initial_metadata(title, article_type, author, description, play_time)
     target.mkdir(parents=True)
     try:
         (target / "images").mkdir()
-        data = render_markdown(metadata, "ここから本文を書き始めます。")
+        data = render_markdown(metadata, article_templates.get_template(article_type).body)
         atomic_write(target / "index.md", data)
     except Exception:
         shutil.rmtree(target, ignore_errors=True)
@@ -159,6 +156,7 @@ def updated_markdown(
     description: str,
     article_type: str,
     body: str,
+    play_time: str = "",
 ) -> bytes:
     title = title.strip()
     if not title:
@@ -174,6 +172,10 @@ def updated_markdown(
             "draft": True,
         }
     )
+    if article_type == "play_note":
+        metadata["play_time"] = play_time.strip()
+    else:
+        metadata.pop("play_time", None)
     return render_markdown(metadata, body)
 
 

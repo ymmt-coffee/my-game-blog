@@ -4,6 +4,14 @@
   const status = document.querySelector("#save-status");
   const tab = document.querySelector("#tab-id");
   const token = document.querySelector('meta[name="csrf-token"]').content;
+  const typeSelect = form.elements.article_type;
+  const updateTypeFields = () => {
+    document.querySelectorAll("[data-play-time]").forEach((item) => {
+      item.hidden = typeSelect.value !== "play_note";
+    });
+  };
+  typeSelect.addEventListener("change", updateTypeFields);
+  updateTypeFields();
   tab.value = sessionStorage.getItem("article-tab-id") || crypto.randomUUID().replaceAll("-", "");
   sessionStorage.setItem("article-tab-id", tab.value);
   let timer = null;
@@ -14,6 +22,7 @@
     title: form.elements.title.value,
     description: form.elements.description.value,
     article_type: form.elements.article_type.value,
+    play_time: form.elements.play_time?.value || "",
     body: form.elements.body.value,
     expected_hash: form.elements.expected_hash.value,
     revision: Number(form.elements.revision.value),

@@ -45,6 +45,8 @@ class PhaseCArticleTests(unittest.TestCase):
                 "slug": slug,
                 "article_type": "play_note",
                 "author": "テスト作者",
+                "description": "テスト記事の概要です。",
+                "play_time": "3時間",
             },
             follow_redirects=False,
         )
@@ -218,7 +220,7 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertNotEqual(index.read_bytes(), original)
         candidate_page = self.client.get(restored.headers["location"])
         self.assertIn("復元候補を読み込みました", candidate_page.text)
-        self.assertIn("ここから本文", candidate_page.text)
+        self.assertIn("今回遊んだところ", candidate_page.text)
 
     def tearDown(self) -> None:
         if self.client_context is not None:

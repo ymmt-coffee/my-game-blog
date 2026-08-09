@@ -15,18 +15,19 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import articles, db
+from admin import article_templates, articles, db
 
 
 ADMIN_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = ADMIN_ROOT / "static"
+APP_VERSION = (ADMIN_ROOT / "app-version.txt").read_text(encoding="utf-8").strip()
 STATE_LABELS = {
     "draft": "下書き", "review_pending": "校正待ち", "ready": "公開準備完了",
     "scheduled": "予約済み", "published": "公開済み", "archived": "アーカイブ",
 }
-TYPE_LABELS = {"play_note": "プレイ途中記", "weekly_picks": "新作・セール5選", "monthly_essay": "月次レビューエッセイ"}
+TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLATES.items()}
 NAV_ITEMS = (
-    ("/articles", "記事管理", "Phase C"), ("/schedule", "スケジュール", "Phase G"),
+    ("/articles", "記事管理", "Phase D"), ("/schedule", "スケジュール", "Phase G"),
     ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase L"),
     ("/social", "SNS分析", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
@@ -152,10 +153,10 @@ def create_app(
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request) -> str:
         count = len(db.list_articles(db_path))
-        body = f"""<section class="hero card"><div><span class="phase">Phase C</span><h2>記事を安全に管理できます</h2>
-<p>本文と画像は通常のファイルで保存し、管理画面が壊れても読み出せます。</p></div>
+        body = f"""<section class="hero card"><div><span class="phase">Phase D</span><h2>カテゴリー別の雛形で記事を作れます</h2>
+<p>3種類のテンプレートと必須項目検査を利用できます。</p></div>
 <div class="status-box"><strong>{count}件の記事</strong><span>外部公開なし</span><span>自動保存あり</span></div></section>
-<section class="grid"><article class="card"><h3>記事管理</h3><p>新規作成、編集、画像、履歴、アーカイブを利用できます。</p><a class="button" href="/articles">記事一覧を開く</a></article>
+<section class="grid"><article class="card"><h3>記事管理</h3><p>カテゴリー別の作成、編集、検査、画像、履歴、アーカイブを利用できます。</p><a class="button" href="/articles">記事一覧を開く</a></article>
 <article class="card"><h3>既存原稿</h3><p>移行前の原稿は読み取り専用で検査できます。</p><a class="button secondary" href="/articles/migration">移行dry-run</a></article></section>"""
         return layout("ホーム", "/", body, request.app.state.csrf_token)
 
@@ -168,18 +169,21 @@ def create_app(
     @app.get("/articles/new", response_class=HTMLResponse)
     async def article_new(request: Request) -> str:
         options = "".join(f'<option value="{key}">{escape(label)}</option>' for key, label in TYPE_LABELS.items())
+        guidance = "".join(f'<p data-template-help="{key}"{"" if key == "play_note" else " hidden"}><strong>{escape(template.label)}</strong><br>{escape(template.guidance)}</p>' for key, template in article_templates.TEMPLATES.items())
         body = f"""<section class="card form-card"><form method="post" action="/articles/new">{hidden_csrf(request.app.state.csrf_token)}
 <label>タイトル<input name="title" required maxlength="160"></label><label>slug（URL用の名前）<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-game-note"></label>
-<label>カテゴリー<select name="article_type">{options}</select><small class="field-help">記事の内容に合う分類を選びます。</small></label><label>著者<input name="author" required value="やまもと"></label>
+<label>概要<textarea name="description" rows="2" required maxlength="300"></textarea><small class="field-help">検索結果などに使う、記事の短い紹介文です。</small></label>
+<label>カテゴリー<select name="article_type" id="new-article-type">{options}</select><small class="field-help">選んだカテゴリーに合う本文の雛形を作成します。</small></label>
+<div class="template-guidance">{guidance}</div><label data-play-time>プレイ時間<input name="play_time" placeholder="例：12時間"><small class="field-help">プレイ途中記だけの必須項目です。</small></label><label>著者<input name="author" required value="やまもと"></label>
 <p class="muted">作成時は必ず下書きになります。公開処理はまだ行いません。</p><button class="button" type="submit">下書きを作成</button></form></section>"""
-        return article_workspace(request, "新しい記事", body)
+        return article_workspace(request, "新しい記事", body, extra_script="/static/template-form.js")
 
     @app.post("/articles/new")
     async def article_create(request: Request):
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
-            article_id, path, digest = articles.create_article_files(content_root, str(form.get("slug") or ""), str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""))
+            article_id, path, digest = articles.create_article_files(content_root, str(form.get("slug") or ""), str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""))
             db.create_article(article_id, path.name, str(form.get("article_type")), str(path.resolve()), digest, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
         except (articles.ArticleError, Exception) as exc:
@@ -226,10 +230,18 @@ def create_app(
         if conflict:
             notice += f'<div class="flash error"><strong>外部変更を検出しました。保存を停止しています。</strong><p>ファイル内容を確認し、この内容を管理画面へ取り込む場合だけ次を押してください。</p><form method="post" action="/articles/{article_id}/accept-external">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="revision" value="{record["revision"]}"><input type="hidden" name="actual_hash" value="{escape(article.file_hash)}"><button class="button danger" type="submit">外部変更を取り込む</button></form></div>'
         archived = str(record["state"]) == "archived"
+        inspection = article_templates.validate_metadata(article.metadata)
+        inspection_rows = "".join(f'<li>{escape(message)}</li>' for message in inspection)
+        inspection_box = (f'<section class="template-check warning"><strong>必須項目：要確認</strong><ul>{inspection_rows}</ul></section>' if inspection else '<section class="template-check success"><strong>必須項目：すべて入力済み</strong></section>')
+        current_type = str(article.metadata.get("article_type") or record["article_type"])
+        template = article_templates.TEMPLATES.get(current_type, article_templates.TEMPLATES["play_note"])
+        play_time_hidden = "" if current_type == "play_note" else " hidden"
         body = f"""{notice}<form class="editor" method="post" action="/articles/{article_id}/save" data-article-id="{article_id}" data-conflict="{str(conflict).lower()}">
 {hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="expected_hash" value="{escape(article.file_hash)}"><input type="hidden" name="revision" value="{record['revision']}">
 <input type="hidden" name="tab_id" id="tab-id"><section class="card editor-meta"><label>タイトル<input name="title" value="{escape(str(article.metadata.get('title') or ''))}" required></label>
-<label>概要<textarea name="description" rows="2">{escape(str(article.metadata.get('description') or ''))}</textarea><small class="field-help">記事の短い紹介文です。記事ページ冒頭、検索結果、SNS共有時の説明などに使われます。本文の要点を1〜2文で入力します。</small></label><label>カテゴリー<select name="article_type">{options}</select><small class="field-help">記事の内容に合う分類を選びます。</small></label>
+<label>概要<textarea name="description" rows="2">{escape(str(article.metadata.get('description') or ''))}</textarea><small class="field-help">記事の短い紹介文です。記事ページ冒頭、検索結果、SNS共有時の説明などに使われます。本文の要点を1〜2文で入力します。</small></label><label>カテゴリー<select name="article_type" id="edit-article-type">{options}</select><small class="field-help">カテゴリーを変更しても本文は自動置換しません。</small></label>
+<label data-play-time{play_time_hidden}>プレイ時間<input name="play_time" value="{escape(str(article.metadata.get('play_time') or ''))}" placeholder="例：12時間"><small class="field-help">プレイ途中記だけの必須項目です。</small></label>
+<div class="template-guidance"><strong>{escape(template.label)}</strong><p>{escape(template.guidance)}</p></div>{inspection_box}
 <div class="save-line"><span>状態: <b>{escape(STATE_LABELS.get(str(record['state']), str(record['state'])))}</b></span><span id="save-status">保存済み</span></div></section>
 <section class="card"><label>本文<textarea class="body-editor" name="body" rows="24">{escape(article.body)}</textarea></label>
 <div class="editor-actions"><button class="button" type="submit" {'disabled' if conflict or archived else ''}>手動保存</button><a class="button secondary" href="/articles/{article_id}/history">履歴・復元</a></div></section></form>
@@ -251,7 +263,7 @@ def create_app(
                 raise articles.ArticleError("アーカイブ中の記事は編集できません。")
             if int(payload.get("revision", -1)) != int(record["revision"]) or str(payload.get("expected_hash")) != article.file_hash or str(record["file_hash"]) != article.file_hash:
                 raise articles.ArticleConflict("別の変更を検出しました。")
-            data = articles.updated_markdown(article, title=str(payload.get("title", "")), description=str(payload.get("description", "")), article_type=str(payload.get("article_type", "")), body=str(payload.get("body", "")))
+            data = articles.updated_markdown(article, title=str(payload.get("title", "")), description=str(payload.get("description", "")), article_type=str(payload.get("article_type", "")), body=str(payload.get("body", "")), play_time=str(payload.get("play_time", "")))
             path = articles.save_autosave(state_root, article_id, str(payload.get("tab_id", "")), data)
             return {"status": "autosaved", "saved_at": articles.now_iso(), "path": path.name}
         except articles.ArticleConflict as exc:
@@ -271,7 +283,7 @@ def create_app(
             expected_hash = str(form.get("expected_hash") or "")
             if revision != int(record["revision"]) or expected_hash != str(record["file_hash"]):
                 raise articles.ArticleConflict("別の画面で保存済みです。再読み込みしてください。")
-            data = articles.updated_markdown(article, title=str(form.get("title") or ""), description=str(form.get("description") or ""), article_type=str(form.get("article_type") or ""), body=str(form.get("body") or ""))
+            data = articles.updated_markdown(article, title=str(form.get("title") or ""), description=str(form.get("description") or ""), article_type=str(form.get("article_type") or ""), body=str(form.get("body") or ""), play_time=str(form.get("play_time") or ""))
             new_hash, _history = articles.commit_article(article, data, state_root, expected_hash, revision)
             db.update_saved_article(article_id, str(form.get("article_type")), expected_hash, new_hash, revision, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?saved=1", status_code=303)
@@ -378,13 +390,13 @@ def create_app(
     async def settings(request: Request) -> str:
         events = db.recent_events(db_path)
         rows = "".join(f"<tr><td>{escape(str(item['created_at']))}</td><td>{escape(str(item['event_type']))}</td><td>{escape(str(item['result']))}</td><td>{escape(str(item['safe_message']))}</td></tr>" for item in events) or '<tr><td colspan="4">履歴はありません。</td></tr>'
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase C有効</dd></dl></article>
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase D有効</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">削除・公開・実移行は無効です。</p></article></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "C"}
+        return {"status": "ok", "scope": "localhost_only", "phase": "D", "version": APP_VERSION}
 
     return app
 

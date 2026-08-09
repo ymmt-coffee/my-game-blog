@@ -16,6 +16,7 @@
 9. `phase-a-data-migration-design.md` - 承認済みのPhase A設計。記事の正本、状態、SQLite、移行、復元、技術選定
 10. `phase-b-admin-shell-report.md` - localhost限定の管理画面土台と安全性の実装報告
 11. `phase-c-article-management-report.md` - 記事作成、保存、画像、履歴、競合、アーカイブの実装報告
+12. `phase-d-article-templates-report.md` - 3カテゴリーの雛形、種類別入力、必須項目検査の実装報告
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 

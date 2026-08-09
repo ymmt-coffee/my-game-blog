@@ -26,7 +26,7 @@ class AdminPhaseBTests(unittest.TestCase):
         with TestClient(self.app) as client:
             dashboard = client.get("/")
             self.assertEqual(dashboard.status_code, 200)
-            self.assertIn("記事を安全に管理", dashboard.text)
+            self.assertIn("カテゴリー別の雛形", dashboard.text)
             article_page = client.get("/articles")
             self.assertIn("新規作成", article_page.text)
             self.assertIn("article-picker", article_page.text)
@@ -40,7 +40,7 @@ class AdminPhaseBTests(unittest.TestCase):
         with TestClient(self.app) as client:
             self.assertEqual(
                 client.get("/health").json(),
-                {"status": "ok", "scope": "localhost_only", "phase": "C"},
+                {"status": "ok", "scope": "localhost_only", "phase": "D", "version": "phase-d-1"},
             )
 
     def test_unknown_host_is_rejected(self) -> None:

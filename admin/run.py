@@ -13,6 +13,7 @@ HOST = "127.0.0.1"
 PORT = 8765
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = PROJECT_ROOT / "var" / "admin" / "admin.lock"
+PID_PATH = PROJECT_ROOT / "var" / "admin" / "admin.pid"
 _lock_handle = None
 
 
@@ -50,11 +51,15 @@ def release_single_instance() -> None:
         _lock_handle.close()
         _lock_handle = None
         LOCK_PATH.unlink(missing_ok=True)
+        PID_PATH.unlink(missing_ok=True)
 
 
 def main() -> None:
     acquire_single_instance()
     atexit.register(release_single_instance)
+    temporary_pid = PID_PATH.with_suffix(".pid.tmp")
+    temporary_pid.write_text(str(os.getpid()), encoding="ascii")
+    os.replace(temporary_pid, PID_PATH)
     print(f"管理画面を起動します: http://{HOST}:{PORT}/")
     print("終了するには Ctrl+C を押してください。")
     uvicorn.run("admin.app:app", host=HOST, port=PORT, access_log=False)
