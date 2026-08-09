@@ -1,0 +1,230 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+import tempfile
+import unittest
+from contextlib import closing
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from admin import articles, db
+from admin.app import create_app
+
+
+class PhaseCArticleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.db_path = self.root / "state" / "admin.sqlite3"
+        self.content_root = self.root / "content" / "articles"
+        self.state_root = self.root / "state"
+        self.legacy_root = self.root / "legacy"
+        self.app = create_app(
+            db_path=self.db_path,
+            content_root=self.content_root,
+            state_root=self.state_root,
+            legacy_root=self.legacy_root,
+            testing=True,
+        )
+        self.client_context = TestClient(self.app)
+        self.client = self.client_context.__enter__()
+        self.csrf = self.app.state.csrf_token
+
+    def tearDown(self) -> None:
+        self.client_context.__exit__(None, None, None)
+        self.temporary.cleanup()
+
+    def create_article(self, slug: str = "sample-note") -> tuple[str, dict[str, object]]:
+        response = self.client.post(
+            "/articles/new",
+            data={
+                "csrf_token": self.csrf,
+                "title": "テスト記事",
+                "slug": slug,
+                "article_type": "play_note",
+                "author": "テスト作者",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303, response.text)
+        record = db.get_article_by_slug(slug, self.db_path)
+        self.assertIsNotNone(record)
+        return str(record["id"]), record
+
+    def test_create_article_keeps_markdown_as_canonical_file(self) -> None:
+        article_id, record = self.create_article()
+        index = self.content_root / "sample-note" / "index.md"
+        self.assertTrue(index.is_file())
+        self.assertTrue((index.parent / "images").is_dir())
+        self.assertIn("draft: true", index.read_text(encoding="utf-8"))
+        self.assertNotIn("ここから本文", Path(self.db_path).read_bytes().decode("utf-8", errors="ignore"))
+        edit = self.client.get(f"/articles/{article_id}/edit")
+        self.assertIn("テスト記事", edit.text)
+        self.assertIn("article-picker-item active", edit.text)
+        self.assertIn("/static/workspace.js", edit.text)
+        self.assertEqual(record["state"], "draft")
+
+    def test_manual_save_creates_history_and_increments_revision(self) -> None:
+        article_id, record = self.create_article()
+        response = self.client.post(
+            f"/articles/{article_id}/save",
+            data={
+                "csrf_token": self.csrf,
+                "expected_hash": record["file_hash"],
+                "revision": record["revision"],
+                "tab_id": "tab-12345678",
+                "title": "更新タイトル",
+                "description": "更新概要",
+                "article_type": "play_note",
+                "body": "更新した本文です。",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303, response.text)
+        updated = db.get_article(article_id, self.db_path)
+        self.assertEqual(updated["revision"], 2)
+        text = (self.content_root / "sample-note" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("更新した本文", text)
+        self.assertEqual(len(articles.history_files(self.state_root, article_id)), 1)
+
+    def test_autosave_does_not_modify_canonical_file(self) -> None:
+        article_id, record = self.create_article()
+        index = self.content_root / "sample-note" / "index.md"
+        original = index.read_bytes()
+        response = self.client.post(
+            f"/api/articles/{article_id}/autosave",
+            headers={"X-CSRF-Token": self.csrf},
+            json={
+                "expected_hash": record["file_hash"], "revision": record["revision"], "tab_id": "tab-12345678",
+                "title": "自動保存", "description": "", "article_type": "play_note", "body": "自動保存本文",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(index.read_bytes(), original)
+        self.assertTrue((self.state_root / "autosave" / article_id / "tab-12345678.md").is_file())
+
+    def test_stale_tab_and_external_change_are_rejected(self) -> None:
+        article_id, record = self.create_article()
+        index = self.content_root / "sample-note" / "index.md"
+        index.write_text(index.read_text(encoding="utf-8") + "\n外部変更", encoding="utf-8")
+        response = self.client.post(
+            f"/articles/{article_id}/save",
+            data={
+                "csrf_token": self.csrf, "expected_hash": record["file_hash"], "revision": record["revision"],
+                "tab_id": "tab-12345678", "title": "上書き", "description": "", "article_type": "play_note", "body": "消してはいけない",
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("外部変更", index.read_text(encoding="utf-8"))
+
+        actual_hash = articles.file_hash(index)
+        accepted = self.client.post(
+            f"/articles/{article_id}/accept-external",
+            data={"csrf_token": self.csrf, "revision": record["revision"], "actual_hash": actual_hash},
+            follow_redirects=False,
+        )
+        self.assertEqual(accepted.status_code, 303)
+        self.assertEqual(db.get_article(article_id, self.db_path)["file_hash"], actual_hash)
+
+    def test_image_upload_normalizes_japanese_name_and_rejects_duplicate(self) -> None:
+        article_id, _record = self.create_article()
+        first = self.client.post(
+            f"/articles/{article_id}/images",
+            data={"csrf_token": self.csrf}, files={"image": ("ゲーム 画面.JPG", b"fake-jpg", "image/jpeg")},
+            follow_redirects=False,
+        )
+        self.assertEqual(first.status_code, 303, first.text)
+        second = self.client.post(
+            f"/articles/{article_id}/images",
+            data={"csrf_token": self.csrf}, files={"image": ("ゲーム 画面.JPG", b"other", "image/jpeg")},
+        )
+        self.assertEqual(second.status_code, 400)
+        saved_images = list((self.content_root / "sample-note" / "images").iterdir())
+        self.assertEqual(len(saved_images), 1)
+        self.assertEqual(saved_images[0].suffix, ".jpg")
+        self.assertEqual(saved_images[0].read_bytes(), b"fake-jpg")
+
+    def test_unsupported_image_extension_is_rejected(self) -> None:
+        article_id, _record = self.create_article()
+        response = self.client.post(
+            f"/articles/{article_id}/images",
+            data={"csrf_token": self.csrf}, files={"image": ("not-image.txt", b"text", "text/plain")},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(any((self.content_root / "sample-note" / "images").iterdir()))
+
+    def test_archive_is_logical_and_restorable(self) -> None:
+        article_id, _record = self.create_article()
+        index = self.content_root / "sample-note" / "index.md"
+        before = index.read_bytes()
+        archived = self.client.post(f"/articles/{article_id}/archive", data={"csrf_token": self.csrf}, follow_redirects=False)
+        self.assertEqual(archived.status_code, 303)
+        self.assertEqual(db.get_article(article_id, self.db_path)["state"], "archived")
+        self.assertEqual(index.read_bytes(), before)
+        restored = self.client.post(f"/articles/{article_id}/restore", data={"csrf_token": self.csrf}, follow_redirects=False)
+        self.assertEqual(restored.status_code, 303)
+        self.assertEqual(db.get_article(article_id, self.db_path)["state"], "draft")
+
+    def test_csrf_is_required_for_changes(self) -> None:
+        response = self.client.post(
+            "/articles/new",
+            data={"title": "危険", "slug": "unsafe", "article_type": "play_note", "author": "x"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse((self.content_root / "unsafe").exists())
+
+    def test_legacy_dry_run_writes_manifest_without_copy(self) -> None:
+        legacy = self.legacy_root / "old-note"
+        legacy.mkdir(parents=True)
+        (legacy / "index.md").write_text("---\ntitle: 旧原稿\ndraft: true\n---\n本文\n", encoding="utf-8")
+        response = self.client.get("/articles/migration")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("旧原稿", response.text)
+        manifest = json.loads((self.state_root / "migrations" / "latest-dry-run.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["mode"], "dry-run")
+        self.assertFalse((self.content_root / "old-note").exists())
+
+    def test_database_can_rebuild_index_from_markdown(self) -> None:
+        article_id, _record = self.create_article()
+        self.client_context.__exit__(None, None, None)
+        self.client_context = None
+        self.db_path.unlink()
+        rebuilt_app = create_app(db_path=self.db_path, content_root=self.content_root, state_root=self.state_root, legacy_root=self.legacy_root, testing=True)
+        with TestClient(rebuilt_app):
+            rebuilt = db.get_article_by_slug("sample-note", self.db_path)
+        self.assertEqual(rebuilt["id"], article_id)
+
+    def test_history_restore_opens_candidate_without_overwrite(self) -> None:
+        article_id, record = self.create_article()
+        index = self.content_root / "sample-note" / "index.md"
+        original = index.read_bytes()
+        saved = self.client.post(
+            f"/articles/{article_id}/save",
+            data={
+                "csrf_token": self.csrf, "expected_hash": record["file_hash"], "revision": record["revision"],
+                "tab_id": "tab-12345678", "title": "新しい版", "description": "", "article_type": "play_note", "body": "新しい本文",
+            }, follow_redirects=False,
+        )
+        self.assertEqual(saved.status_code, 303)
+        history = articles.history_files(self.state_root, article_id)[0]
+        restored = self.client.post(
+            f"/articles/{article_id}/history/{history.name}/restore",
+            data={"csrf_token": self.csrf, "tab_id": "restore-12345678"}, follow_redirects=False,
+        )
+        self.assertEqual(restored.status_code, 303)
+        self.assertIn("recovery=restore-12345678.md", restored.headers["location"])
+        self.assertNotEqual(index.read_bytes(), original)
+        candidate_page = self.client.get(restored.headers["location"])
+        self.assertIn("復元候補を読み込みました", candidate_page.text)
+        self.assertIn("ここから本文", candidate_page.text)
+
+    def tearDown(self) -> None:
+        if self.client_context is not None:
+            self.client_context.__exit__(None, None, None)
+        self.temporary.cleanup()
+
+
+if __name__ == "__main__":
+    unittest.main()

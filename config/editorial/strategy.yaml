@@ -10,7 +10,7 @@ direction:
   discord_enabled: false
 
 current:
-  phase: admin_shell
+  phase: article_management
   phase_status: completed
   retained:
     - hugo_blog
@@ -62,10 +62,24 @@ admin_app:
   public_network_access: false
   single_instance: true
   state_database: var/admin/admin.sqlite3
-  article_operations_enabled: false
+  article_operations_enabled: true
+  publish_operations_enabled: false
+  schema_version: 2
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk
+
+phase_c:
+  completed_at: "2026-08-09"
+  canonical_content_ready: true
+  autosave_enabled: true
+  history_enabled: true
+  optimistic_locking_enabled: true
+  external_change_requires_acceptance: true
+  image_overwrite_enabled: false
+  archive_is_logical: true
+  legacy_migration_mode: dry_run_only
+  legacy_copy_or_move_authorized: false
 
 article_types:
   play_note:

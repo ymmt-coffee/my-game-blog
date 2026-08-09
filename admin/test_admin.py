@@ -26,8 +26,11 @@ class AdminPhaseBTests(unittest.TestCase):
         with TestClient(self.app) as client:
             dashboard = client.get("/")
             self.assertEqual(dashboard.status_code, 200)
-            self.assertIn("管理画面の土台", dashboard.text)
-            for path in ("articles", "schedule", "editorial", "releases", "social", "analytics"):
+            self.assertIn("記事を安全に管理", dashboard.text)
+            article_page = client.get("/articles")
+            self.assertIn("新規作成", article_page.text)
+            self.assertIn("article-picker", article_page.text)
+            for path in ("schedule", "editorial", "releases", "social", "analytics"):
                 response = client.get(f"/{path}")
                 self.assertEqual(response.status_code, 200)
                 self.assertIn("準備中です", response.text)
@@ -37,7 +40,7 @@ class AdminPhaseBTests(unittest.TestCase):
         with TestClient(self.app) as client:
             self.assertEqual(
                 client.get("/health").json(),
-                {"status": "ok", "scope": "localhost_only", "phase": "B"},
+                {"status": "ok", "scope": "localhost_only", "phase": "C"},
             )
 
     def test_unknown_host_is_rejected(self) -> None:
@@ -54,6 +57,9 @@ class AdminPhaseBTests(unittest.TestCase):
                 "SELECT message_code, safe_message FROM app_events ORDER BY id DESC"
             ).fetchone()
         self.assertEqual(version, 1)
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            versions = [row[0] for row in connection.execute("SELECT version FROM schema_migrations ORDER BY version")]
+        self.assertEqual(versions, [1, 2])
         self.assertEqual(event, ("app_started", "管理画面を起動しました。"))
 
     def test_corrupt_database_stops_without_overwrite(self) -> None:
