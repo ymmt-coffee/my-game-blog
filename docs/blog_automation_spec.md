@@ -30,6 +30,8 @@
 
 初期実装では記事管理だけを動作させ、後続画面は「準備中」と明示する。
 
+Phase Bでlocalhost限定の画面土台を実装済みである。通常起動は `admin/open-admin.ps1`、手動のサーバー起動は `admin/start-admin.ps1`、接続先は `127.0.0.1:8765` に固定する。現時点では記事操作も含めて各業務機能は準備中であり、Phase Cから記事管理を有効にする。
+
 ## 4. 記事管理
 
 ### 一覧
@@ -111,3 +113,9 @@ GitHub Pagesのビルドと公開は維持する。Discord通知は使用しな�
 ## 10. 保留済み機能
 
 Discord通知、週次AI調査、旧週次5選生成、旧Phase 6案は `archive/` へ退避した。現在の管理画面仕様へ再設計するまで実行しない。
+
+## 11. Phase A設計状況
+
+データ構造と移行の確定設計は `phase-a-data-migration-design.md` にまとめた。正本はリポジトリ内の `content/articles/`、管理台帳は `var/admin/admin.sqlite3`、技術構成はFastAPIと通常のHTML・CSS・JavaScriptとする。
+
+これらは2026-08-09にユーザー承認済みであり、Phase Aは完了した。ただしPhase Cで記事ごとの安全な移行を承認・実行するまでは、外部原稿を正本とする現在のObsidian暫定運用を維持する。Phase Bの実装、依存追加、原稿移行は各Phaseの承認範囲で行う。

@@ -10,6 +10,8 @@ direction:
   discord_enabled: false
 
 current:
+  phase: admin_shell
+  phase_status: completed
   retained:
     - hugo_blog
     - article_page_bundles
@@ -33,6 +35,37 @@ article_management:
   operations: [save, proofread, preview, prepublish_check, publish, schedule, archive]
   require_confirmation_before_publish: true
   recoverable_archive: true
+
+phase_a_design:
+  document: docs/phase-a-data-migration-design.md
+  approved_at: "2026-08-09"
+  canonical_content: content/articles
+  admin_database: var/admin/admin.sqlite3
+  backend: fastapi
+  frontend: server_rendered_html_css_javascript
+  autosave_idle_seconds: 2
+  autosave_max_seconds: 30
+  history_generations: 30
+  history_days: 90
+  archive_behavior: logical_without_file_move
+  legacy_source_minimum_retention_days: 30
+  legacy_source_requires_monthly_backup_after_migration: true
+  legacy_source_deletion_requires_separate_approval: true
+  phase_b_implementation_started: true
+  phase_b_implementation_completed: true
+  migration_authorized: false
+
+admin_app:
+  implementation: fastapi
+  host: 127.0.0.1
+  port: 8765
+  public_network_access: false
+  single_instance: true
+  state_database: var/admin/admin.sqlite3
+  article_operations_enabled: false
+  startup_script: admin/open-admin.ps1
+  manual_server_script: admin/start-admin.ps1
+  desktop_shortcut: ゲームブログ管理.lnk
 
 article_types:
   play_note:

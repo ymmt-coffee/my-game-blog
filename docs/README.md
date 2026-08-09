@@ -13,6 +13,8 @@
 6. `game-blog-operation-plan.html` - ブラウザで確認する新構想の概要
 7. `admin-restructure-report.md` - 旧機能の退避と停止内容
 8. `folder-structure-report.md` - ブログ本体とツールの分離内容
+9. `phase-a-data-migration-design.md` - 承認済みのPhase A設計。記事の正本、状態、SQLite、移行、復元、技術選定
+10. `phase-b-admin-shell-report.md` - localhost限定の管理画面土台と安全性の実装報告
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 
