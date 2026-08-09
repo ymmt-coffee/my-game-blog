@@ -16,3 +16,7 @@ title: test
 * これはテストです。
 * これはテストなんです。
 * 信じてください。
+
+
+![capsule_616x353-1](images/capsule_616x353-1.jpg)
+kawaii
