@@ -72,6 +72,22 @@ CREATE TABLE IF NOT EXISTS article_issues (
 );
 """
 
+SCHEMA_V3 = """
+CREATE TABLE IF NOT EXISTS publish_attempts (
+    id TEXT PRIMARY KEY,
+    article_id TEXT NOT NULL REFERENCES articles(id),
+    file_hash TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    result TEXT NOT NULL CHECK (result IN ('checked','running','success','failure','expired')),
+    commit_sha TEXT,
+    pages_url TEXT,
+    safe_message TEXT,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -105,6 +121,11 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (2, utc_now()),
+        )
+        connection.executescript(SCHEMA_V3)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (3, utc_now()),
         )
         connection.commit()
 
@@ -321,3 +342,83 @@ def recent_article_events(article_id: str, db_path: Path = DEFAULT_DB_PATH, limi
             (article_id, min(max(limit, 1), 100)),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def mark_reviewed(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE articles SET state = 'review_pending', last_reviewed_at = ?,
+               reviewed_file_hash = ?, updated_at = ? WHERE id = ? AND file_hash = ?""",
+            (now, file_hash, now, article_id, file_hash),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("校正中に記事が変更されました。")
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'review','review_pending','success',?,'review_completed','校正結果を保存しました。',?)""",
+            (article_id, file_hash, now),
+        )
+        connection.commit()
+
+
+def mark_ready(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE articles SET state='ready',updated_at=?
+               WHERE id=? AND file_hash=? AND reviewed_file_hash=?""",
+            (now, article_id, file_hash, file_hash),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("現在の原稿に有効な校正結果がありません。")
+        connection.commit()
+
+
+def create_publish_attempt(attempt_id: str, article_id: str, file_hash: str, token_hash: str, expires_at: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO publish_attempts
+               (id,article_id,file_hash,token_hash,result,expires_at,created_at)
+               VALUES (?,?,?,?,'checked',?,?)""",
+            (attempt_id, article_id, file_hash, token_hash, expires_at, utc_now()),
+        )
+        connection.commit()
+
+
+def get_publish_attempt(attempt_id: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object] | None:
+    with closing(connect(db_path)) as connection:
+        row = connection.execute("SELECT * FROM publish_attempts WHERE id=?", (attempt_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_publish_attempt(attempt_id: str, result: str, message: str, commit_sha: str | None = None, pages_url: str | None = None, db_path: Path = DEFAULT_DB_PATH) -> None:
+    if result not in {"running", "success", "failure", "expired"}:
+        raise ValueError("公開結果が正しくありません。")
+    completed = utc_now() if result in {"success", "failure", "expired"} else None
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """UPDATE publish_attempts SET result=?,safe_message=?,commit_sha=?,pages_url=?,completed_at=? WHERE id=?""",
+            (result, message, commit_sha, pages_url, completed, attempt_id),
+        )
+        connection.commit()
+
+
+def mark_published(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE articles SET state='published',published_at=?,updated_at=?
+               WHERE id=? AND file_hash=?""",
+            (now, now, article_id, file_hash),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("公開完了時の記事ハッシュが一致しません。")
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,from_state,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'publish','ready','published','success',?,'publish_completed','記事を公開しました。',?)""",
+            (article_id, file_hash, now),
+        )
+        connection.commit()

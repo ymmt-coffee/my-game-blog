@@ -5,17 +5,18 @@ from __future__ import annotations
 import secrets
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
 import frontmatter
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import article_templates, articles, db
+from admin import article_templates, articles, db, publishing
 
 
 ADMIN_ROOT = Path(__file__).resolve().parent
@@ -27,7 +28,7 @@ STATE_LABELS = {
 }
 TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLATES.items()}
 NAV_ITEMS = (
-    ("/articles", "記事管理", "Phase D"), ("/schedule", "スケジュール", "Phase G"),
+    ("/articles", "記事管理", "Phase E"), ("/schedule", "スケジュール", "Phase G"),
     ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase L"),
     ("/social", "SNS分析", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
@@ -135,6 +136,8 @@ def create_app(
     state_root: Path = articles.DEFAULT_STATE_ROOT,
     legacy_root: Path = articles.LEGACY_ROOT,
     testing: bool = False,
+    command_runner=None,
+    review_supplier=None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -146,6 +149,8 @@ def create_app(
     app = FastAPI(title="ゲームブログ管理", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.db_path, app.state.content_root, app.state.state_root = db_path, content_root, state_root
     app.state.legacy_root, app.state.csrf_token = legacy_root, secrets.token_urlsafe(32)
+    app.state.command_runner = command_runner or publishing.run_command
+    app.state.review_supplier = review_supplier
     allowed_hosts = ["127.0.0.1", "localhost"] + (["testserver"] if testing else [])
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
     app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
@@ -153,10 +158,10 @@ def create_app(
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request) -> str:
         count = len(db.list_articles(db_path))
-        body = f"""<section class="hero card"><div><span class="phase">Phase D</span><h2>カテゴリー別の雛形で記事を作れます</h2>
-<p>3種類のテンプレートと必須項目検査を利用できます。</p></div>
+        body = f"""<section class="hero card"><div><span class="phase">Phase E</span><h2>管理画面から記事を公開できます</h2>
+<p>校正、プレビュー、公開前チェック、最終確認を一つの画面で進められます。</p></div>
 <div class="status-box"><strong>{count}件の記事</strong><span>外部公開なし</span><span>自動保存あり</span></div></section>
-<section class="grid"><article class="card"><h3>記事管理</h3><p>カテゴリー別の作成、編集、検査、画像、履歴、アーカイブを利用できます。</p><a class="button" href="/articles">記事一覧を開く</a></article>
+<section class="grid"><article class="card"><h3>記事管理</h3><p>作成、編集、校正、プレビュー、投稿まで利用できます。</p><a class="button" href="/articles">記事一覧を開く</a></article>
 <article class="card"><h3>既存原稿</h3><p>移行前の原稿は読み取り専用で検査できます。</p><a class="button secondary" href="/articles/migration">移行dry-run</a></article></section>"""
         return layout("ホーム", "/", body, request.app.state.csrf_token)
 
@@ -236,6 +241,20 @@ def create_app(
         current_type = str(article.metadata.get("article_type") or record["article_type"])
         template = article_templates.TEMPLATES.get(current_type, article_templates.TEMPLATES["play_note"])
         play_time_hidden = "" if current_type == "play_note" else " hidden"
+        review = publishing.load_review(state_root, article)
+        review_fresh = review is not None and review.get("file_hash") == article.file_hash
+        review_html = '<p class="muted">現在の原稿に対応する校正結果はありません。</p>'
+        if review_fresh:
+            decisions = review.get("decisions", {})
+            findings: list[str] = []
+            for category in review.get("response", {}).get("categories", []):
+                for index, finding in enumerate(category.get("findings", [])):
+                    key = f"{category['id']}:{index}"
+                    decided = decisions.get(key, "")
+                    decision_label = {"accepted": "採用", "rejected": "見送り"}.get(decided, "未確認")
+                    findings.append(f'''<article class="review-finding"><strong>{escape(str(finding['location']))}</strong><p>{escape(str(finding['reason']))}</p><p>提案: {escape(str(finding['suggestion']))}</p><span class="state">{decision_label}</span><div class="editor-actions"><form method="post" action="/articles/{article_id}/review/decision">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="finding_key" value="{escape(key)}"><button class="button secondary" name="decision" value="accepted">採用する</button><button class="button secondary" name="decision" value="rejected">見送る</button></form></div></article>''')
+            overall = escape(str(review.get("response", {}).get("overall_result", "")))
+            review_html = f'<p><strong>校正結果:</strong> {overall}</p>' + ("".join(findings) or '<p class="ok">指摘はありません。</p>')
         body = f"""{notice}<form class="editor" method="post" action="/articles/{article_id}/save" data-article-id="{article_id}" data-conflict="{str(conflict).lower()}">
 {hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="expected_hash" value="{escape(article.file_hash)}"><input type="hidden" name="revision" value="{record['revision']}">
 <input type="hidden" name="tab_id" id="tab-id"><section class="card editor-meta"><label>タイトル<input name="title" value="{escape(str(article.metadata.get('title') or ''))}" required></label>
@@ -247,11 +266,119 @@ def create_app(
 <div class="editor-actions"><button class="button" type="submit" {'disabled' if conflict or archived else ''}>手動保存</button><a class="button secondary" href="/articles/{article_id}/history">履歴・復元</a></div></section></form>
 <section class="card"><h2>画像</h2><ul class="image-list">{image_rows}</ul><form method="post" action="/articles/{article_id}/images" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}
 <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" required><p class="field-help">JPG、PNG、GIF、WebP、AVIF、10MB以下。日本語や空白を含むファイル名は安全な半角名へ自動変換します。</p><button class="button secondary" type="submit" {'disabled' if archived else ''}>画像を追加</button></form></section>
-<section class="card publish-placeholder"><h2>校正・プレビュー・投稿</h2><p>この機能はPhase Eで実装します。管理画面で作った記事は、現時点ではここから投稿できません。</p>
-<div class="editor-actions"><button class="button secondary" disabled>校正（Phase E）</button><button class="button secondary" disabled>プレビュー（Phase E）</button><button class="button secondary" disabled>投稿（Phase E）</button></div>
-<p class="muted">Phase E完了までは、既存のObsidian原稿と従来の校正・プレビュー・公開ショートカットを使用してください。</p></section>
+<section class="card"><h2>校正</h2>{review_html}<form method="post" action="/articles/{article_id}/review">{hidden_csrf(request.app.state.csrf_token)}<p class="field-help">記事本文だけをGeminiへ送信し、本文は自動変更しません。API利用料が発生する場合があります。</p><button class="button secondary" type="submit" {'disabled' if conflict or archived else ''}>AI校正を実行</button></form></section>
+<section class="card"><h2>プレビュー・投稿</h2><p>プレビューと公開前チェックでは、現在の原稿を変更せず一時コピーを検査します。</p><div class="editor-actions"><form method="post" action="/articles/{article_id}/preview">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" {'disabled' if conflict or archived else ''}>プレビューを作成</button></form><form method="post" action="/articles/{article_id}/prepublish">{hidden_csrf(request.app.state.csrf_token)}<button class="button" {'disabled' if conflict or archived else ''}>公開前チェック</button></form></div><p class="field-help">投稿は検査後の最終確認画面からだけ実行できます。</p></section>
 <section class="card danger-zone"><h2>{'アーカイブから戻す' if archived else 'アーカイブ'}</h2><p>ファイルは削除も移動もしません。</p><form method="post" action="/articles/{article_id}/{'restore' if archived else 'archive'}">{hidden_csrf(request.app.state.csrf_token)}<button class="button {'secondary' if archived else 'danger'}" type="submit">{'下書きへ戻す' if archived else 'アーカイブする'}</button></form></section>"""
         return article_workspace(request, f"編集: {record['slug']}", body, article_id, "/static/editor.js")
+
+    @app.post("/articles/{article_id}/review")
+    async def article_review(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            if str(record["file_hash"]) != article.file_hash:
+                raise publishing.PublishError("外部変更があるため校正を停止しました。")
+            publishing.perform_review(article, state_root, request.app.state.review_supplier)
+            db.mark_reviewed(article_id, article.file_hash, db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
+        except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
+            db.record_article_event(article_id, "review", "failure", "review_failed", "校正を安全停止しました。", db_path)
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/review/decision")
+    async def review_decision(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            _record, article = load_record(article_id, request)
+            publishing.save_decision(state_root, article, str(form.get("finding_key") or ""), str(form.get("decision") or ""))
+            db.record_article_event(article_id, "review_decision", "success", "review_decision_saved", "校正指摘の判断を保存しました。", db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
+        except (articles.ArticleError, publishing.PublishError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/preview")
+    async def article_preview(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            if str(record["file_hash"]) != article.file_hash:
+                raise publishing.PublishError("外部変更があるためプレビューを停止しました。")
+            result = publishing.build_preview(article, state_root, request.app.state.command_runner)
+            if not result.ok:
+                raise publishing.PublishError(" ".join(result.errors))
+            db.record_article_event(article_id, "preview", "success", "preview_created", "プレビューを作成しました。", db_path)
+            return RedirectResponse(result.preview_url, status_code=303)
+        except (articles.ArticleError, publishing.PublishError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.get("/previews/{article_id}/{asset_path:path}")
+    async def preview_asset(article_id: str, asset_path: str):
+        root = (state_root / "previews" / article_id).resolve()
+        requested = (root / asset_path).resolve()
+        if requested.is_dir():
+            requested = requested / "index.html"
+        try:
+            requested.relative_to(root)
+        except ValueError:
+            return HTMLResponse("Not found", status_code=404)
+        if not requested.is_file():
+            return HTMLResponse("Not found", status_code=404)
+        return FileResponse(requested)
+
+    @app.post("/articles/{article_id}/prepublish")
+    async def article_prepublish(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            if str(record["file_hash"]) != article.file_hash:
+                raise publishing.PublishError("外部変更があるため公開前チェックを停止しました。")
+            result, prepared = publishing.prepublish_check(article, state_root, request.app.state.command_runner)
+            if not result.ok or prepared is None:
+                raise publishing.PublishError(" ".join(result.errors))
+            db.mark_ready(article_id, article.file_hash, db_path)
+            attempt_id, token, token_hash, expires = publishing.new_attempt_values()
+            db.create_publish_attempt(attempt_id, article_id, article.file_hash, token_hash, expires, db_path)
+            warning_rows = "".join(f"<li>{escape(item)}</li>" for item in result.warnings) or "<li>警告はありません。</li>"
+            body = f'''<section class="card notice"><h2>公開前チェックに合格しました</h2><dl><dt>対象記事</dt><dd>{escape(article.slug)}</dd><dt>公開先</dt><dd>GitHub Pages</dd><dt>原稿ハッシュ</dt><dd><code>{escape(article.file_hash[:16])}…</code></dd></dl><h3>警告</h3><ul>{warning_rows}</ul></section><section class="card danger-zone"><h2>最終確認</h2><p>実行すると対象記事だけをcommitし、GitHubへpushして公開します。取り消せません。</p><form method="post" action="/articles/{article_id}/publish">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="attempt_id" value="{attempt_id}"><input type="hidden" name="approval_token" value="{escape(token)}"><label>確認のため <code>{escape(article.slug)}</code> と入力<input name="confirm_slug" required autocomplete="off"></label><button class="button danger">投稿を実行</button></form></section>'''
+            return article_workspace(request, "投稿の最終確認", body, article_id)
+        except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
+            db.record_article_event(article_id, "prepublish", "failure", "prepublish_failed", "公開前チェックを安全停止しました。", db_path)
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/publish")
+    async def article_publish(article_id: str, request: Request):
+        form = await request.form()
+        attempt_id = str(form.get("attempt_id") or "")
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            attempt = db.get_publish_attempt(attempt_id, db_path)
+            if attempt is None or str(attempt["article_id"]) != article_id or str(attempt["result"]) != "checked":
+                raise publishing.PublishError("公開承認が見つからないか、すでに使用済みです。")
+            if datetime.fromisoformat(str(attempt["expires_at"])) < datetime.now(timezone.utc):
+                db.update_publish_attempt(attempt_id, "expired", "公開承認の期限が切れました。", db_path=db_path)
+                raise publishing.PublishError("公開承認の期限が切れました。再検査してください。")
+            if str(form.get("confirm_slug") or "") != article.slug:
+                raise publishing.PublishError("確認用の記事slugが一致しません。")
+            if not publishing.token_matches(str(form.get("approval_token") or ""), str(attempt["token_hash"])):
+                raise publishing.PublishError("公開承認情報が一致しません。")
+            if str(attempt["file_hash"]) != article.file_hash or str(record["file_hash"]) != article.file_hash or str(record["state"]) != "ready":
+                raise publishing.PublishError("検査後に記事または状態が変わりました。再検査してください。")
+            db.update_publish_attempt(attempt_id, "running", "公開処理を実行中です。", db_path=db_path)
+            prepared = state_root / "publish-prepared" / article_id / article.file_hash
+            sha, pages_url = publishing.publish_article(article, prepared, request.app.state.command_runner)
+            db.mark_published(article_id, article.file_hash, db_path)
+            db.update_publish_attempt(attempt_id, "success", "記事を公開しました。", sha, pages_url, db_path)
+            body = f'<section class="card notice"><h2>投稿が完了しました</h2><p>commit: <code>{escape(sha)}</code></p><p><a class="button" href="{escape(publishing.PAGES_URL)}">公開ブログを開く</a></p></section>'
+            return article_workspace(request, "投稿完了", body, article_id)
+        except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
+            if attempt_id and db.get_publish_attempt(attempt_id, db_path):
+                db.update_publish_attempt(attempt_id, "failure", "公開処理を安全停止しました。", db_path=db_path)
+            return error_page(str(exc), request.app.state.csrf_token)
 
     @app.post("/api/articles/{article_id}/autosave")
     async def autosave(article_id: str, request: Request):
@@ -390,13 +517,13 @@ def create_app(
     async def settings(request: Request) -> str:
         events = db.recent_events(db_path)
         rows = "".join(f"<tr><td>{escape(str(item['created_at']))}</td><td>{escape(str(item['event_type']))}</td><td>{escape(str(item['result']))}</td><td>{escape(str(item['safe_message']))}</td></tr>" for item in events) or '<tr><td colspan="4">履歴はありません。</td></tr>'
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase D有効</dd></dl></article>
-<article class="card"><h2>安全性</h2><p class="ok">削除・公開・実移行は無効です。</p></article></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase E有効</dd></dl></article>
+<article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "D", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "E", "version": APP_VERSION}
 
     return app
 

@@ -60,6 +60,8 @@
 
 ## Phase E: 校正・プレビュー・公開
 
+状態: 2026-08-09に実装・ローカル検証完了。詳細は `phase-e-publishing-report.md`。
+
 - AI校正と指摘の採否
 - Hugoプレビュー
 - 公開前チェック
@@ -67,6 +69,8 @@
 - 記事単位のcommit、push、Pages確認
 
 完了条件: ObsidianとDiscordを使わず、管理画面だけで記事公開を完了できる。
+
+確認結果: AI校正の本文非変更、指摘の採否、校正鮮度、Hugoプレビュー、公開前検査、15分有効の最終確認、記事限定Git操作、Pagesと公開URL確認を実装した。テストはfake/stubを使用し、実AI・commit・push・公開は行っていない。
 
 ## Phase F: ブログデザイン
 

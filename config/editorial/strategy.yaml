@@ -10,7 +10,7 @@ direction:
   discord_enabled: false
 
 current:
-  phase: article_templates
+  phase: proofreading_preview_publish
   phase_status: completed
   retained:
     - hugo_blog
@@ -63,8 +63,8 @@ admin_app:
   single_instance: true
   state_database: var/admin/admin.sqlite3
   article_operations_enabled: true
-  publish_operations_enabled: false
-  schema_version: 2
+  publish_operations_enabled: true
+  schema_version: 3
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk
@@ -91,6 +91,18 @@ phase_d:
   draft_save_allowed_with_missing_fields: true
   category_change_overwrites_body: false
   unknown_front_matter_preserved: true
+
+phase_e:
+  completed_at: "2026-08-09"
+  ai_review_changes_body: false
+  review_storage: var/admin/reviews
+  preview_uses_temporary_content: true
+  prepublish_checks_required: true
+  approval_expires_minutes: 15
+  approval_bound_to_article_hash: true
+  publish_paths_are_article_scoped: true
+  pages_and_public_url_confirmation: true
+  real_publish_performed_during_implementation: false
 
 article_types:
   play_note:
