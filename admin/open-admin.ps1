@@ -15,7 +15,8 @@ function Test-AdminReady {
 }
 
 if (-not (Test-AdminReady)) {
-    $PowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
+    # このスクリプトを実行しているPowerShellと同じ版を使い、文字コードの差を避ける。
+    $PowerShell = (Get-Process -Id $PID -ErrorAction Stop).Path
     $StartScript = Join-Path $PSScriptRoot "start-admin.ps1"
     Start-Process `
         -FilePath $PowerShell `
