@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS publish_attempts (
 );
 """
 
+SCHEMA_V4 = """
+ALTER TABLE articles ADD COLUMN published_file_hash TEXT;
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -127,6 +131,15 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (3, utc_now()),
         )
+        migrated = connection.execute(
+            "SELECT 1 FROM schema_migrations WHERE version = 4"
+        ).fetchone()
+        if migrated is None:
+            connection.executescript(SCHEMA_V4)
+            connection.execute(
+                "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                (4, utc_now()),
+            )
         connection.commit()
 
 
@@ -202,6 +215,69 @@ def register_scanned_article(
                 last_saved_at, revision, created_at, updated_at)
                VALUES (?, ?, ?, 'draft', ?, ?, ?, 1, ?, ?)""",
             (article_id, slug, article_type, source_path, file_hash, now, now, now),
+        )
+        connection.commit()
+
+
+def register_imported_published_article(
+    article_id: str,
+    slug: str,
+    article_type: str,
+    source_path: str,
+    file_hash: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO articles
+               (id, slug, article_type, state, source_path, file_hash,
+                last_saved_at, published_at, published_file_hash, revision, created_at, updated_at)
+               VALUES (?, ?, ?, 'published', ?, ?, ?, ?, ?, 1, ?, ?)""",
+            (article_id, slug, article_type, source_path, file_hash, now, now, file_hash, now, now),
+        )
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'public_import','published','success',?,'public_article_imported','公開中の記事を管理画面へ取り込みました。',?)""",
+            (article_id, file_hash, now),
+        )
+        connection.commit()
+
+
+def reconcile_published_article(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """UPDATE articles SET state='published',previous_state=NULL,published_at=COALESCE(published_at,?),
+               published_file_hash=?,updated_at=? WHERE id=? AND file_hash=?""",
+            (now, file_hash, now, article_id, file_hash),
+        )
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'reconcile','published','success',?,'public_copy_matched','公開中の内容と一致する状態へ戻しました。',?)""",
+            (article_id, file_hash, now),
+        )
+        connection.commit()
+
+
+def mark_unpublished_archived(article_id: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        row = connection.execute("SELECT file_hash FROM articles WHERE id=?", (article_id,)).fetchone()
+        if row is None:
+            raise RuntimeError("記事が見つかりません。")
+        connection.execute(
+            """UPDATE articles SET state='archived',previous_state='draft',archived_at=?,
+               published_at=NULL,published_file_hash=NULL,updated_at=? WHERE id=?""",
+            (now, now, article_id),
+        )
+        connection.execute(
+            """INSERT INTO article_events
+               (article_id,event_type,from_state,to_state,result,file_hash,message_code,safe_message,created_at)
+               VALUES (?,'unpublish','published','archived','success',?,'article_unpublished','公開を停止し、記事を削除済みに移しました。',?)""",
+            (article_id, str(row["file_hash"]), now),
         )
         connection.commit()
 
@@ -430,9 +506,9 @@ def mark_published(article_id: str, file_hash: str, db_path: Path = DEFAULT_DB_P
     now = utc_now()
     with closing(connect(db_path)) as connection:
         cursor = connection.execute(
-            """UPDATE articles SET state='published',previous_state=NULL,published_at=?,updated_at=?
+            """UPDATE articles SET state='published',previous_state=NULL,published_at=?,published_file_hash=?,updated_at=?
                WHERE id=? AND file_hash=?""",
-            (now, now, article_id, file_hash),
+            (now, file_hash, now, article_id, file_hash),
         )
         if cursor.rowcount != 1:
             raise RuntimeError("公開完了時の記事ハッシュが一致しません。")

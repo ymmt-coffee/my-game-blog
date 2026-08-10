@@ -54,6 +54,12 @@ article_management:
   precommit_publish_failure_returns_to_update_draft: true
   published_tab_includes_articles_with_live_version: true
   zero_diff_publish_message: manual_save_required
+  public_copy_reconciliation: compare_content_and_images
+  public_sync_labels: [published, local_update, missing_public_copy]
+  public_only_import: explicit_non_destructive_copy
+  public_or_canonical_auto_delete: false
+  published_delete_behavior: confirmed_unpublish_then_logical_trash
+  matching_restore_behavior: reconcile_as_published_without_republish
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
@@ -86,7 +92,7 @@ admin_app:
   state_database: var/admin/admin.sqlite3
   article_operations_enabled: true
   publish_operations_enabled: true
-  schema_version: 3
+  schema_version: 4
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk

@@ -260,6 +260,48 @@ class PhaseEPublishingTests(unittest.TestCase):
         finally:
             publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
 
+    def test_unpublish_removes_only_public_copy_and_keeps_canonical(self) -> None:
+        original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
+        try:
+            publishing.PROJECT_ROOT = self.root
+            publishing.PUBLIC_POSTS = self.root / "blog/content/posts"
+            source = self.root / "content/articles/keep-source"
+            source.mkdir(parents=True)
+            (source / "index.md").write_text("---\ntitle: x\n---\nbody\n", encoding="utf-8")
+            public = publishing.PUBLIC_POSTS / "keep-source"
+            public.mkdir(parents=True)
+            (public / "index.md").write_text("---\ndraft: false\n---\nbody\n", encoding="utf-8")
+            article = articles.ArticleFile("id", "keep-source", source, {}, "body", "f" * 64)
+            calls = []
+
+            def runner(args, **_kwargs):
+                calls.append(args)
+                if args[:4] == ["git", "diff", "--cached", "--name-only"]:
+                    return subprocess.CompletedProcess(args, 0, "blog/content/posts/keep-source/index.md\n", "")
+                if args[:3] == ["git", "status", "--porcelain"]:
+                    return subprocess.CompletedProcess(args, 0, "", "")
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return subprocess.CompletedProcess(args, 0, "a" * 40 + "\n", "")
+                if args[:3] == ["gh", "run", "list"]:
+                    return subprocess.CompletedProcess(args, 0, '[{"status":"completed","conclusion":"success","url":"https://actions.example/run"}]', "")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            class Response:
+                status = 200
+                def __enter__(self): return self
+                def __exit__(self, *_args): return None
+
+            with patch("admin.publishing.urlopen", return_value=Response()):
+                sha, _pages = publishing.unpublish_article(article, runner)
+            self.assertEqual(sha, "a" * 40)
+            self.assertTrue(source.is_dir())
+            self.assertTrue(any(call[:3] == ["git", "rm", "-r"] for call in calls))
+            self.assertTrue(any(call[:2] == ["git", "commit"] for call in calls))
+            self.assertTrue(any(call[:3] == ["git", "push", "origin"] for call in calls))
+            self.assertFalse(any("content/articles/keep-source" in part for call in calls for part in call))
+        finally:
+            publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
+
 
 if __name__ == "__main__":
     unittest.main()

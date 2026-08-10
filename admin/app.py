@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import shutil
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -37,6 +38,13 @@ NAV_ITEMS = (
 
 
 def state_label(record: dict[str, object]) -> str:
+    sync_status = str(record.get("sync_status") or "")
+    if sync_status == "matched":
+        return "公開済み"
+    if sync_status == "update":
+        return "更新あり"
+    if sync_status == "missing" and record.get("published_at"):
+        return "公開差異・要確認"
     if str(record.get("state")) == "ready" and record.get("published_at"):
         return "更新版・公開準備完了"
     if str(record.get("state")) == "draft" and (str(record.get("previous_state")) == "published" or record.get("published_at")):
@@ -83,10 +91,16 @@ def article_workspace(
     extra_script: str = "",
 ) -> str:
     records = db.list_articles(request.app.state.db_path, include_archived=True)
+    for item in records:
+        try:
+            candidate = articles.read_article(Path(str(item["source_path"])), str(item["id"]), str(item["slug"]))
+            item["sync_status"] = publishing.public_sync_status(candidate, request.app.state.public_posts)
+        except articles.ArticleError:
+            item["sync_status"] = "missing"
     selected = db.get_article(selected_id, request.app.state.db_path) if selected_id else None
     requested_tab = request.query_params.get("status", "")
     active_tab = requested_tab if requested_tab in {"draft", "published"} else ("published" if selected and str(selected["state"]) == "published" else "draft")
-    records = [item for item in records if str(item["state"]) != "archived" and ((bool(item.get("published_at")) if active_tab == "published" else str(item["state"]) != "published"))]
+    records = [item for item in records if str(item["state"]) != "archived" and (((item.get("sync_status") != "missing" or bool(item.get("published_at"))) if active_tab == "published" else item.get("sync_status") == "missing" and not bool(item.get("published_at"))))]
     links: list[str] = []
     for item in records:
         item_title = str(item["slug"])
@@ -99,9 +113,10 @@ def article_workspace(
             pass
         active = " active" if str(item["id"]) == selected_id else ""
         search_text = escape(f"{item_title} {item['slug']}".casefold())
+        action = (f'<a class="picker-delete" href="/articles/{item["id"]}/unpublish">公開停止</a>' if item.get("sync_status") != "missing" else f'<form method="post" action="/articles/{item["id"]}/archive">{hidden_csrf(request.app.state.csrf_token)}<button class="picker-delete" type="submit" title="削除">削除</button></form>')
         links.append(f'''<div class="picker-item-row" data-search="{search_text}"><a class="article-picker-item{active}" href="/articles/{item["id"]}/edit">
 <span class="picker-title">{escape(item_title)}</span><span class="picker-meta">{escape(item_date)} · {escape(state_label(item))}</span></a>
-<form method="post" action="/articles/{item["id"]}/archive">{hidden_csrf(request.app.state.csrf_token)}<button class="picker-delete" type="submit" title="削除">削除</button></form></div>''')
+{action}</div>''')
     article_links = "".join(links) or '<p class="picker-empty">記事はまだありません。</p>'
     middle = f"""<section class="article-picker" id="article-picker"><div class="picker-top">
 <button class="picker-toggle" type="button" aria-expanded="true" aria-controls="picker-content" title="記事一覧を折り畳む"><span aria-hidden="true">◀</span><b>記事一覧</b></button></div>
@@ -153,6 +168,7 @@ def create_app(
     testing: bool = False,
     command_runner=None,
     review_supplier=None,
+    public_posts: Path = publishing.PUBLIC_POSTS,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -163,6 +179,7 @@ def create_app(
 
     app = FastAPI(title="ゲームブログ管理", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.db_path, app.state.content_root, app.state.state_root = db_path, content_root, state_root
+    app.state.public_posts = public_posts
     app.state.legacy_root, app.state.csrf_token = legacy_root, secrets.token_urlsafe(32)
     app.state.command_runner = command_runner or publishing.run_command
     app.state.review_supplier = review_supplier
@@ -510,8 +527,38 @@ def create_app(
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or "")); db.set_archive(article_id, False, db_path)
+            record, restored = load_record(article_id, request)
+            if publishing.public_sync_status(restored, request.app.state.public_posts) == "matched":
+                db.reconcile_published_article(article_id, restored.file_hash, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
         except (articles.ArticleError, RuntimeError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.get("/articles/{article_id}/unpublish", response_class=HTMLResponse)
+    async def unpublish_confirm(article_id: str, request: Request) -> str:
+        try:
+            _record, article = load_record(article_id, request)
+            if publishing.public_sync_status(article, request.app.state.public_posts) == "missing":
+                raise articles.ArticleError("公開中の記事が見つかりません。")
+            body = f'''<section class="card danger-zone"><h2>公開を停止します</h2><p>公開サイトからこの記事を取り下げます。管理原稿は削除せず、設定・履歴から復元できます。</p><form method="post" action="/articles/{article_id}/unpublish">{hidden_csrf(request.app.state.csrf_token)}<label>確認のためslugを入力<input name="confirm_slug" required></label><button class="button danger" type="submit">公開停止を実行</button></form></section>'''
+            return article_workspace(request, f"公開停止: {article.slug}", body, article_id)
+        except articles.ArticleError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/unpublish")
+    async def unpublish_execute(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            _record, article = load_record(article_id, request)
+            if str(form.get("confirm_slug") or "").strip() != article.slug:
+                raise articles.ArticleError("確認用slugが一致しません。")
+            sha, pages_url = publishing.unpublish_article(article, request.app.state.command_runner)
+            db.mark_unpublished_archived(article_id, db_path)
+            db.record_event("unpublish", "success", "unpublish_completed", f"記事 {article.slug} の公開を停止しました。", db_path)
+            body = f'<section class="card notice"><h2>公開を停止しました</h2><p>管理原稿は削除済みに保持しています。</p><p><code>{escape(sha[:12])}</code></p><a class="button secondary" href="/settings">設定・履歴へ</a></section>'
+            return HTMLResponse(layout("公開停止完了", "/articles", body, request.app.state.csrf_token))
+        except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
             return error_page(str(exc), request.app.state.csrf_token)
 
     @app.get("/articles/{article_id}/history", response_class=HTMLResponse)
@@ -563,16 +610,39 @@ def create_app(
             if str(item["state"]) != "archived":
                 continue
             title = str(item["slug"])
+            public_action = ""
             try:
                 deleted = articles.read_article(Path(str(item["source_path"])), str(item["id"]), str(item["slug"]))
                 title = str(deleted.metadata.get("title") or item["slug"])
+                if publishing.public_sync_status(deleted, request.app.state.public_posts) != "missing":
+                    public_action = f'<a class="button danger" href="/articles/{item["id"]}/unpublish">公開停止</a>'
             except articles.ArticleError:
                 pass
-            deleted_rows.append(f'''<tr><td>{escape(title)}</td><td>{escape(str(item["slug"]))}</td><td><form method="post" action="/articles/{item["id"]}/restore">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">復元</button></form></td></tr>''')
+            deleted_rows.append(f'''<tr><td>{escape(title)}</td><td>{escape(str(item["slug"]))}</td><td><div class="inline-actions"><form method="post" action="/articles/{item["id"]}/restore">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">復元</button></form>{public_action}</div></td></tr>''')
         deleted_table = "".join(deleted_rows) or '<tr><td colspan="3">削除した記事はありません。</td></tr>'
+        public_only = publishing.public_only_slugs(content_root, request.app.state.public_posts)
+        public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
         body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase E有効</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
+        body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
+
+    @app.post("/settings/import-public/{slug}")
+    async def import_public(slug: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            imported = publishing.import_public_article(content_root, slug, request.app.state.public_posts)
+            try:
+                db.register_imported_published_article(imported.article_id, imported.slug, str(imported.metadata.get("article_type") or "play_note"), str(imported.path.resolve()), imported.file_hash, db_path)
+            except Exception:
+                shutil.rmtree(imported.path, ignore_errors=True)
+                raise
+            return RedirectResponse(f"/articles/{imported.article_id}/edit?status=published", status_code=303)
+        except (articles.ArticleError, publishing.PublishError, Exception) as exc:
+            if isinstance(exc, (articles.ArticleError, publishing.PublishError)):
+                return error_page(str(exc), request.app.state.csrf_token)
+            return error_page("公開記事の取り込みに失敗しました。公開記事と既存原稿は変更していません。", request.app.state.csrf_token, 500)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

@@ -8,9 +8,10 @@ from contextlib import closing
 from datetime import date
 from pathlib import Path
 
+import frontmatter
 from fastapi.testclient import TestClient
 
-from admin import articles, db
+from admin import articles, db, publishing
 from admin.app import create_app
 
 
@@ -22,11 +23,13 @@ class PhaseCArticleTests(unittest.TestCase):
         self.content_root = self.root / "content" / "articles"
         self.state_root = self.root / "state"
         self.legacy_root = self.root / "legacy"
+        self.public_posts = self.root / "blog" / "content" / "posts"
         self.app = create_app(
             db_path=self.db_path,
             content_root=self.content_root,
             state_root=self.state_root,
             legacy_root=self.legacy_root,
+            public_posts=self.public_posts,
             testing=True,
         )
         self.client_context = TestClient(self.app)
@@ -104,6 +107,66 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertNotIn("テスト記事", draft_page.text)
         self.assertIn("テスト記事", published_page.text)
         self.assertIn('class="active" href="/articles?status=published">公開済', published_page.text)
+
+    def test_public_copy_match_and_local_update_are_shown(self) -> None:
+        article_id, _record = self.create_article()
+        source = self.content_root / "sample-note"
+        public = self.public_posts / "sample-note"
+        public.mkdir(parents=True)
+        post = frontmatter.load(source / "index.md")
+        post.metadata["draft"] = False
+        (public / "index.md").write_text(frontmatter.dumps(post), encoding="utf-8")
+        with closing(db.connect(self.db_path)) as connection:
+            connection.execute("UPDATE articles SET state='published',published_at=? WHERE id=?", (db.utc_now(), article_id))
+            connection.commit()
+        matched = self.client.get("/articles?status=published")
+        self.assertIn("公開済み", matched.text)
+        with (source / "index.md").open("a", encoding="utf-8") as stream:
+            stream.write("\n未公開の修正\n")
+        updated = self.client.get("/articles?status=published")
+        self.assertIn("更新あり", updated.text)
+
+    def test_public_only_article_is_imported_without_overwrite(self) -> None:
+        public = self.public_posts / "existing-public"
+        (public / "images").mkdir(parents=True)
+        (public / "index.md").write_text(
+            "---\ntitle: 公開中の記事\ndescription: 公開中です。\ndate: '2026-08-01'\nlastmod: '2026-08-01'\ndraft: false\nimages: []\n---\n\n本文\n",
+            encoding="utf-8",
+        )
+        settings = self.client.get("/settings")
+        self.assertIn("existing-public", settings.text)
+        imported = self.client.post(
+            "/settings/import-public/existing-public",
+            data={"csrf_token": self.csrf},
+            follow_redirects=False,
+        )
+        self.assertEqual(imported.status_code, 303, imported.text)
+        canonical = self.content_root / "existing-public" / "index.md"
+        self.assertTrue(canonical.is_file())
+        self.assertIn("draft: true", canonical.read_text(encoding="utf-8"))
+        self.assertIn("draft: false", (public / "index.md").read_text(encoding="utf-8"))
+        record = db.get_article_by_slug("existing-public", self.db_path)
+        self.assertEqual(record["state"], "published")
+        self.assertEqual(record["published_file_hash"], record["file_hash"])
+        repeated = self.client.post(
+            "/settings/import-public/existing-public",
+            data={"csrf_token": self.csrf},
+        )
+        self.assertEqual(repeated.status_code, 400)
+
+    def test_public_article_without_front_matter_draft_is_not_false_update(self) -> None:
+        public = self.public_posts / "plain-public"
+        public.mkdir(parents=True)
+        (public / "index.md").write_text("公開本文\n", encoding="utf-8")
+        response = self.client.post(
+            "/settings/import-public/plain-public",
+            data={"csrf_token": self.csrf},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        record = db.get_article_by_slug("plain-public", self.db_path)
+        article = articles.read_article(self.content_root / "plain-public", str(record["id"]), "plain-public")
+        self.assertEqual(publishing.public_sync_status(article, self.public_posts), "matched")
 
     def test_manual_save_creates_history_and_increments_revision(self) -> None:
         article_id, record = self.create_article()
@@ -246,6 +309,22 @@ class PhaseCArticleTests(unittest.TestCase):
         restored = self.client.post(f"/articles/{article_id}/restore", data={"csrf_token": self.csrf}, follow_redirects=False)
         self.assertEqual(restored.status_code, 303)
         self.assertEqual(db.get_article(article_id, self.db_path)["state"], "draft")
+
+    def test_restoring_unchanged_public_article_returns_to_published(self) -> None:
+        article_id, _record = self.create_article("restore-public")
+        source = self.content_root / "restore-public"
+        public = self.public_posts / "restore-public"
+        public.mkdir(parents=True)
+        post = frontmatter.load(source / "index.md")
+        post.metadata["draft"] = False
+        (public / "index.md").write_text(frontmatter.dumps(post), encoding="utf-8")
+        with closing(db.connect(self.db_path)) as connection:
+            connection.execute("UPDATE articles SET state='published',published_at=? WHERE id=?", (db.utc_now(), article_id))
+            connection.commit()
+        self.client.post(f"/articles/{article_id}/archive", data={"csrf_token": self.csrf})
+        restored = self.client.post(f"/articles/{article_id}/restore", data={"csrf_token": self.csrf}, follow_redirects=False)
+        self.assertEqual(restored.status_code, 303)
+        self.assertEqual(db.get_article(article_id, self.db_path)["state"], "published")
 
     def test_csrf_is_required_for_changes(self) -> None:
         response = self.client.post(

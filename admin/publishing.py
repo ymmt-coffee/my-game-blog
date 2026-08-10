@@ -27,6 +27,88 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BLOG_ROOT = PROJECT_ROOT / "blog"
 BLOG_CONTENT = BLOG_ROOT / "content"
 PUBLIC_POSTS = BLOG_CONTENT / "posts"
+
+
+def _publishable_index_bytes(index: Path) -> bytes:
+    post = frontmatter.load(index)
+    post.metadata["draft"] = False
+    return articles.render_markdown(dict(post.metadata), post.content)
+
+
+def _normalize_markdown_bytes(value: bytes) -> bytes:
+    return value.replace(b"\r\n", b"\n").rstrip(b"\n") + b"\n"
+
+
+def _bundle_files(root: Path, *, canonical: bool) -> dict[str, bytes]:
+    if not root.is_dir() or not (root / "index.md").is_file():
+        return {}
+    files: dict[str, bytes] = {}
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        relative = path.relative_to(root).as_posix()
+        if canonical and relative == "review-report.md":
+            continue
+        value = _publishable_index_bytes(path) if canonical and relative == "index.md" else path.read_bytes()
+        if path.suffix.lower() == ".md":
+            value = _normalize_markdown_bytes(value)
+        files[relative] = value
+    return files
+
+
+def public_sync_status(article: articles.ArticleFile, public_posts: Path = PUBLIC_POSTS) -> str:
+    """公開コピーとの関係を matched / update / missing で返す。"""
+    public_root = public_posts / article.slug
+    public = _bundle_files(public_root, canonical=False)
+    if not public:
+        return "missing"
+    canonical = _bundle_files(article.path, canonical=True)
+    if canonical == public:
+        return "matched"
+    try:
+        public_post = frontmatter.load(public_root / "index.md")
+        if "draft" not in public_post.metadata:
+            canonical_post = frontmatter.load(article.path / "index.md")
+            canonical_post.metadata.pop("draft", None)
+            if not public_post.metadata and not (public_root / "index.md").read_text(encoding="utf-8-sig").lstrip().startswith("---"):
+                canonical["index.md"] = _normalize_markdown_bytes(canonical_post.content.encode("utf-8"))
+            else:
+                canonical["index.md"] = _normalize_markdown_bytes(
+                    articles.render_markdown(dict(canonical_post.metadata), canonical_post.content)
+                )
+    except Exception:
+        return "update"
+    return "matched" if canonical == public else "update"
+
+
+def public_only_slugs(content_root: Path, public_posts: Path = PUBLIC_POSTS) -> list[str]:
+    if not public_posts.is_dir():
+        return []
+    return sorted(
+        path.name for path in public_posts.iterdir()
+        if path.is_dir() and (path / "index.md").is_file() and not (content_root / path.name).exists()
+    )
+
+
+def import_public_article(content_root: Path, slug: str, public_posts: Path = PUBLIC_POSTS) -> articles.ArticleFile:
+    """公開中の記事を新しい管理原稿としてコピーする。既存原稿は上書きしない。"""
+    articles.validate_slug(slug)
+    source = public_posts / slug
+    destination = content_root / slug
+    if destination.exists():
+        raise PublishError("同じslugの管理原稿があるため、取り込みを停止しました。")
+    if not source.is_dir() or not (source / "index.md").is_file():
+        raise PublishError("公開中の記事が見つかりません。")
+    staging = Path(tempfile.mkdtemp(prefix=f"import-{slug}-", dir=content_root))
+    try:
+        shutil.copytree(source, staging / slug)
+        index = staging / slug / "index.md"
+        post = frontmatter.load(index)
+        post.metadata["draft"] = True
+        articles.atomic_write(index, articles.render_markdown(dict(post.metadata), post.content))
+        (staging / slug).rename(destination)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    article_id = uuid.uuid5(uuid.NAMESPACE_URL, f"my-game-blog:{slug}").hex
+    return articles.read_article(destination, article_id, slug)
 PAGES_URL = "https://ymmt-coffee.github.io/my-game-blog/"
 REPOSITORY = "ymmt-coffee/my-game-blog"
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
@@ -292,6 +374,43 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
                 backup.rename(destination)
             if isinstance(exc, PublishError):
                 exc.before_commit = True
+        raise
+
+
+def unpublish_article(article: articles.ArticleFile, runner: CommandRunner = run_command) -> tuple[str, str]:
+    """対象記事の公開コピーだけを削除してpushする。管理原稿は保持する。"""
+    staged = runner(["git", "diff", "--cached", "--quiet"], timeout=30)
+    if staged.returncode != 0:
+        raise PublishError("すでに登録済みの変更があるため公開停止を中止しました。", before_commit=True)
+    destination = PUBLIC_POSTS / article.slug
+    if not destination.is_dir():
+        raise PublishError("公開用コピーが見つかりません。", before_commit=True)
+    public_rel = destination.relative_to(PROJECT_ROOT).as_posix()
+    existing = runner(["git", "status", "--porcelain", "--", public_rel], timeout=30)
+    if existing.returncode != 0 or existing.stdout.strip():
+        raise PublishError("公開用コピーに未コミット変更があるため公開停止を中止しました。", before_commit=True)
+    committed = False
+    try:
+        removed = runner(["git", "rm", "-r", "--", public_rel], timeout=30)
+        if removed.returncode != 0:
+            raise PublishError("公開用コピーをGitへ登録できませんでした。", before_commit=True)
+        names = runner(["git", "diff", "--cached", "--name-only"], timeout=30)
+        changed = [line.strip().replace("\\", "/") for line in names.stdout.splitlines() if line.strip()]
+        if not changed or any(not path.startswith(public_rel + "/") for path in changed):
+            raise PublishError("対象記事以外の変更が混ざったため公開停止を中止しました。", before_commit=True)
+        result = runner(["git", "commit", "-m", f"unpublish: {article.slug}", "--", public_rel], timeout=60)
+        if result.returncode != 0:
+            raise PublishError("公開停止のcommitに失敗しました。", before_commit=True)
+        committed = True
+        pushed = runner(["git", "push", "origin", "main"], timeout=120)
+        if pushed.returncode != 0:
+            raise PublishError("commitは完了しましたがpushに失敗しました。")
+        sha = runner(["git", "rev-parse", "HEAD"], timeout=30).stdout.strip()
+        return sha, wait_for_pages(sha, runner)
+    except Exception:
+        if not committed:
+            runner(["git", "restore", "--staged", "--", public_rel], timeout=30)
+            runner(["git", "restore", "--", public_rel], timeout=30)
         raise
 
 
