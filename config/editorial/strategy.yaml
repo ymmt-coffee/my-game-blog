@@ -151,6 +151,10 @@ phase_f:
   public_design: minimal_linear_game_media
   color_palette: grayscale_black
   public_ui_density: compact
+  article_outer_width_matches_home: true
+  article_reading_width_px: 776
+  article_header_width_matches_reading_column: true
+  article_header_max_height_px: 300
   latest_layout: vertical_list
   empty_ad_space_reserved: false
   blog_title: FRAMING
