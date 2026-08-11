@@ -129,7 +129,7 @@ class Phase1HugoTests(unittest.TestCase):
             self.assertIn("summary_large_image", play_html)
             self.assertIn("application/ld+json", play_html)
             self.assertLess(home_html.index("20260811-003"), home_html.index("20260811-002"))
-            for menu_name in ("プレイ途中記", "新作・セール5選", "月次レビュー", "About", "検索"):
+            for menu_name in ("プレイログ", "新作・セール", "月刊コラム", "About", "検索"):
                 self.assertIn(menu_name, home_html)
             search_index = (public / "index.json").read_text(encoding="utf-8")
             self.assertNotIn("広告・アフィリエイト方針", search_index)

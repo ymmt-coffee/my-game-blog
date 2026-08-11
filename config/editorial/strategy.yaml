@@ -145,8 +145,8 @@ phase_e:
 phase_f:
   completed_at: "2026-08-11"
   public_design: minimal_linear_game_media
-  color_palette: light_gray_black_deep_red
-  temporary_blog_title: GAME LOGS
+  color_palette: grayscale_black
+  blog_title: FRAMING
   latest_featured_count: 1
   home_order: date_desc_then_auto_slug_desc
   navigation: [play_note, weekly_picks, monthly_essay, about, search]

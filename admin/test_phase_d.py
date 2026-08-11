@@ -108,9 +108,9 @@ class PhaseDTemplateTests(unittest.TestCase):
     def test_new_form_explains_templates_and_switches_play_time(self) -> None:
         page = self.client.get("/articles/new")
         self.assertIn("/static/template-form.js", page.text)
-        self.assertIn("プレイ途中記", page.text)
-        self.assertIn("新作・セール5選", page.text)
-        self.assertIn("月次レビューエッセイ", page.text)
+        self.assertIn("プレイログ", page.text)
+        self.assertIn("新作・セール", page.text)
+        self.assertIn("月刊コラム", page.text)
         self.assertIn("data-play-time", page.text)
 
     def test_inspection_rejects_invalid_date_and_metadata_types(self) -> None:

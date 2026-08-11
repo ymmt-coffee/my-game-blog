@@ -56,9 +56,9 @@ Discord通知は使用しない。
 
 ## 記事種類
 
-- `play_note`: プレイ途中記。`play_time` が必須。
-- `weekly_picks`: 新作・セール5選。未プレイ情報記事として表示する。
-- `monthly_essay`: 月次レビューエッセイ。
+- `play_note`: プレイログ。`play_time` が必須。
+- `weekly_picks`: 新作・セール。未プレイ情報記事として表示する。
+- `monthly_essay`: 月刊コラム。
 
 ## 校正
 

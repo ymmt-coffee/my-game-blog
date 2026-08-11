@@ -212,7 +212,7 @@ def validate_post(source: Path, post: frontmatter.Post, strict: bool, report: Re
     elif not metadata.get("images"):
         report.warn(f"OGP画像が未設定です（画像なしの安全な表示を使用） [{source}]")
     if article_type == "play_note" and not str(metadata.get("play_time", "")).strip():
-        report.error(f"プレイ途中記にはplay_timeが必要です [{source}]")
+        report.error(f"プレイログにはplay_timeが必要です [{source}]")
     if "provided" in metadata and not isinstance(metadata["provided"], bool):
         report.error(f"providedはtrue/falseで指定してください [{source}]")
     spoiler = metadata.get("spoiler_warning", "")

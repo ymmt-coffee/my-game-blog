@@ -1,7 +1,7 @@
 baseURL = "https://ymmt-coffee.github.io/my-game-blog/"
 locale = "ja-JP"
 defaultContentLanguage = "ja"
-title = "GAME LOGS"
+title = "FRAMING"
 theme = "PaperMod"
 buildFuture = false
 enableRobotsTXT = true
@@ -47,17 +47,17 @@ resourceDir = "../var/resources"
     safari_pinned_tab = "favicon.svg"
 
 [[menu.main]]
-  name = "プレイ途中記"
+  name = "プレイログ"
   url = "/article_type/play_note/"
   weight = 10
 
 [[menu.main]]
-  name = "新作・セール5選"
+  name = "新作・セール"
   url = "/article_type/weekly_picks/"
   weight = 20
 
 [[menu.main]]
-  name = "月次レビュー"
+  name = "月刊コラム"
   url = "/article_type/monthly_essay/"
   weight = 30
 

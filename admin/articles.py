@@ -150,7 +150,7 @@ def create_article_files(
     if not title or not author or not description:
         raise ArticleError("タイトル、概要、著者を入力してください。")
     if article_type == "play_note" and not play_time.strip():
-        raise ArticleError("プレイ途中記ではプレイ時間を入力してください。")
+        raise ArticleError("プレイログではプレイ時間を入力してください。")
     target = article_dir(content_root, slug)
     if target.exists():
         raise ArticleError("同じslugの記事がすでにあります。")

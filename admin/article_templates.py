@@ -20,7 +20,7 @@ COMMON_REQUIRED = ("title", "date", "lastmod", "draft", "description", "images",
 TEMPLATES = {
     "play_note": ArticleTemplate(
         "play_note",
-        "プレイ途中記",
+        "プレイログ",
         "遊んだ範囲を明記し、未到達部分の断定や大きなネタバレを避けます。",
         """## 今回遊んだところ
 
@@ -37,7 +37,7 @@ TEMPLATES = {
     ),
     "weekly_picks": ArticleTemplate(
         "weekly_picks",
-        "新作・セール5選",
+        "新作・セール",
         "5本それぞれについて、確認日時・情報源・価格などの事実確認が必要です。未プレイ作品は未プレイと明記します。",
         """## 今週の選定方針
 
@@ -66,7 +66,7 @@ TEMPLATES = {
     ),
     "monthly_essay": ArticleTemplate(
         "monthly_essay",
-        "月次レビューエッセイ",
+        "月刊コラム",
         "その月の体験を一つのテーマで振り返り、作品の紹介だけでなく自分の考えをまとめます。",
         """## 今月のテーマ
 
