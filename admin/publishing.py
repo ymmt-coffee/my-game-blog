@@ -316,6 +316,9 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
     destination = PUBLIC_POSTS / article.slug
     backup = destination.with_name(destination.name + ".publish-backup")
     committed = False
+    publish_copy_mutated = False
+    git_paths_staged = False
+    had_public_copy = destination.exists()
     try:
         unexpected = []
         for path in article.path.rglob("*"):
@@ -336,14 +339,25 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
         if backup.exists():
             shutil.rmtree(backup)
         if destination.exists():
-            destination.rename(backup)
+            shutil.copytree(destination, backup)
+            publish_copy_mutated = True
+            shutil.rmtree(destination)
+        else:
+            publish_copy_mutated = True
         shutil.copytree(prepared, destination)
         source_rel = article.path.relative_to(PROJECT_ROOT).as_posix()
         source_index = f"{source_rel}/index.md"
         source_images = f"{source_rel}/images"
-        result = runner(["git", "add", "-A", "--", source_index, source_images, public_rel], timeout=30)
+        publish_paths = [source_index]
+        image_files_exist = any(path.is_file() for path in (article.path / "images").rglob("*")) if (article.path / "images").is_dir() else False
+        tracked_images = runner(["git", "ls-files", "--", source_images], timeout=30)
+        if image_files_exist or (tracked_images.returncode == 0 and tracked_images.stdout.strip()):
+            publish_paths.append(source_images)
+        publish_paths.append(public_rel)
+        result = runner(["git", "add", "-A", "--", *publish_paths], timeout=30)
         if result.returncode != 0:
             raise PublishError("対象記事をGitへ登録できませんでした。")
+        git_paths_staged = True
         names = runner(["git", "diff", "--cached", "--name-only"], timeout=30)
         allowed = (source_rel + "/", public_rel + "/")
         changed = [line.strip().replace("\\", "/") for line in names.stdout.splitlines() if line.strip()]
@@ -351,8 +365,8 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
             raise PublishError("公開する確定保存済みの変更がありません。編集内容を手動保存してから、公開前チェックをやり直してください。")
         if any(not path.startswith(allowed) for path in changed):
             raise PublishError("対象記事以外の変更が混ざったため公開を停止しました。")
-        committed = runner(["git", "commit", "-m", f"publish: {article.slug}", "--", source_index, source_images, public_rel], timeout=60)
-        if committed.returncode != 0:
+        commit_result = runner(["git", "commit", "-m", f"publish: {article.slug}", "--", *publish_paths], timeout=60)
+        if commit_result.returncode != 0:
             raise PublishError("記事のcommitに失敗しました。")
         committed = True
         if backup.exists():
@@ -367,11 +381,27 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
         return sha, pages
     except Exception as exc:
         if not committed:
-            runner(["git", "restore", "--staged", "--", str(article.path.relative_to(PROJECT_ROOT)), str(destination.relative_to(PROJECT_ROOT))], timeout=30)
-            if destination.exists():
-                shutil.rmtree(destination)
-            if backup.exists():
-                backup.rename(destination)
+            public_rel = str(destination.relative_to(PROJECT_ROOT)).replace("\\", "/")
+            if git_paths_staged:
+                cleanup_paths = [str(article.path.relative_to(PROJECT_ROOT) / "index.md"), public_rel]
+                runner(["git", "restore", "--staged", "--", *cleanup_paths], timeout=30)
+                runner(["git", "restore", "--staged", "--", str(article.path.relative_to(PROJECT_ROOT) / "images")], timeout=30)
+            if publish_copy_mutated:
+                try:
+                    if destination.exists():
+                        shutil.rmtree(destination)
+                    if backup.exists():
+                        shutil.copytree(backup, destination)
+                except OSError:
+                    pass
+                if not destination.exists():
+                    tracked_public = runner(["git", "ls-files", "--", public_rel], timeout=30)
+                    if tracked_public.returncode == 0 and tracked_public.stdout.strip():
+                        runner(["git", "restore", "--worktree", "--", public_rel], timeout=30)
+                if backup.exists():
+                    shutil.rmtree(backup)
+                if had_public_copy and not destination.exists():
+                    exc = PublishError("投稿に失敗し、公開用コピーの自動復元にも失敗しました。管理原稿は保持しています。", before_commit=True)
             if isinstance(exc, PublishError):
                 exc.before_commit = True
         raise

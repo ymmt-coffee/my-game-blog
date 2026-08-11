@@ -34,6 +34,7 @@ article_management:
   states: [draft, review_pending, ready, scheduled, published, archived]
   operations: [save, search, preview, prepublish_check, publish, schedule, delete_to_trash, restore]
   require_confirmation_before_publish: true
+  publish_confirmation_requires_slug_input: false
   recoverable_archive: true
   slug_format: YYYYMMDD-NNN
   slug_sequence_scope: daily
@@ -147,6 +148,7 @@ phase_f:
   color_palette: light_gray_black_deep_red
   temporary_blog_title: GAME LOGS
   latest_featured_count: 1
+  home_order: date_desc_then_auto_slug_desc
   navigation: [play_note, weekly_picks, monthly_essay, about, search]
   header_image_source: explicit_cover_image_only
   body_image_auto_thumbnail: false

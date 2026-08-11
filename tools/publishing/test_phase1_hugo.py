@@ -71,6 +71,8 @@ class Phase1HugoTests(unittest.TestCase):
             (images / "hero.png").write_bytes(solid_png(1600, 900))
             write_article(content, "weekly-picks-test", "weekly_picks", "", "## 1\n\n## 2\n\n## 3\n\n## 4\n\n## 5")
             write_article(content, "monthly-essay-test", "monthly_essay", "", "静かな本文です。")
+            write_article(content, "20260811-002", "monthly_essay", "", "同日の古い記事です。")
+            write_article(content, "20260811-003", "monthly_essay", "", "同日の新しい記事です。")
 
             draft = content / "posts" / "draft-test"
             draft.mkdir(parents=True)
@@ -114,6 +116,7 @@ class Phase1HugoTests(unittest.TestCase):
             play_html = (public / "posts" / "play-note-test" / "index.html").read_text(encoding="utf-8")
             weekly_html = (public / "posts" / "weekly-picks-test" / "index.html").read_text(encoding="utf-8")
             monthly_html = (public / "posts" / "monthly-essay-test" / "index.html").read_text(encoding="utf-8")
+            home_html = (public / "index.html").read_text(encoding="utf-8")
             self.assertIn("約6時間", play_html)
             self.assertIn("完走したレビューではなく", play_html)
             self.assertIn("未プレイ作品", weekly_html)
@@ -125,6 +128,7 @@ class Phase1HugoTests(unittest.TestCase):
             self.assertIn("twitter:card", play_html)
             self.assertIn("summary_large_image", play_html)
             self.assertIn("application/ld+json", play_html)
+            self.assertLess(home_html.index("20260811-003"), home_html.index("20260811-002"))
             self.assertFalse((public / "posts" / "draft-test").exists())
             self.assertTrue((public / "sitemap.xml").is_file())
             self.assertTrue((public / "robots.txt").is_file())

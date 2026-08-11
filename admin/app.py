@@ -389,7 +389,7 @@ def create_app(
             attempt_id, token, token_hash, expires = publishing.new_attempt_values()
             db.create_publish_attempt(attempt_id, article_id, article.file_hash, token_hash, expires, db_path)
             warning_rows = "".join(f"<li>{escape(item)}</li>" for item in result.warnings) or "<li>警告はありません。</li>"
-            body = f'''<section class="card notice"><h2>公開前チェックに合格しました</h2><dl><dt>対象記事</dt><dd>{escape(article.slug)}</dd><dt>公開先</dt><dd>GitHub Pages</dd><dt>原稿ハッシュ</dt><dd><code>{escape(article.file_hash[:16])}…</code></dd></dl><h3>警告</h3><ul>{warning_rows}</ul></section><section class="card danger-zone"><h2>最終確認</h2><p>実行すると対象記事だけをcommitし、GitHubへpushして公開します。取り消せません。</p><form method="post" action="/articles/{article_id}/publish">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="attempt_id" value="{attempt_id}"><input type="hidden" name="approval_token" value="{escape(token)}"><label>確認のため <code>{escape(article.slug)}</code> と入力<input name="confirm_slug" required autocomplete="off"></label><button class="button danger">投稿を実行</button></form></section>'''
+            body = f'''<section class="card notice"><h2>公開前チェックに合格しました</h2><dl><dt>対象記事</dt><dd>{escape(article.slug)}</dd><dt>公開先</dt><dd>GitHub Pages</dd><dt>原稿ハッシュ</dt><dd><code>{escape(article.file_hash[:16])}…</code></dd></dl><h3>警告</h3><ul>{warning_rows}</ul></section><section class="card danger-zone"><h2>最終確認</h2><p>実行すると対象記事だけをcommitし、GitHubへpushして公開します。取り消せません。</p><form method="post" action="/articles/{article_id}/publish">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="attempt_id" value="{attempt_id}"><input type="hidden" name="approval_token" value="{escape(token)}"><button class="button danger">投稿を実行</button></form></section>'''
             return article_workspace(request, "投稿の最終確認", body, article_id)
         except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
             db.record_article_event(article_id, "prepublish", "failure", "prepublish_failed", "公開前チェックを安全停止しました。", db_path)
@@ -408,8 +408,6 @@ def create_app(
             if datetime.fromisoformat(str(attempt["expires_at"])) < datetime.now(timezone.utc):
                 db.update_publish_attempt(attempt_id, "expired", "公開承認の期限が切れました。", db_path=db_path)
                 raise publishing.PublishError("公開承認の期限が切れました。再検査してください。")
-            if str(form.get("confirm_slug") or "") != article.slug:
-                raise publishing.PublishError("確認用の記事slugが一致しません。")
             if not publishing.token_matches(str(form.get("approval_token") or ""), str(attempt["token_hash"])):
                 raise publishing.PublishError("公開承認情報が一致しません。")
             if str(attempt["file_hash"]) != article.file_hash or str(record["file_hash"]) != article.file_hash or str(record["state"]) != "ready":
@@ -421,12 +419,16 @@ def create_app(
             db.update_publish_attempt(attempt_id, "success", "記事を公開しました。", sha, pages_url, db_path)
             body = f'<section class="card notice"><h2>投稿が完了しました</h2><p>commit: <code>{escape(sha)}</code></p><p><a class="button" href="{escape(publishing.PAGES_URL)}">公開ブログを開く</a></p></section>'
             return article_workspace(request, "投稿完了", body, article_id)
-        except (articles.ArticleError, publishing.PublishError, RuntimeError) as exc:
-            if attempt_id and db.get_publish_attempt(attempt_id, db_path):
-                db.update_publish_attempt(attempt_id, "failure", "公開処理を安全停止しました。", db_path=db_path)
-            if isinstance(exc, publishing.PublishError) and exc.before_commit and 'article' in locals():
-                db.restore_after_precommit_publish_failure(article_id, article.file_hash, db_path)
-            return error_page(str(exc), request.app.state.csrf_token)
+        except Exception as exc:
+            try:
+                if attempt_id and db.get_publish_attempt(attempt_id, db_path):
+                    db.update_publish_attempt(attempt_id, "failure", "公開処理を安全停止しました。", db_path=db_path)
+                if isinstance(exc, publishing.PublishError) and exc.before_commit and 'article' in locals():
+                    db.restore_after_precommit_publish_failure(article_id, article.file_hash, db_path)
+            except Exception:
+                pass
+            message = str(exc) if isinstance(exc, (articles.ArticleError, publishing.PublishError, RuntimeError)) else "予期しないエラーが発生しました。管理原稿は保持されています。"
+            return error_page(message, request.app.state.csrf_token)
 
     @app.post("/api/articles/{article_id}/autosave")
     async def autosave(article_id: str, request: Request):

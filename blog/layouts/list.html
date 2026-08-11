@@ -2,12 +2,18 @@
 {{- if .IsHome }}
   {{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
   {{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" -}}
-  {{- with index $pages 0 }}{{ partial "home_featured.html" . }}{{ end }}
-  {{- if gt (len $pages) 1 }}
+  {{- $orderedPages := slice -}}
+  {{- range $pages -}}
+    {{- $sortKey := printf "%s-%s" (.Date.Format "20060102150405") .RelPermalink -}}
+    {{- $orderedPages = $orderedPages | append (dict "page" . "sortKey" $sortKey) -}}
+  {{- end -}}
+  {{- $orderedPages = sort $orderedPages "sortKey" "desc" -}}
+  {{- with index $orderedPages 0 }}{{ partial "home_featured.html" .page }}{{ end }}
+  {{- if gt (len $orderedPages) 1 }}
   <section class="media-latest">
     <header class="media-section-title"><h2>LATEST</h2><span>最新記事</span></header>
     <div class="media-latest-grid">
-      {{- range first 6 (after 1 $pages) }}{{ partial "home_archive_entry.html" . }}{{ end }}
+      {{- range first 6 (after 1 $orderedPages) }}{{ partial "home_archive_entry.html" .page }}{{ end }}
     </div>
   </section>
   {{- end }}

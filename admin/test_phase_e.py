@@ -92,6 +92,8 @@ class PhaseEPublishingTests(unittest.TestCase):
         self.assertTrue(response.headers["content-type"].startswith("text/html"))
         self.assertTrue(response.text.startswith("<!doctype html>"))
         self.assertIn("投稿の最終確認", response.text)
+        self.assertNotIn('name="confirm_slug"', response.text)
+        self.assertIn("投稿を実行", response.text)
 
     def test_newer_autosave_requires_manual_save_before_prepublish(self) -> None:
         article = articles.read_article(self.content / "phase-e-test", self.article_id, "phase-e-test")
@@ -257,6 +259,81 @@ class PhaseEPublishingTests(unittest.TestCase):
             add = next(call for call in calls if call[:2] == ["git", "add"])
             self.assertNotIn("content/articles/success-post", add)
             self.assertIn("content/articles/success-post/index.md", add)
+        finally:
+            publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
+
+    def test_successful_publish_without_images_omits_missing_images_path(self) -> None:
+        original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
+        try:
+            publishing.PROJECT_ROOT = self.root
+            publishing.PUBLIC_POSTS = self.root / "blog/content/posts"
+            source = self.root / "content/articles/no-image-post"
+            (source / "images").mkdir(parents=True)
+            (source / "index.md").write_text("---\ntitle: x\n---\nbody\n", encoding="utf-8")
+            prepared = self.root / "prepared" / ("f" * 64)
+            prepared.mkdir(parents=True)
+            (prepared / "index.md").write_text("---\ndraft: false\n---\nbody\n", encoding="utf-8")
+            article = articles.ArticleFile("id", "no-image-post", source, {}, "body", "f" * 64)
+            calls = []
+
+            def runner(args, **_kwargs):
+                calls.append(args)
+                if args[:4] == ["git", "diff", "--cached", "--name-only"]:
+                    return subprocess.CompletedProcess(args, 0, "content/articles/no-image-post/index.md\nblog/content/posts/no-image-post/index.md\n", "")
+                if args[:3] == ["git", "diff", "--cached"]: return subprocess.CompletedProcess(args, 0, "", "")
+                if args[:3] == ["git", "status", "--porcelain"]: return subprocess.CompletedProcess(args, 0, "", "")
+                if args[:3] == ["git", "rev-parse", "HEAD"]: return subprocess.CompletedProcess(args, 0, "d" * 40 + "\n", "")
+                if args[:3] == ["gh", "run", "list"]:
+                    return subprocess.CompletedProcess(args, 0, '[{"status":"completed","conclusion":"success","url":"https://actions.example/run"}]', "")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            class Response:
+                status = 200
+                def __enter__(self): return self
+                def __exit__(self, *_args): return None
+
+            with patch("admin.publishing.urlopen", return_value=Response()):
+                publishing.publish_article(article, prepared, runner)
+            for call in (next(call for call in calls if call[:2] == ["git", "add"]), next(call for call in calls if call[:2] == ["git", "commit"])):
+                self.assertNotIn("content/articles/no-image-post/images", call)
+                self.assertIn("content/articles/no-image-post/index.md", call)
+                self.assertIn("blog/content/posts/no-image-post", call)
+        finally:
+            publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
+
+    def test_commit_failure_restores_public_copy_and_unstages_article(self) -> None:
+        original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
+        try:
+            publishing.PROJECT_ROOT = self.root
+            publishing.PUBLIC_POSTS = self.root / "blog/content/posts"
+            source = self.root / "content/articles/restore-post"
+            source.mkdir(parents=True)
+            (source / "index.md").write_text("---\ntitle: new\n---\nbody\n", encoding="utf-8")
+            destination = publishing.PUBLIC_POSTS / "restore-post"
+            destination.mkdir(parents=True)
+            (destination / "index.md").write_text("---\ntitle: live\n---\nold\n", encoding="utf-8")
+            prepared = self.root / "prepared" / ("9" * 64)
+            prepared.mkdir(parents=True)
+            (prepared / "index.md").write_text("---\ntitle: new\ndraft: false\n---\nbody\n", encoding="utf-8")
+            article = articles.ArticleFile("id", "restore-post", source, {}, "body", "9" * 64)
+            calls = []
+
+            def runner(args, **_kwargs):
+                calls.append(args)
+                if args[:4] == ["git", "diff", "--cached", "--name-only"]:
+                    return subprocess.CompletedProcess(args, 0, "content/articles/restore-post/index.md\nblog/content/posts/restore-post/index.md\n", "")
+                if args[:2] == ["git", "commit"]:
+                    return subprocess.CompletedProcess(args, 1, "", "commit failed")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            with self.assertRaisesRegex(publishing.PublishError, "commitに失敗") as caught:
+                publishing.publish_article(article, prepared, runner)
+            self.assertTrue(caught.exception.before_commit)
+            self.assertIn("title: live", (destination / "index.md").read_text(encoding="utf-8"))
+            restore_calls = [call for call in calls if call[:3] == ["git", "restore", "--staged"]]
+            restored_paths = [part.replace("\\", "/") for call in restore_calls for part in call]
+            self.assertIn("content/articles/restore-post/index.md", restored_paths)
+            self.assertIn("blog/content/posts/restore-post", restored_paths)
         finally:
             publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
 
