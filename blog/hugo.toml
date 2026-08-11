@@ -1,7 +1,7 @@
 baseURL = "https://ymmt-coffee.github.io/my-game-blog/"
 locale = "ja-JP"
 defaultContentLanguage = "ja"
-title = "game logs"
+title = "GAME LOGS"
 theme = "PaperMod"
 buildFuture = false
 enableRobotsTXT = true
@@ -14,7 +14,8 @@ resourceDir = "../var/resources"
 [params]
   description = "PCゲームを中心に、プレイ途中の所感、新作・セール情報、ゲーム体験を綴る個人ブログです。"
   author = "やまもと"
-  defaultTheme = "auto"
+  defaultTheme = "light"
+  disableThemeToggle = true
   ShowReadingTime = false
   ShowShareButtons = false
   ShowPostNavLinks = true
@@ -46,21 +47,32 @@ resourceDir = "../var/resources"
     safari_pinned_tab = "favicon.svg"
 
 [[menu.main]]
-  name = "About"
-  url = "/about/"
+  name = "プレイ途中記"
+  url = "/article_type/play_note/"
   weight = 10
 
 [[menu.main]]
-  name = "プライバシー"
-  url = "/privacy/"
+  name = "新作・セール5選"
+  url = "/article_type/weekly_picks/"
   weight = 20
 
 [[menu.main]]
-  name = "広告・提供方針"
-  url = "/editorial-policy/"
+  name = "月次レビュー"
+  url = "/article_type/monthly_essay/"
   weight = 30
 
 [[menu.main]]
-  name = "レビューキー"
-  url = "/review-key-policy/"
+  name = "About"
+  url = "/about/"
   weight = 40
+
+[[menu.main]]
+  name = "検索"
+  url = "/search/"
+  weight = 50
+
+[taxonomies]
+  category = "article_type"
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]

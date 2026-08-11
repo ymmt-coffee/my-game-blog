@@ -293,6 +293,55 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(any((self.content_root / "sample-note" / "images").iterdir()))
 
+    def test_header_image_can_be_set_and_removed_without_using_body_images(self) -> None:
+        article_id, _record = self.create_article()
+        uploaded = self.client.post(
+            f"/articles/{article_id}/images",
+            data={"csrf_token": self.csrf}, files={"image": ("header.jpg", b"header-image", "image/jpeg")},
+            follow_redirects=False,
+        )
+        self.assertEqual(uploaded.status_code, 303)
+        record = db.get_article(article_id, self.db_path)
+        edit = self.client.get(f"/articles/{article_id}/edit")
+        self.assertIn("ヘッダー画像に設定", edit.text)
+        configured = self.client.post(
+            f"/articles/{article_id}/header-image",
+            data={
+                "csrf_token": self.csrf, "expected_hash": record["file_hash"],
+                "revision": record["revision"], "image_name": "header.jpg",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(configured.status_code, 303, configured.text)
+        article = articles.read_article(self.content_root / "sample-note", article_id, "sample-note")
+        self.assertEqual(article.metadata["cover"]["image"], "images/header.jpg")
+        self.assertIn("ヘッダー画像", self.client.get(f"/articles/{article_id}/edit").text)
+        record = db.get_article(article_id, self.db_path)
+        removed = self.client.post(
+            f"/articles/{article_id}/header-image",
+            data={
+                "csrf_token": self.csrf, "expected_hash": record["file_hash"],
+                "revision": record["revision"], "image_name": "",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(removed.status_code, 303)
+        article = articles.read_article(self.content_root / "sample-note", article_id, "sample-note")
+        self.assertNotIn("cover", article.metadata)
+
+    def test_header_image_rejects_unknown_file(self) -> None:
+        article_id, record = self.create_article()
+        response = self.client.post(
+            f"/articles/{article_id}/header-image",
+            data={
+                "csrf_token": self.csrf, "expected_hash": record["file_hash"],
+                "revision": record["revision"], "image_name": "missing.jpg",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        article = articles.read_article(self.content_root / "sample-note", article_id, "sample-note")
+        self.assertNotIn("cover", article.metadata)
+
     def test_archive_is_logical_and_restorable(self) -> None:
         article_id, _record = self.create_article()
         index = self.content_root / "sample-note" / "index.md"

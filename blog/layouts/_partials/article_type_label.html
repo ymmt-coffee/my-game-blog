@@ -1,0 +1,2 @@
+{{- $labels := dict "play_note" "プレイ途中記" "weekly_picks" "新作・セール5選" "monthly_essay" "月次レビュー" -}}
+{{- index $labels (.Params.article_type | default "play_note") | default "記事" -}}

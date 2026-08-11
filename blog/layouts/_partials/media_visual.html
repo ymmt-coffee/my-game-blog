@@ -1,0 +1,22 @@
+{{- $page := .page -}}
+{{- $class := .class | default "media-visual" -}}
+{{- $type := $page.Params.article_type | default "play_note" -}}
+{{- $cover := $page.Params.cover -}}
+{{- $image := "" -}}
+{{- $alt := $page.Title -}}
+{{- with $cover -}}
+  {{- $image = .image | default "" -}}
+  {{- $alt = .alt | default $page.Title -}}
+{{- end -}}
+<div class="{{ $class }} media-type-{{ $type }}{{ if $image }} has-header-image{{ end }}">
+  {{- if $image -}}
+    {{- $resource := $page.Resources.GetMatch $image -}}
+    {{- if $resource -}}
+      <img src="{{ $resource.RelPermalink }}" width="{{ $resource.Width }}" height="{{ $resource.Height }}" alt="{{ $alt }}" loading="{{ if .single }}eager{{ else }}lazy{{ end }}">
+    {{- else -}}
+      <img src="{{ $image | relURL }}" alt="{{ $alt }}" loading="{{ if .single }}eager{{ else }}lazy{{ end }}">
+    {{- end -}}
+  {{- else -}}
+    <span class="media-placeholder-label" aria-hidden="true">{{ partial "article_type_label.html" $page }}</span>
+  {{- end -}}
+</div>

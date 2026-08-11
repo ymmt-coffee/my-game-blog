@@ -18,6 +18,7 @@
 11. `phase-c-article-management-report.md` - 記事作成、保存、画像、履歴、競合、アーカイブの実装報告
 12. `phase-d-article-templates-report.md` - 3カテゴリーの雛形、種類別入力、必須項目検査の実装報告
 13. `phase-e-publishing-report.md` - AI校正、Hugoプレビュー、公開前チェック、記事限定公開の実装報告
+14. `phase-f-blog-design-report.md` - 公開ブログのデザイン、明示的なヘッダー画像、モバイル表示の実装報告
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 

@@ -30,7 +30,7 @@ STATE_LABELS = {
 }
 TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLATES.items()}
 NAV_ITEMS = (
-    ("/articles", "記事管理", "Phase E"), ("/schedule", "スケジュール", "Phase G"),
+    ("/articles", "記事管理", "Phase F"), ("/schedule", "スケジュール", "Phase G"),
     ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase L"),
     ("/social", "SNS分析", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
@@ -254,13 +254,18 @@ def create_app(
                 recovery_notice = f'<div class="flash error">{escape(str(exc))}</div>'
         db_hash = str(record["file_hash"])
         conflict = db_hash != article.file_hash
+        archived = str(record["state"]) == "archived"
         images = articles.list_images(article)
+        header_image = articles.header_image_name(article)
         options = "".join(f'<option value="{key}"{" selected" if key == str(record["article_type"]) else ""}>{escape(label)}</option>' for key, label in TYPE_LABELS.items())
         image_rows_parts: list[str] = []
         for item in images:
             image_name = str(item["name"])
             markdown = f"![{Path(image_name).stem}](images/{image_name})"
-            image_rows_parts.append(f'''<li class="image-row"><img class="image-thumb" src="/articles/{article_id}/images/{escape(image_name)}" alt=""><div class="image-info"><code>{escape(markdown)}</code><span class="muted">{item["size"]} bytes</span></div><button class="button secondary image-copy" type="button" data-copy-markdown="{escape(markdown)}">コピー</button></li>''')
+            header_label = '<span class="header-image-label">ヘッダー画像</span>' if image_name == header_image else ""
+            header_action = "解除" if image_name == header_image else "ヘッダー画像に設定"
+            header_value = "" if image_name == header_image else image_name
+            image_rows_parts.append(f'''<li class="image-row"><img class="image-thumb" src="/articles/{article_id}/images/{escape(image_name)}" alt=""><div class="image-info"><code>{escape(markdown)}</code><span class="muted">{item["size"]} bytes</span>{header_label}</div><div class="image-actions"><button class="button secondary image-copy" type="button" data-copy-markdown="{escape(markdown)}">コピー</button><form method="post" action="/articles/{article_id}/header-image">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="expected_hash" value="{escape(article.file_hash)}"><input type="hidden" name="revision" value="{record['revision']}"><input type="hidden" name="image_name" value="{escape(header_value)}"><button class="button secondary" type="submit" {'disabled' if conflict or archived else ''}>{header_action}</button></form></div></li>''')
         image_rows = "".join(image_rows_parts) or '<li class="muted">画像はありません。</li>'
         notice = recovery_notice + ('<div class="flash success">記事を保存しました。</div>' if saved else ('<div class="flash success">下書きを作成しました。</div>' if created else ""))
         if articles.has_uncommitted_autosave(state_root, article):
@@ -271,7 +276,6 @@ def create_app(
             notice += '<div class="flash publish-note"><strong>公開記事の更新下書きです。</strong> 現在の公開ページは旧版のまま維持されています。</div>'
         if conflict:
             notice += f'<div class="flash error"><strong>外部変更を検出しました。保存を停止しています。</strong><p>ファイル内容を確認し、この内容を管理画面へ取り込む場合だけ次を押してください。</p><form method="post" action="/articles/{article_id}/accept-external">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="revision" value="{record["revision"]}"><input type="hidden" name="actual_hash" value="{escape(article.file_hash)}"><button class="button danger" type="submit">外部変更を取り込む</button></form></div>'
-        archived = str(record["state"]) == "archived"
         inspection = article_templates.validate_metadata(article.metadata)
         inspection_badge = f'<span class="validation-count" title="{escape(" ".join(inspection))}">未入力 {len(inspection)}</span>' if inspection else ""
         current_type = str(article.metadata.get("article_type") or record["article_type"])
@@ -484,6 +488,30 @@ def create_app(
         except articles.ArticleError as exc:
             return error_page(str(exc), request.app.state.csrf_token)
 
+    @app.post("/articles/{article_id}/header-image")
+    async def set_header_image(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            if str(record["state"]) == "archived":
+                raise articles.ArticleError("削除済みの記事は変更できません。")
+            revision = int(str(form.get("revision") or "0"))
+            expected_hash = str(form.get("expected_hash") or "")
+            if revision != int(record["revision"]) or expected_hash != str(record["file_hash"]):
+                raise articles.ArticleConflict("別の画面で保存済みです。再読み込みしてください。")
+            image_name = str(form.get("image_name") or "").strip() or None
+            data = articles.updated_header_image_markdown(article, image_name)
+            new_hash, _history = articles.commit_article(article, data, state_root, expected_hash, revision)
+            db.update_saved_article(article_id, str(record["article_type"]), expected_hash, new_hash, revision, db_path)
+            message = "ヘッダー画像を設定しました。" if image_name else "ヘッダー画像を解除しました。"
+            db.record_article_event(article_id, "header_image", "success", "header_image_updated", message, db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit?saved=1", status_code=303)
+        except articles.ArticleConflict as exc:
+            return error_page(str(exc), request.app.state.csrf_token, 409)
+        except (articles.ArticleError, RuntimeError, ValueError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
     @app.get("/articles/{article_id}/images/{filename}")
     async def article_image(article_id: str, filename: str, request: Request):
         try:
@@ -646,7 +674,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "E", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "F", "version": APP_VERSION}
 
     return app
 

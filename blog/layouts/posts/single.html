@@ -2,7 +2,7 @@
 
 <article class="post-single">
   <header class="post-header">
-    {{ partial "breadcrumbs.html" . }}
+    <span class="media-eyebrow">{{ partial "article_type_label.html" . }}</span>
     <h1 class="post-title entry-hint-parent">
       {{ .Title }}
       {{- if .Draft }}
@@ -23,8 +23,7 @@
     </div>
     {{- end }}
   </header>
-  {{- $isHidden := (.Param "cover.hiddenInSingle") | default (.Param "cover.hidden") | default false }}
-  {{- partial "cover.html" (dict "cxt" . "IsSingle" true "isHidden" $isHidden) }}
+  {{- partial "media_visual.html" (dict "page" . "class" "post-header-visual" "single" true) }}
   {{- partial "article_disclosures.html" . }}
   {{- if (.Param "ShowToc") }}{{- partial "toc.html" . }}{{- end }}
 

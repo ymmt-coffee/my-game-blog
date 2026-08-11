@@ -1,0 +1,16 @@
+<header class="media-header">
+  <div class="media-header-inner">
+    <a class="media-brand" href="{{ "" | absLangURL }}" aria-label="ホーム">
+      <strong>{{ site.Title }}</strong>
+      <span>INDEPENDENT GAME JOURNAL</span>
+    </a>
+    <nav class="media-menu" aria-label="メインメニュー">
+      {{- range site.Menus.main }}
+      {{- $menuPath := strings.Trim .URL "/" }}
+      {{- if site.GetPage $menuPath }}
+      <a href="{{ .URL | absLangURL }}">{{ .Name }}</a>
+      {{- end }}
+      {{- end }}
+    </nav>
+  </div>
+</header>

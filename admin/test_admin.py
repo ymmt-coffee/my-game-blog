@@ -42,7 +42,7 @@ class AdminPhaseBTests(unittest.TestCase):
         with TestClient(self.app) as client:
             self.assertEqual(
                 client.get("/health").json(),
-            {"status": "ok", "scope": "localhost_only", "phase": "E", "version": "phase-e-11"},
+            {"status": "ok", "scope": "localhost_only", "phase": "F", "version": "phase-f-1"},
             )
 
     def test_unknown_host_is_rejected(self) -> None:

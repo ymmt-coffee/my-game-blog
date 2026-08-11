@@ -57,6 +57,7 @@ class Phase1HugoTests(unittest.TestCase):
 
             for page in ("about", "privacy", "editorial-policy", "review-key-policy"):
                 shutil.copytree(BLOG_ROOT / "content" / page, content / page)
+            shutil.copy2(BLOG_ROOT / "content" / "search.md", content / "search.md")
 
             play = write_article(
                 content,

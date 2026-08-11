@@ -88,7 +88,7 @@ class PhaseEPublishingTests(unittest.TestCase):
 
     def test_prepublish_confirmation_is_rendered_as_html(self) -> None:
         response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.headers["content-type"].startswith("text/html"))
         self.assertTrue(response.text.startswith("<!doctype html>"))
         self.assertIn("投稿の最終確認", response.text)

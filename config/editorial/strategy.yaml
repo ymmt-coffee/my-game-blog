@@ -1,5 +1,5 @@
-version: 2
-updated_at: "2026-08-09"
+version: 3
+updated_at: "2026-08-11"
 
 direction:
   primary_interface: local_admin_web_app
@@ -10,7 +10,7 @@ direction:
   discord_enabled: false
 
 current:
-  phase: proofreading_preview_publish
+  phase: blog_design
   phase_status: completed
   retained:
     - hugo_blog
@@ -46,6 +46,9 @@ article_management:
   image_thumbnail_enabled: true
   image_markdown_copy_enabled: true
   image_markdown_format: "![alt](images/filename)"
+  header_image_setting_enabled: true
+  header_image_front_matter: cover.image
+  body_image_auto_thumbnail: false
   published_edit_behavior: working_draft_keeps_live_version
   published_update_draft_label: 公開記事の更新下書き
   draft_editor_archive_section_visible: false
@@ -137,6 +140,19 @@ phase_e:
   publish_paths_are_article_scoped: true
   pages_and_public_url_confirmation: true
   real_publish_performed_during_implementation: false
+
+phase_f:
+  completed_at: "2026-08-11"
+  public_design: minimal_linear_game_media
+  color_palette: light_gray_black_deep_red
+  temporary_blog_title: GAME LOGS
+  latest_featured_count: 1
+  navigation: [play_note, weekly_picks, monthly_essay, about, search]
+  header_image_source: explicit_cover_image_only
+  body_image_auto_thumbnail: false
+  category_placeholder_when_unset: true
+  responsive_mobile_verified: true
+  public_deploy_performed_during_implementation: false
 
 article_types:
   play_note:

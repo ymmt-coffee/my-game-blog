@@ -1,16 +1,12 @@
 <article class="home-archive-entry">
-  <header class="home-archive-header">
+  {{ partial "media_visual.html" (dict "page" . "class" "home-archive-visual") }}
+  <div class="home-archive-copy">
+    <span class="media-eyebrow">{{ partial "article_type_label.html" . }}</span>
     <h2 class="home-archive-title">{{ .Title }}</h2>
-    {{- if not .Date.IsZero }}
-    <time class="home-archive-date" datetime="{{ .Date.Format "2006-01-02" }}" title="{{ .Date }}">
-      {{ .Date | time.Format (default ":date_long" site.Params.DateFormat) }}
-    </time>
+    {{- if ne (.Param "hideSummary") true }}
+    <div class="home-archive-excerpt">{{ partial "post_summary.html" . }}</div>
     {{- end }}
-  </header>
-  {{- if ne (.Param "hideSummary") true }}
-  <div class="home-archive-excerpt">
-    {{- partial "post_summary.html" . -}}
+    {{- if not .Date.IsZero }}<time class="home-archive-date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date | time.Format (default ":date_long" site.Params.DateFormat) }}</time>{{- end }}
   </div>
-  {{- end }}
   <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
 </article>

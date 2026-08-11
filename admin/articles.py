@@ -197,6 +197,40 @@ def updated_markdown(
     return render_markdown(metadata, body)
 
 
+def header_image_name(article: ArticleFile) -> str:
+    cover = article.metadata.get("cover")
+    if not isinstance(cover, dict):
+        return ""
+    value = str(cover.get("image") or "")
+    if not value.startswith("images/"):
+        return ""
+    name = Path(value).name
+    return name if value == f"images/{name}" else ""
+
+
+def updated_header_image_markdown(article: ArticleFile, image_name: str | None) -> bytes:
+    metadata = dict(article.metadata)
+    cover_value = metadata.get("cover")
+    cover = dict(cover_value) if isinstance(cover_value, dict) else {}
+    if image_name:
+        if Path(image_name).name != image_name or Path(image_name).suffix.casefold() not in IMAGE_EXTENSIONS:
+            raise ArticleError("ヘッダー画像名が正しくありません。")
+        if not (article.path / "images" / image_name).is_file():
+            raise ArticleError("指定した画像が見つかりません。")
+        cover.update({"image": f"images/{image_name}", "alt": Path(image_name).stem})
+        metadata["cover"] = cover
+    else:
+        cover.pop("image", None)
+        cover.pop("alt", None)
+        if cover:
+            metadata["cover"] = cover
+        else:
+            metadata.pop("cover", None)
+    metadata["lastmod"] = date.today().isoformat()
+    metadata["draft"] = True
+    return render_markdown(metadata, article.body)
+
+
 def save_autosave(state_root: Path, article_id: str, tab_id: str, data: bytes) -> Path:
     if not TAB_RE.fullmatch(tab_id):
         raise ArticleError("編集画面の識別情報が正しくありません。")
