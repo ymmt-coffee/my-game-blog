@@ -8,6 +8,7 @@ import frontmatter
 from fastapi.testclient import TestClient
 
 from admin import article_templates, articles, db
+from admin.article_input import ArticleInput
 from admin.app import create_app
 
 
@@ -151,6 +152,19 @@ class PhaseDTemplateTests(unittest.TestCase):
         self.assertIn("公開日はYYYY-MM-DD形式で入力してください。", messages)
         self.assertIn("画像一覧の形式が正しくありません。", messages)
         self.assertIn("下書き設定の形式が正しくありません。", messages)
+
+    def test_article_input_normalizes_form_and_json_values(self) -> None:
+        form_value = ArticleInput.from_mapping({
+            "title": "題名", "article_type": "play_note", "game_completed": "true",
+        })
+        json_value = ArticleInput.from_mapping({
+            "title": "題名", "article_type": "play_note", "game_completed": True,
+        })
+        missing_value = ArticleInput.from_mapping({"title": "題名"})
+        self.assertTrue(form_value.game_completed)
+        self.assertTrue(json_value.game_completed)
+        self.assertFalse(missing_value.game_completed)
+        self.assertEqual(missing_value.description, "")
 
 
 if __name__ == "__main__":

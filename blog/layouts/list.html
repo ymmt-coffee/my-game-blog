@@ -1,27 +1,11 @@
 {{- define "main" }}
 {{- if .IsHome }}
-  {{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
-  {{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" -}}
-  {{- $orderedPages := slice -}}
-  {{- range $pages -}}
-    {{- $sortKey := printf "%s-%s" (.Date.Format "20060102150405") .RelPermalink -}}
-    {{- $orderedPages = $orderedPages | append (dict "page" . "sortKey" $sortKey) -}}
-  {{- end -}}
-  {{- $orderedPages = sort $orderedPages "sortKey" "desc" -}}
+  {{- $orderedPages := partial "home_ordered_pages.html" . -}}
   {{- with index $orderedPages 0 }}{{ partial "home_featured.html" .page }}{{ end }}
-  {{- if gt (len $orderedPages) 1 }}
-  <section class="media-latest">
-    <header class="media-section-title"><h2>LATEST</h2><span>最新記事</span></header>
-    <div class="media-latest-layout">
-    <div class="media-latest-grid media-latest-list">
-      {{- range first 6 (after 1 $orderedPages) }}{{ partial "home_archive_entry.html" .page }}{{ end }}
-    </div>
-    </div>
-  </section>
-  {{- end }}
+  {{- partial "home_latest.html" $orderedPages -}}
 {{- else }}
-  {{- $displayTitles := dict "play_note" "プレイログ" "weekly_picks" "新作・セール" "monthly_essay" "月刊コラム" -}}
-  {{- $pageTitle := index $displayTitles (lower .Title) | default .Title -}}
+  {{- $pageTitle := .Title -}}
+  {{- if eq .Type "article_type" }}{{ $pageTitle = partial "article_type_name.html" .Data.Term }}{{ end -}}
   <script type="application/ld+json">{{ dict "@context" "https://schema.org" "@type" "CollectionPage" "name" $pageTitle "url" .Permalink | jsonify | safeJS }}</script>
   <header class="page-header"><h1>{{ $pageTitle }}</h1>{{ with .Description }}<div class="post-description">{{ . | markdownify }}</div>{{ end }}</header>
   {{- with .Content }}<div class="post-content md-content">{{ . }}</div>{{ end }}

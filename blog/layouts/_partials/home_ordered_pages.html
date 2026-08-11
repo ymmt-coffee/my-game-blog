@@ -1,0 +1,8 @@
+{{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
+{{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" -}}
+{{- $orderedPages := slice -}}
+{{- range $pages -}}
+  {{- $sortKey := printf "%s-%s" (.Date.Format "20060102150405") .RelPermalink -}}
+  {{- $orderedPages = $orderedPages | append (dict "page" . "sortKey" $sortKey) -}}
+{{- end -}}
+{{- return (sort $orderedPages "sortKey" "desc") -}}

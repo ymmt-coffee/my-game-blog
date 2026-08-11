@@ -1,0 +1,11 @@
+{{- $orderedPages := . -}}
+{{- if gt (len $orderedPages) 1 }}
+<section class="media-latest">
+  <header class="media-section-title"><h2>LATEST</h2><span>最新記事</span></header>
+  <div class="media-latest-layout">
+    <div class="media-latest-grid media-latest-list">
+      {{- range first 6 (after 1 $orderedPages) }}{{ partial "home_archive_entry.html" .page }}{{ end }}
+    </div>
+  </div>
+</section>
+{{- end }}

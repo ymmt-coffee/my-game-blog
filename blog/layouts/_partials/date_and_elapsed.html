@@ -1,5 +1,5 @@
 {{- if not .Date.IsZero -}}
-{{- partial "formatted_date.html" . -}}
+<span title="{{ .Date }}">{{ .Date | time.Format (default ":date_long" site.Params.DateFormat) }}</span>
 <span class="meta-sep">·</span>
-{{- partial "formatted_elapsed.html" . -}}
+<span title="{{ .Date }}">{{ partial "relative_time_ja.html" .Date }}</span>
 {{- end -}}

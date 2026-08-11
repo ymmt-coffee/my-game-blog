@@ -202,3 +202,12 @@ safety:
   tests_use_real_external_services: false
   backup_remains_enabled: true
   backup_failure_notification: local_status_only
+
+maintenance:
+  refactored_at: "2026-08-11"
+  behavior_preserving: true
+  admin_article_input_normalized: true
+  article_type_source_of_truth: template_definitions
+  public_article_type_label_partial: article_type_name.html
+  public_home_order_partial: home_ordered_pages.html
+  public_latest_partial: home_latest.html

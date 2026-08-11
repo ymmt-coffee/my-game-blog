@@ -29,7 +29,7 @@ TAB_RE = re.compile(r"[A-Za-z0-9_-]{8,80}")
 IMAGE_EXTENSIONS = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 STATES = {"draft", "review_pending", "ready", "scheduled", "published", "archived"}
-ARTICLE_TYPES = {"play_note", "weekly_picks", "monthly_essay"}
+ARTICLE_TYPES = frozenset(article_templates.TEMPLATES)
 
 
 class ArticleError(RuntimeError):

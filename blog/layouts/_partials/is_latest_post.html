@@ -1,5 +1,3 @@
-{{- $sections := site.Params.mainSections | default (slice "posts") }}
-{{- $pages := where site.RegularPages "Type" "in" $sections }}
-{{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" }}
-{{- $latest := first 1 ($pages.ByDate.Reverse) }}
-{{- return (and $latest (eq .Permalink (index $latest 0).Permalink)) }}
+{{- $orderedPages := partial "home_ordered_pages.html" . -}}
+{{- $latest := index $orderedPages 0 -}}
+{{- return (and $latest (eq .Permalink $latest.page.Permalink)) -}}

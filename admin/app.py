@@ -18,6 +18,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from admin import article_templates, articles, db, publishing
+from admin.article_input import ArticleInput
 
 
 ADMIN_ROOT = Path(__file__).resolve().parent
@@ -214,8 +215,13 @@ def create_app(
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
             slug = str(form.get("slug") or "").strip() or articles.next_daily_slug(content_root)
-            article_id, path, digest = articles.create_article_files(content_root, slug, str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""), str(form.get("game_completed") or "false") == "true")
-            db.create_article(article_id, path.name, str(form.get("article_type")), str(path.resolve()), digest, db_path)
+            article_input = ArticleInput.from_mapping(form)
+            article_id, path, digest = articles.create_article_files(
+                content_root, slug, article_input.title, article_input.article_type,
+                article_input.author, article_input.description, article_input.play_time,
+                article_input.game_completed,
+            )
+            db.create_article(article_id, path.name, article_input.article_type, str(path.resolve()), digest, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
         except (articles.ArticleError, Exception) as exc:
             if not isinstance(exc, articles.ArticleError):
@@ -443,7 +449,12 @@ def create_app(
                 raise articles.ArticleError("アーカイブ中の記事は編集できません。")
             if int(payload.get("revision", -1)) != int(record["revision"]) or str(payload.get("expected_hash")) != article.file_hash or str(record["file_hash"]) != article.file_hash:
                 raise articles.ArticleConflict("別の変更を検出しました。")
-            data = articles.updated_markdown(article, title=str(payload.get("title", "")), description=str(payload.get("description", "")), article_type=str(payload.get("article_type", "")), body=str(payload.get("body", "")), play_time=str(payload.get("play_time", "")), game_completed=str(payload.get("game_completed", "false")) == "true")
+            article_input = ArticleInput.from_mapping(payload)
+            data = articles.updated_markdown(
+                article, title=article_input.title, description=article_input.description,
+                article_type=article_input.article_type, body=article_input.body,
+                play_time=article_input.play_time, game_completed=article_input.game_completed,
+            )
             path = articles.save_autosave(state_root, article_id, str(payload.get("tab_id", "")), data)
             return {"status": "autosaved", "saved_at": articles.now_iso(), "path": path.name}
         except articles.ArticleConflict as exc:
@@ -463,9 +474,14 @@ def create_app(
             expected_hash = str(form.get("expected_hash") or "")
             if revision != int(record["revision"]) or expected_hash != str(record["file_hash"]):
                 raise articles.ArticleConflict("別の画面で保存済みです。再読み込みしてください。")
-            data = articles.updated_markdown(article, title=str(form.get("title") or ""), description=str(form.get("description") or ""), article_type=str(form.get("article_type") or ""), body=str(form.get("body") or ""), play_time=str(form.get("play_time") or ""), game_completed=str(form.get("game_completed") or "false") == "true")
+            article_input = ArticleInput.from_mapping(form)
+            data = articles.updated_markdown(
+                article, title=article_input.title, description=article_input.description,
+                article_type=article_input.article_type, body=article_input.body,
+                play_time=article_input.play_time, game_completed=article_input.game_completed,
+            )
             new_hash, _history = articles.commit_article(article, data, state_root, expected_hash, revision)
-            db.update_saved_article(article_id, str(form.get("article_type")), expected_hash, new_hash, revision, db_path)
+            db.update_saved_article(article_id, article_input.article_type, expected_hash, new_hash, revision, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?saved=1", status_code=303)
         except articles.ArticleConflict as exc:
             db.record_article_event(article_id, "save", "warning", "save_conflict", "保存競合を検出しました。", db_path)
