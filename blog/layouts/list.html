@@ -20,8 +20,10 @@
   </section>
   {{- end }}
 {{- else }}
-  <script type="application/ld+json">{{ dict "@context" "https://schema.org" "@type" "CollectionPage" "name" .Title "url" .Permalink | jsonify | safeJS }}</script>
-  <header class="page-header"><h1>{{ .Title }}</h1>{{ with .Description }}<div class="post-description">{{ . | markdownify }}</div>{{ end }}</header>
+  {{- $displayTitles := dict "play_note" "プレイログ" "weekly_picks" "新作・セール" "monthly_essay" "月刊コラム" -}}
+  {{- $pageTitle := index $displayTitles (lower .Title) | default .Title -}}
+  <script type="application/ld+json">{{ dict "@context" "https://schema.org" "@type" "CollectionPage" "name" $pageTitle "url" .Permalink | jsonify | safeJS }}</script>
+  <header class="page-header"><h1>{{ $pageTitle }}</h1>{{ with .Description }}<div class="post-description">{{ . | markdownify }}</div>{{ end }}</header>
   {{- with .Content }}<div class="post-content md-content">{{ . }}</div>{{ end }}
   {{- $paginator := .Paginate (union .RegularPages .Sections) }}
   <div class="media-latest-grid">
