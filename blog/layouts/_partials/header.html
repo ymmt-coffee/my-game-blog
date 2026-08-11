@@ -6,9 +6,7 @@
     </a>
     <nav class="media-menu" aria-label="メインメニュー">
       {{- range site.Menus.main }}
-      {{- if or (site.GetPage .URL) (in (slice "About" "検索") .Name) }}
       <a href="{{ .URL | absLangURL }}">{{ .Name }}</a>
-      {{- end }}
       {{- end }}
     </nav>
   </div>

@@ -55,7 +55,7 @@ class Phase1HugoTests(unittest.TestCase):
             content = root / "content"
             public = root / "public"
 
-            for page in ("about", "privacy", "editorial-policy", "review-key-policy"):
+            for page in ("about",):
                 shutil.copytree(BLOG_ROOT / "content" / page, content / page)
             shutil.copy2(BLOG_ROOT / "content" / "search.md", content / "search.md")
 
@@ -129,6 +129,12 @@ class Phase1HugoTests(unittest.TestCase):
             self.assertIn("summary_large_image", play_html)
             self.assertIn("application/ld+json", play_html)
             self.assertLess(home_html.index("20260811-003"), home_html.index("20260811-002"))
+            for menu_name in ("プレイ途中記", "新作・セール5選", "月次レビュー", "About", "検索"):
+                self.assertIn(menu_name, home_html)
+            search_index = (public / "index.json").read_text(encoding="utf-8")
+            self.assertNotIn("広告・アフィリエイト方針", search_index)
+            self.assertNotIn("提供作品・レビューキー方針", search_index)
+            self.assertNotIn("プライバシーポリシー", search_index)
             self.assertFalse((public / "posts" / "draft-test").exists())
             self.assertTrue((public / "sitemap.xml").is_file())
             self.assertTrue((public / "robots.txt").is_file())
