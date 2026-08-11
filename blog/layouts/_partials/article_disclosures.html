@@ -1,10 +1,10 @@
 {{- $articleType := .Params.article_type | default "" -}}
 {{- $spoiler := .Params.spoiler_warning | default "" -}}
 {{- $provided := .Params.provided | default false -}}
-{{- if or (eq $articleType "play_note") (eq $articleType "weekly_picks") $spoiler $provided }}
+{{- $incompletePlay := and (eq $articleType "play_note") (not (.Params.game_completed | default false)) -}}
+{{- if or $incompletePlay (eq $articleType "weekly_picks") $spoiler $provided }}
 <aside class="article-disclosures" aria-label="この記事について">
-  {{- if eq $articleType "play_note" }}
-  <p class="article-disclosures__label">プレイログ</p>
+  {{- if $incompletePlay }}
   <p><strong>プレイ時間：{{ .Params.play_time }}</strong></p>
   <p>本記事はゲーム全体を完走したレビューではなく、公開時点までのプレイに基づく所感です。</p>
   {{- else if eq $articleType "weekly_picks" }}

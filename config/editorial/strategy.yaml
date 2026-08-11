@@ -54,6 +54,8 @@ article_management:
   published_update_draft_label: 公開記事の更新下書き
   draft_editor_archive_section_visible: false
   body_actions_position: top_right
+  play_note_completion_field: game_completed
+  completed_play_note_hides_incomplete_notice: true
   uncommitted_autosave_blocks_preview_and_prepublish: true
   precommit_publish_failure_returns_to_update_draft: true
   published_tab_includes_articles_with_live_version: true
@@ -127,6 +129,8 @@ phase_d:
   draft_save_allowed_with_missing_fields: true
   category_change_overwrites_body: false
   unknown_front_matter_preserved: true
+  blank_body_templates: [play_note, monthly_essay]
+  retained_body_templates: [weekly_picks]
 
 phase_e:
   completed_at: "2026-08-09"
@@ -146,6 +150,9 @@ phase_f:
   completed_at: "2026-08-11"
   public_design: minimal_linear_game_media
   color_palette: grayscale_black
+  public_ui_density: compact
+  latest_layout: vertical_list
+  empty_ad_space_reserved: false
   blog_title: FRAMING
   latest_featured_count: 1
   home_order: date_desc_then_auto_slug_desc

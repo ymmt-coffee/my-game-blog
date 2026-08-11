@@ -426,7 +426,7 @@ class PhaseCArticleTests(unittest.TestCase):
         self.assertNotEqual(index.read_bytes(), original)
         candidate_page = self.client.get(restored.headers["location"])
         self.assertIn("復元候補を読み込みました", candidate_page.text)
-        self.assertIn("今回遊んだところ", candidate_page.text)
+        self.assertIn('aria-label="本文"></textarea>', candidate_page.text)
 
     def tearDown(self) -> None:
         if self.client_context is not None:

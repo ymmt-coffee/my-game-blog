@@ -45,9 +45,9 @@ class PhaseDTemplateTests(unittest.TestCase):
 
     def test_three_types_create_distinct_valid_markdown_templates(self) -> None:
         expected_heading = {
-            "play_note": "## 今回遊んだところ",
+            "play_note": "",
             "weekly_picks": "## 1. ゲームタイトル",
-            "monthly_essay": "## 今月のテーマ",
+            "monthly_essay": "",
         }
         for article_type, heading in expected_heading.items():
             with self.subTest(article_type=article_type):
@@ -55,11 +55,16 @@ class PhaseDTemplateTests(unittest.TestCase):
                 self.assertEqual(post.metadata["article_type"], article_type)
                 self.assertEqual(post.metadata["title"], "日本語：『特別』な記事")
                 self.assertEqual(article_templates.validate_metadata(dict(post.metadata)), [])
-                self.assertIn(heading, post.content)
+                if heading:
+                    self.assertIn(heading, post.content)
+                else:
+                    self.assertEqual(post.content.strip(), "")
                 if article_type == "play_note":
                     self.assertEqual(post.metadata["play_time"], "12時間")
+                    self.assertIs(post.metadata["game_completed"], False)
                 else:
                     self.assertNotIn("play_time", post.metadata)
+                    self.assertNotIn("game_completed", post.metadata)
 
     def test_play_note_requires_play_time_but_other_types_do_not(self) -> None:
         response = self.client.post("/articles/new", data={
@@ -112,6 +117,30 @@ class PhaseDTemplateTests(unittest.TestCase):
         self.assertIn("新作・セール", page.text)
         self.assertIn("月刊コラム", page.text)
         self.assertIn("data-play-time", page.text)
+        self.assertIn("data-play-status", page.text)
+        self.assertIn("クリア状況", page.text)
+
+    def test_play_note_completion_can_be_selected_and_edited(self) -> None:
+        response = self.client.post("/articles/new", data={
+            "csrf_token": self.csrf, "title": "クリア済み", "slug": "completed-game",
+            "article_type": "play_note", "author": "やまもと", "description": "概要",
+            "play_time": "20時間", "game_completed": "true",
+        }, follow_redirects=False)
+        self.assertEqual(response.status_code, 303, response.text)
+        record = db.get_article_by_slug("completed-game", self.db_path)
+        index = self.content_root / "completed-game" / "index.md"
+        created = frontmatter.load(index)
+        self.assertIs(created.metadata["game_completed"], True)
+
+        response = self.client.post(f'/articles/{record["id"]}/save', data={
+            "csrf_token": self.csrf, "expected_hash": record["file_hash"], "revision": record["revision"],
+            "tab_id": "completion-tab", "title": "未クリアへ変更", "description": "概要",
+            "article_type": "play_note", "play_time": "21時間", "game_completed": "false",
+            "body": created.content,
+        }, follow_redirects=False)
+        self.assertEqual(response.status_code, 303, response.text)
+        edited = frontmatter.load(index)
+        self.assertIs(edited.metadata["game_completed"], False)
 
     def test_inspection_rejects_invalid_date_and_metadata_types(self) -> None:
         metadata = article_templates.initial_metadata("題名", "weekly_picks", "著者", "概要")

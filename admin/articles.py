@@ -141,6 +141,7 @@ def create_article_files(
     author: str,
     description: str = "",
     play_time: str = "",
+    game_completed: bool = False,
 ) -> tuple[str, Path, str]:
     slug = validate_slug(slug)
     article_type = validate_article_type(article_type)
@@ -155,7 +156,9 @@ def create_article_files(
     if target.exists():
         raise ArticleError("同じslugの記事がすでにあります。")
     article_id = uuid.uuid5(uuid.NAMESPACE_URL, f"my-game-blog:{slug}").hex
-    metadata = article_templates.initial_metadata(title, article_type, author, description, play_time)
+    metadata = article_templates.initial_metadata(
+        title, article_type, author, description, play_time, game_completed
+    )
     target.mkdir(parents=True)
     try:
         (target / "images").mkdir()
@@ -175,6 +178,7 @@ def updated_markdown(
     article_type: str,
     body: str,
     play_time: str = "",
+    game_completed: bool = False,
 ) -> bytes:
     title = title.strip()
     if not title:
@@ -192,8 +196,10 @@ def updated_markdown(
     )
     if article_type == "play_note":
         metadata["play_time"] = play_time.strip()
+        metadata["game_completed"] = game_completed
     else:
         metadata.pop("play_time", None)
+        metadata.pop("game_completed", None)
     return render_markdown(metadata, body)
 
 

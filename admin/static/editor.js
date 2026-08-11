@@ -9,6 +9,9 @@
     document.querySelectorAll("[data-play-time]").forEach((item) => {
       item.hidden = typeSelect.value !== "play_note";
     });
+    document.querySelectorAll("[data-play-status]").forEach((item) => {
+      item.hidden = typeSelect.value !== "play_note";
+    });
   };
   typeSelect.addEventListener("change", updateTypeFields);
   updateTypeFields();
@@ -23,6 +26,7 @@
     description: form.elements.description.value,
     article_type: form.elements.article_type.value,
     play_time: form.elements.play_time?.value || "",
+    game_completed: form.elements.game_completed?.value || "false",
     body: form.elements.body.value,
     expected_hash: form.elements.expected_hash.value,
     revision: Number(form.elements.revision.value),

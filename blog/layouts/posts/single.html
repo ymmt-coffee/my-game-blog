@@ -2,7 +2,6 @@
 
 <article class="post-single">
   <header class="post-header">
-    <span class="media-eyebrow">{{ partial "article_type_label.html" . }}</span>
     <h1 class="post-title entry-hint-parent">
       {{ .Title }}
       {{- if .Draft }}
@@ -16,6 +15,7 @@
     {{- end }}
     {{- if not (.Param "hideMeta") }}
     <div class="post-meta">
+      <span class="post-meta-category">{{ partial "article_type_label.html" . }}</span>&nbsp;·&nbsp;
       {{- partial "post_meta.html" . -}}
       {{- partial "translation_list.html" . -}}
       {{- partial "edit_post.html" . -}}

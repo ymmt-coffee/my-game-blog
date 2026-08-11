@@ -204,7 +204,7 @@ def create_app(
 <label>タイトル<input name="title" required maxlength="160"></label>
 <label>概要<textarea name="description" rows="2" required maxlength="300"></textarea></label>
 <label>カテゴリー<select name="article_type" id="new-article-type">{options}</select></label>
-<label data-play-time>プレイ時間<input name="play_time" placeholder="例：12時間"></label><label>著者<input name="author" required value="やまもと"></label>
+<label data-play-time>プレイ時間<input name="play_time" placeholder="例：12時間"></label><label data-play-status>クリア状況<select name="game_completed"><option value="false" selected>未クリア</option><option value="true">クリア</option></select></label><label>著者<input name="author" required value="やまもと"></label>
 <button class="button" type="submit">作成</button></form></section>"""
         return article_workspace(request, "新しい記事", body, extra_script="/static/template-form.js")
 
@@ -214,7 +214,7 @@ def create_app(
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
             slug = str(form.get("slug") or "").strip() or articles.next_daily_slug(content_root)
-            article_id, path, digest = articles.create_article_files(content_root, slug, str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""))
+            article_id, path, digest = articles.create_article_files(content_root, slug, str(form.get("title") or ""), str(form.get("article_type") or ""), str(form.get("author") or ""), str(form.get("description") or ""), str(form.get("play_time") or ""), str(form.get("game_completed") or "false") == "true")
             db.create_article(article_id, path.name, str(form.get("article_type")), str(path.resolve()), digest, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
         except (articles.ArticleError, Exception) as exc:
@@ -280,6 +280,8 @@ def create_app(
         inspection_badge = f'<span class="validation-count" title="{escape(" ".join(inspection))}">未入力 {len(inspection)}</span>' if inspection else ""
         current_type = str(article.metadata.get("article_type") or record["article_type"])
         play_time_hidden = "" if current_type == "play_note" else " hidden"
+        game_completed = article.metadata.get("game_completed") is True
+        game_completed_options = f'<option value="false"{"" if game_completed else " selected"}>未クリア</option><option value="true"{" selected" if game_completed else ""}>クリア</option>'
         review = publishing.load_review(state_root, article)
         review_fresh = review is not None and review.get("file_hash") == article.file_hash
         review_html = '<p class="muted">現在の原稿に対応する校正結果はありません。</p>'
@@ -299,6 +301,7 @@ def create_app(
 <input type="hidden" name="tab_id" id="tab-id"><section class="card editor-meta"><label>タイトル<input name="title" value="{escape(str(article.metadata.get('title') or ''))}" required></label>
 <label>概要<textarea name="description" rows="2">{escape(str(article.metadata.get('description') or ''))}</textarea></label><label>カテゴリー<select name="article_type" id="edit-article-type">{options}</select></label>
 <label data-play-time{play_time_hidden}>プレイ時間<input name="play_time" value="{escape(str(article.metadata.get('play_time') or ''))}" placeholder="例：12時間"></label>
+<label data-play-status{play_time_hidden}>クリア状況<select name="game_completed">{game_completed_options}</select></label>
 <div class="save-line"><span>{escape(state_label(record))} {inspection_badge}</span><span id="save-status">保存済み</span></div></section>
 <section class="card body-card"><div class="section-head"><h2>本文</h2><div class="editor-actions"><button class="button" type="submit" {'disabled' if conflict or archived else ''}>手動保存</button><a class="button secondary" href="/articles/{article_id}/history">履歴・復元</a></div></div>
 <textarea class="body-editor" name="body" rows="24" aria-label="本文">{escape(article.body)}</textarea></section></form>
@@ -440,7 +443,7 @@ def create_app(
                 raise articles.ArticleError("アーカイブ中の記事は編集できません。")
             if int(payload.get("revision", -1)) != int(record["revision"]) or str(payload.get("expected_hash")) != article.file_hash or str(record["file_hash"]) != article.file_hash:
                 raise articles.ArticleConflict("別の変更を検出しました。")
-            data = articles.updated_markdown(article, title=str(payload.get("title", "")), description=str(payload.get("description", "")), article_type=str(payload.get("article_type", "")), body=str(payload.get("body", "")), play_time=str(payload.get("play_time", "")))
+            data = articles.updated_markdown(article, title=str(payload.get("title", "")), description=str(payload.get("description", "")), article_type=str(payload.get("article_type", "")), body=str(payload.get("body", "")), play_time=str(payload.get("play_time", "")), game_completed=str(payload.get("game_completed", "false")) == "true")
             path = articles.save_autosave(state_root, article_id, str(payload.get("tab_id", "")), data)
             return {"status": "autosaved", "saved_at": articles.now_iso(), "path": path.name}
         except articles.ArticleConflict as exc:
@@ -460,7 +463,7 @@ def create_app(
             expected_hash = str(form.get("expected_hash") or "")
             if revision != int(record["revision"]) or expected_hash != str(record["file_hash"]):
                 raise articles.ArticleConflict("別の画面で保存済みです。再読み込みしてください。")
-            data = articles.updated_markdown(article, title=str(form.get("title") or ""), description=str(form.get("description") or ""), article_type=str(form.get("article_type") or ""), body=str(form.get("body") or ""), play_time=str(form.get("play_time") or ""))
+            data = articles.updated_markdown(article, title=str(form.get("title") or ""), description=str(form.get("description") or ""), article_type=str(form.get("article_type") or ""), body=str(form.get("body") or ""), play_time=str(form.get("play_time") or ""), game_completed=str(form.get("game_completed") or "false") == "true")
             new_hash, _history = articles.commit_article(article, data, state_root, expected_hash, revision)
             db.update_saved_article(article_id, str(form.get("article_type")), expected_hash, new_hash, revision, db_path)
             return RedirectResponse(f"/articles/{article_id}/edit?saved=1", status_code=303)

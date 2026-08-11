@@ -22,17 +22,7 @@ TEMPLATES = {
         "play_note",
         "プレイログ",
         "遊んだ範囲を明記し、未到達部分の断定や大きなネタバレを避けます。",
-        """## 今回遊んだところ
-
-ここに進行状況を書きます。
-
-## 印象に残ったこと
-
-面白かった点や気になった点を書きます。
-
-## 次に遊びたいこと
-
-次回の目標を書きます。""",
+        "",
         COMMON_REQUIRED + ("play_time",),
     ),
     "weekly_picks": ArticleTemplate(
@@ -68,21 +58,7 @@ TEMPLATES = {
         "monthly_essay",
         "月刊コラム",
         "その月の体験を一つのテーマで振り返り、作品の紹介だけでなく自分の考えをまとめます。",
-        """## 今月のテーマ
-
-今月を振り返るテーマを書きます。
-
-## 心に残ったゲームと体験
-
-具体的な出来事を書きます。
-
-## そこから考えたこと
-
-体験から得た気づきを掘り下げます。
-
-## 来月に向けて
-
-次の月に遊びたいことを書きます。""",
+        "",
         COMMON_REQUIRED,
     ),
 }
@@ -95,7 +71,14 @@ def get_template(article_type: str) -> ArticleTemplate:
         raise ValueError("カテゴリーが正しくありません。") from exc
 
 
-def initial_metadata(title: str, article_type: str, author: str, description: str, play_time: str = "") -> dict[str, object]:
+def initial_metadata(
+    title: str,
+    article_type: str,
+    author: str,
+    description: str,
+    play_time: str = "",
+    game_completed: bool = False,
+) -> dict[str, object]:
     template = get_template(article_type)
     today = date.today().isoformat()
     metadata: dict[str, object] = {
@@ -104,6 +87,7 @@ def initial_metadata(title: str, article_type: str, author: str, description: st
     }
     if template.key == "play_note":
         metadata["play_time"] = play_time.strip()
+        metadata["game_completed"] = game_completed
     return metadata
 
 
@@ -130,6 +114,8 @@ def validate_metadata(metadata: dict[str, object]) -> list[str]:
         messages.append("画像一覧の形式が正しくありません。")
     if "draft" in metadata and not isinstance(metadata["draft"], bool):
         messages.append("下書き設定の形式が正しくありません。")
+    if "game_completed" in metadata and not isinstance(metadata["game_completed"], bool):
+        messages.append("クリア状況の形式が正しくありません。")
     if metadata.get("article_type") != article_type:
         messages.append("カテゴリー情報が一致しません。")
     return messages

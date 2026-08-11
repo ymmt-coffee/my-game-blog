@@ -10,6 +10,9 @@
       const input = item.querySelector("input");
       if (input) input.required = select.value === "play_note";
     });
+    document.querySelectorAll("[data-play-status]").forEach((item) => {
+      item.hidden = select.value !== "play_note";
+    });
   };
   select.addEventListener("change", update);
   update();
