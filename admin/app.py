@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import calendar
 import secrets
 import shutil
 import uuid
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from contextlib import asynccontextmanager, suppress
+from datetime import date, datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
 
@@ -17,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import article_templates, articles, db, publishing
+from admin import article_templates, articles, db, publishing, scheduling
 from admin.article_input import ArticleInput
 
 
@@ -67,10 +69,10 @@ def layout(
     )
     meta = f'<meta name="csrf-token" content="{escape(csrf_token)}">' if csrf_token else ""
     scripts = (script,) if isinstance(script, str) and script else script
-    script_tag = "".join(f'<script src="{item}" defer></script>' for item in scripts)
+    script_tag = "".join(f'<script src="{item}?v={escape(APP_VERSION)}" defer></script>' for item in scripts)
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">{meta}
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)} | ゲームブログ管理</title>
-<link rel="stylesheet" href="/static/admin.css">{script_tag}</head><body class="{escape(body_class)}">
+<link rel="stylesheet" href="/static/admin.css?v={escape(APP_VERSION)}">{script_tag}</head><body class="{escape(body_class)}">
 <aside><a class="brand" href="/">ゲームブログ管理</a><nav>{nav}</nav></aside>
 <main><header><h1>{escape(title)}</h1></header>{body}</main></body></html>"""
 
@@ -176,7 +178,32 @@ def create_app(
         db.initialize(db_path)
         scan_canonical(content_root, db_path)
         db.record_event("application", "success", "app_started", "管理画面を起動しました。", db_path)
-        yield
+        task = None
+        if not testing:
+            async def schedule_worker() -> None:
+                while True:
+                    try:
+                        await asyncio.to_thread(
+                            scheduling.process_due_schedules, db_path, state_root,
+                            _app.state.command_runner,
+                        )
+                    except Exception:
+                        try:
+                            db.record_event(
+                                "schedule_worker", "failure", "schedule_worker_failed",
+                                "予約確認処理で異常が発生しました。次回確認時に再試行します。", db_path,
+                            )
+                        except Exception:
+                            pass
+                    await asyncio.sleep(30)
+            task = asyncio.create_task(schedule_worker())
+        try:
+            yield
+        finally:
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
     app = FastAPI(title="ゲームブログ管理", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.db_path, app.state.content_root, app.state.state_root = db_path, content_root, state_root
@@ -280,6 +307,10 @@ def create_app(
             notice += '<div class="flash publish-note"><strong>公開済み記事を編集中です。</strong> 入力中と自動保存は公開ページへ反映されません。手動保存すると更新下書きになり、公開前チェックと投稿の完了後に公開ページが更新されます。</div>'
         elif str(record["state"]) == "draft" and str(record.get("previous_state")) == "published":
             notice += '<div class="flash publish-note"><strong>公開記事の更新下書きです。</strong> 現在の公開ページは旧版のまま維持されています。</div>'
+        if str(record["state"]) == "scheduled" and record.get("scheduled_at"):
+            notice += f'<div class="flash publish-note"><strong>{escape(scheduling.display_datetime(record["scheduled_at"]))} に公開予約済みです。</strong> 予約後に編集する場合は、先に予約を解除してください。</div>'
+        if record.get("schedule_error"):
+            notice += f'<div class="flash error"><strong>予約公開を安全停止しました。</strong> {escape(str(record["schedule_error"]))}</div>'
         if conflict:
             notice += f'<div class="flash error"><strong>外部変更を検出しました。保存を停止しています。</strong><p>ファイル内容を確認し、この内容を管理画面へ取り込む場合だけ次を押してください。</p><form method="post" action="/articles/{article_id}/accept-external">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="revision" value="{record["revision"]}"><input type="hidden" name="actual_hash" value="{escape(article.file_hash)}"><button class="button danger" type="submit">外部変更を取り込む</button></form></div>'
         inspection = article_templates.validate_metadata(article.metadata)
@@ -313,7 +344,8 @@ def create_app(
 <textarea class="body-editor" name="body" rows="24" aria-label="本文">{escape(article.body)}</textarea></section></form>
 <section class="card"><h2>画像</h2><ul class="image-list">{image_rows}</ul><form class="image-upload" method="post" action="/articles/{article_id}/images" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}
 <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" required><button class="button secondary" type="submit" {'disabled' if archived else ''}>追加</button></form></section>
-<section class="card"><h2>公開</h2><div class="editor-actions"><form method="post" action="/articles/{article_id}/preview">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" {'disabled' if conflict or archived else ''}>プレビュー</button></form><form method="post" action="/articles/{article_id}/prepublish">{hidden_csrf(request.app.state.csrf_token)}<button class="button" {'disabled' if conflict or archived else ''}>公開前チェック</button></form></div></section>
+<section class="card"><h2>公開</h2><div class="editor-actions"><form method="post" action="/articles/{article_id}/preview">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" {'disabled' if conflict or archived else ''}>プレビュー</button></form><form method="post" action="/articles/{article_id}/prepublish">{hidden_csrf(request.app.state.csrf_token)}<button class="button" {'disabled' if conflict or archived or str(record['state']) == 'scheduled' else ''}>公開前チェック</button></form></div></section>
+<section class="card"><h2>予約公開</h2>{(f'''<p><strong>{escape(scheduling.display_datetime(record['scheduled_at']))}</strong> に公開します。</p><form method="post" action="/articles/{article_id}/schedule/cancel">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">予約を解除</button></form>''' if str(record['state']) == 'scheduled' else f'''<p class="muted">管理画面が停止中でも、次回起動時に期限を過ぎた予約を処理します。</p><form class="schedule-form" method="post" action="/articles/{article_id}/schedule/check">{hidden_csrf(request.app.state.csrf_token)}<label>公開日時<input type="datetime-local" name="scheduled_at" min="{datetime.now(scheduling.JST).strftime('%Y-%m-%dT%H:%M')}" required></label><button class="button" type="submit" {'disabled' if conflict or archived else ''}>予約前チェック</button></form>''')}</section>
 {(f'''<section class="card danger-zone"><h2>{'アーカイブから戻す' if archived else 'アーカイブ'}</h2><p>ファイルは削除も移動もしません。</p><form method="post" action="/articles/{article_id}/{'restore' if archived else 'archive'}">{hidden_csrf(request.app.state.csrf_token)}<button class="button {'secondary' if archived else 'danger'}" type="submit">{'下書きへ戻す' if archived else 'アーカイブする'}</button></form></section>''' if archived or str(record['state']) == 'published' else '')}"""
         saved_title = str(article.metadata.get("title") or record["slug"])
         return article_workspace(request, f"編集: {saved_title}", body, article_id, "/static/editor.js")
@@ -438,6 +470,85 @@ def create_app(
                 pass
             message = str(exc) if isinstance(exc, (articles.ArticleError, publishing.PublishError, RuntimeError)) else "予期しないエラーが発生しました。管理原稿は保持されています。"
             return error_page(message, request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/schedule/check", response_class=HTMLResponse)
+    async def article_schedule_check(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            if str(record["state"]) == "scheduled":
+                raise publishing.PublishError("すでに予約済みです。変更する場合は予約を解除してください。")
+            if form.get("title") is not None:
+                if str(record["state"]) == "archived":
+                    raise articles.ArticleError("アーカイブ中の記事は予約できません。")
+                revision = int(str(form.get("revision") or "0"))
+                expected_hash = str(form.get("expected_hash") or "")
+                if revision != int(record["revision"]) or expected_hash != str(record["file_hash"]):
+                    raise articles.ArticleConflict("別の画面で保存済みです。再読み込みしてください。")
+                article_input = ArticleInput.from_mapping(form)
+                data = articles.updated_markdown(
+                    article, title=article_input.title, description=article_input.description,
+                    article_type=article_input.article_type, body=article_input.body,
+                    play_time=article_input.play_time, game_completed=article_input.game_completed,
+                )
+                if data != (article.path / "index.md").read_bytes():
+                    new_hash, _history = articles.commit_article(article, data, state_root, expected_hash, revision)
+                    db.update_saved_article(article_id, article_input.article_type, expected_hash, new_hash, revision, db_path)
+                    record, article = load_record(article_id, request)
+            if str(record["file_hash"]) != article.file_hash:
+                raise publishing.PublishError("外部変更があるため予約前チェックを停止しました。")
+            if articles.has_uncommitted_autosave(state_root, article):
+                raise publishing.PublishError("手動保存されていない編集内容があります。手動保存してからやり直してください。")
+            scheduled = scheduling.parse_local_datetime(str(form.get("scheduled_at") or ""))
+            result, prepared = publishing.prepublish_check(article, state_root, request.app.state.command_runner)
+            if not result.ok or prepared is None:
+                raise publishing.PublishError(" ".join(result.errors))
+            db.mark_ready(article_id, article.file_hash, db_path)
+            attempt_id, token, token_hash, expires = publishing.new_attempt_values()
+            utc_value = scheduled.isoformat(timespec="seconds")
+            db.create_publish_attempt(attempt_id, article_id, article.file_hash, token_hash, expires, db_path, scheduled_for=utc_value)
+            warning_rows = "".join(f"<li>{escape(item)}</li>" for item in result.warnings) or "<li>警告はありません。</li>"
+            body = f'''<section class="card notice"><h2>予約前チェックに合格しました</h2><dl><dt>対象記事</dt><dd>{escape(article.slug)}</dd><dt>公開日時</dt><dd>{escape(scheduling.display_datetime(utc_value))}</dd><dt>公開先</dt><dd>GitHub Pages</dd></dl><h3>警告</h3><ul>{warning_rows}</ul></section><section class="card danger-zone"><h2>予約の最終確認</h2><p>指定時刻以降に対象記事だけをcommit・pushします。</p><form method="post" action="/articles/{article_id}/schedule/confirm">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="attempt_id" value="{attempt_id}"><input type="hidden" name="approval_token" value="{escape(token)}"><input type="hidden" name="scheduled_at" value="{escape(utc_value)}"><button class="button danger">この日時で予約する</button></form></section>'''
+            return article_workspace(request, "予約の最終確認", body, article_id)
+        except (articles.ArticleError, publishing.PublishError, RuntimeError, ValueError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/schedule/confirm")
+    async def article_schedule_confirm(article_id: str, request: Request):
+        form = await request.form()
+        attempt_id = str(form.get("attempt_id") or "")
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            record, article = load_record(article_id, request)
+            attempt = db.get_publish_attempt(attempt_id, db_path)
+            if attempt is None or str(attempt["article_id"]) != article_id or str(attempt["result"]) != "checked":
+                raise publishing.PublishError("予約承認が見つからないか、すでに使用済みです。")
+            if datetime.fromisoformat(str(attempt["expires_at"])) < datetime.now(timezone.utc):
+                db.update_publish_attempt(attempt_id, "expired", "予約承認の期限が切れました。", db_path=db_path)
+                raise publishing.PublishError("予約承認の期限が切れました。再検査してください。")
+            if not publishing.token_matches(str(form.get("approval_token") or ""), str(attempt["token_hash"])):
+                raise publishing.PublishError("予約承認情報が一致しません。")
+            scheduled = scheduling.parse_local_datetime(str(form.get("scheduled_at") or ""))
+            if str(attempt.get("scheduled_for") or "") != scheduled.isoformat(timespec="seconds"):
+                raise publishing.PublishError("確認した予約日時と一致しません。再検査してください。")
+            if str(attempt["file_hash"]) != article.file_hash or str(record["file_hash"]) != article.file_hash or str(record["state"]) != "ready":
+                raise publishing.PublishError("検査後に記事または状態が変わりました。再検査してください。")
+            db.mark_scheduled(article_id, article.file_hash, scheduled.isoformat(timespec="seconds"), db_path)
+            db.update_publish_attempt(attempt_id, "success", "記事の公開を予約しました。", db_path=db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
+        except (articles.ArticleError, publishing.PublishError, RuntimeError, ValueError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/articles/{article_id}/schedule/cancel")
+    async def article_schedule_cancel(article_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            db.cancel_schedule(article_id, db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit", status_code=303)
+        except (articles.ArticleError, RuntimeError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
 
     @app.post("/api/articles/{article_id}/autosave")
     async def autosave(article_id: str, request: Request):
@@ -639,8 +750,51 @@ def create_app(
         except articles.ArticleError as exc:
             return error_page(str(exc), request.app.state.csrf_token)
 
+    @app.get("/schedule", response_class=HTMLResponse)
+    async def schedule_page(request: Request, view: str = "month", date_value: str = "") -> str:
+        view = view if view in {"month", "week"} else "month"
+        try:
+            focus = date.fromisoformat(date_value) if date_value else datetime.now(scheduling.JST).date()
+        except ValueError:
+            focus = datetime.now(scheduling.JST).date()
+        records = db.list_calendar_articles(db_path)
+        events: dict[date, list[tuple[dict[str, object], str, str]]] = {}
+        for item in records:
+            value = item.get("scheduled_at") or item.get("published_at")
+            if not value:
+                continue
+            local = datetime.fromisoformat(str(value)).astimezone(scheduling.JST)
+            title = str(item["slug"])
+            try:
+                article = articles.read_article(Path(str(item["source_path"])), str(item["id"]), str(item["slug"]))
+                title = str(article.metadata.get("title") or title)
+            except articles.ArticleError:
+                pass
+            label = "予約" if item.get("scheduled_at") else "公開"
+            events.setdefault(local.date(), []).append((item, title, f"{local:%H:%M} {label}"))
+        if view == "week":
+            start = focus - timedelta(days=focus.weekday())
+            days = [start + timedelta(days=i) for i in range(7)]
+            previous, following = start - timedelta(days=7), start + timedelta(days=7)
+            heading = f"{start:%Y年%m月%d日} - {days[-1]:%m月%d日}"
+        else:
+            start = focus.replace(day=1)
+            _, count = calendar.monthrange(start.year, start.month)
+            pad = start.weekday()
+            days = [start - timedelta(days=pad) + timedelta(days=i) for i in range(((pad + count + 6) // 7) * 7)]
+            previous = (start - timedelta(days=1)).replace(day=1)
+            following = (start + timedelta(days=count)).replace(day=1)
+            heading = f"{start:%Y年%m月}"
+        cells = []
+        for day in days:
+            event_html = "".join(f'<a class="calendar-event {"scheduled" if item.get("scheduled_at") else "published"}" href="/articles/{item["id"]}/edit"><span>{escape(meta)}</span>{escape(title)}</a>' for item, title, meta in events.get(day, []))
+            outside = " outside" if view == "month" and day.month != start.month else ""
+            cells.append(f'<div class="calendar-day{outside}"><time>{day.day}</time>{event_html}</div>')
+        body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>現在は記事の予約・公開予定を表示します。SNS投稿、発売日、セール終了日は各Phaseの実装後に同じ画面へ追加します。</p></section>'''
+        return layout("スケジュール", "/schedule", body, request.app.state.csrf_token)
+
     descriptions = {
-        "/schedule": "予約とカレンダーは記事投稿機能の完成後に実装します。", "/editorial": "AI編集部は後続Phaseで実装します。",
+        "/editorial": "AI編集部は後続Phaseで実装します。",
         "/releases": "新作・セール情報は後続Phaseで実装します。", "/social": "SNS連携は後続Phaseで実装します。", "/analytics": "アクセス解析は後続Phaseで実装します。",
     }
     for path, label, phase in NAV_ITEMS:
@@ -671,7 +825,7 @@ def create_app(
         deleted_table = "".join(deleted_rows) or '<tr><td colspan="3">削除した記事はありません。</td></tr>'
         public_only = publishing.public_only_slugs(content_root, request.app.state.public_posts)
         public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>記事操作</dt><dd>Phase E有効</dd></dl></article>
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase G有効</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
@@ -695,7 +849,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "F", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "G", "version": APP_VERSION}
 
     return app
 

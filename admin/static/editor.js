@@ -65,6 +65,23 @@
   });
   form.addEventListener("submit", () => { status.textContent = "保存中"; });
 
+  const scheduleForm = document.querySelector("form.schedule-form");
+  scheduleForm?.addEventListener("submit", () => {
+    clearTimeout(timer);
+    const values = payload();
+    Object.entries(values).forEach(([name, value]) => {
+      let input = scheduleForm.elements.namedItem(name);
+      if (!input) {
+        input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        scheduleForm.appendChild(input);
+      }
+      input.value = String(value);
+    });
+    status.textContent = "保存・予約前チェック中";
+  });
+
   document.querySelectorAll("[data-copy-markdown]").forEach((button) => {
     button.addEventListener("click", async () => {
       await navigator.clipboard.writeText(button.dataset.copyMarkdown);

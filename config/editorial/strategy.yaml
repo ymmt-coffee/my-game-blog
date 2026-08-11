@@ -1,4 +1,4 @@
-version: 3
+version: 4
 updated_at: "2026-08-11"
 
 direction:
@@ -10,7 +10,7 @@ direction:
   discord_enabled: false
 
 current:
-  phase: blog_design
+  phase: scheduling_and_calendar
   phase_status: completed
   retained:
     - hugo_blog
@@ -66,6 +66,15 @@ article_management:
   public_or_canonical_auto_delete: false
   published_delete_behavior: confirmed_unpublish_then_logical_trash
   matching_restore_behavior: reconcile_as_published_without_republish
+  schedule_confirmation_required: true
+  schedule_confirmation_authorizes_due_publish: true
+  scheduled_snapshot_bound_to_file_hash: true
+  scheduled_publish_while_admin_running: true
+  overdue_schedule_runs_on_next_admin_start: true
+  schedule_failure_behavior: return_to_ready_with_safe_message
+  calendar_views: [month, week]
+  calendar_sources_enabled: [article_schedule, article_publish]
+  calendar_sources_deferred: [social_post, release_date, sale_end]
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md

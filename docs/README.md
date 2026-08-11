@@ -20,6 +20,7 @@
 13. `phase-e-publishing-report.md` - AI校正、Hugoプレビュー、公開前チェック、記事限定公開の実装報告
 14. `phase-f-blog-design-report.md` - 公開ブログのデザイン、明示的なヘッダー画像、モバイル表示の実装報告
 15. `site-refactoring-report.md` - Phase A〜F完成後の構成整理、共通化、挙動維持の検証記録
+16. `phase-g-scheduling-report.md` - 記事の予約公開、失敗時の安全停止、月・週カレンダーの実装報告
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 
