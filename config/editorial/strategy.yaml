@@ -1,4 +1,4 @@
-version: 4
+version: 5
 updated_at: "2026-08-11"
 
 direction:
@@ -10,7 +10,7 @@ direction:
   discord_enabled: false
 
 current:
-  phase: scheduling_and_calendar
+  phase: local_access_analytics
   phase_status: completed
   retained:
     - hugo_blog
@@ -75,6 +75,18 @@ article_management:
   calendar_views: [month, week]
   calendar_sources_enabled: [article_schedule, article_publish]
   calendar_sources_deferred: [social_post, release_date, sale_end]
+
+access_analytics:
+  status: local_import_and_dashboard_completed
+  external_provider: none
+  public_tracking_enabled: false
+  automatic_fetch_enabled: false
+  supported_periods_days: [7, 30, 90]
+  csv_columns: [date, path, views, visitors]
+  stored_granularity: daily_page_aggregate
+  raw_personal_data_stored: false
+  same_source_day_path_import_behavior: replace
+  deferred_providers: [umami, google_analytics, plausible]
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md

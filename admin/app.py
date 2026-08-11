@@ -14,12 +14,12 @@ from pathlib import Path
 
 import frontmatter
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import article_templates, articles, db, publishing, scheduling
+from admin import analytics, article_templates, articles, db, publishing, scheduling
 from admin.article_input import ArticleInput
 
 
@@ -793,9 +793,83 @@ def create_app(
         body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>現在は記事の予約・公開予定を表示します。SNS投稿、発売日、セール終了日は各Phaseの実装後に同じ画面へ追加します。</p></section>'''
         return layout("スケジュール", "/schedule", body, request.app.state.csrf_token)
 
+    @app.get("/analytics", response_class=HTMLResponse)
+    async def analytics_page(request: Request, days: int = 30, imported: int = 0) -> str:
+        days = days if days in {7, 30, 90} else 30
+        start, end, previous_start, previous_end = analytics.period(days)
+        current = db.analytics_summary(start.isoformat(), end.isoformat(), db_path)
+        previous = db.analytics_summary(previous_start.isoformat(), previous_end.isoformat(), db_path)
+        maximum = max((int(item["views"]) for item in current["daily"]), default=0)
+        chart_rows = "".join(
+            f'''<div class="analytics-bar-row"><time>{escape(str(item["day"])[5:])}</time><div class="analytics-bar"><i style="width:{(int(item['views']) * 100 / maximum) if maximum else 0:.1f}%"></i></div><b>{item['views']}</b></div>'''
+            for item in current["daily"]
+        ) or '<p class="muted">この期間のデータはありません。</p>'
+        page_titles: dict[str, str] = {}
+        for record in db.list_articles(db_path, include_archived=True):
+            try:
+                article = articles.read_article(Path(str(record["source_path"])), str(record["id"]), str(record["slug"]))
+                page_titles[f"/posts/{record['slug']}/"] = str(article.metadata.get("title") or record["slug"])
+            except articles.ArticleError:
+                pass
+        page_row_parts: list[str] = []
+        for item in current["pages"]:
+            path_value = str(item["path"])
+            title_value = f'<strong>{escape(page_titles[path_value])}</strong><br>' if path_value in page_titles else ""
+            page_row_parts.append(
+                f"<tr><td>{title_value}<code>{escape(path_value)}</code></td><td>{item['views']}</td><td>{item['visitors']}</td></tr>"
+            )
+        page_rows = "".join(page_row_parts) or '<tr><td colspan="3" class="muted">データはありません。</td></tr>'
+        suggestion_rows = "".join(f"<li>{escape(item)}</li>" for item in analytics.suggestions(current, previous))
+        import_rows = "".join(
+            f"<tr><td>{escape(str(item['created_at'])[:16])}</td><td>{escape(str(item['source']))}</td><td>{escape(str(item['filename']))}</td><td>{item['row_count']}行</td></tr>"
+            for item in db.recent_analytics_imports(db_path)
+        ) or '<tr><td colspan="4" class="muted">取込履歴はありません。</td></tr>'
+        flash = '<div class="flash success">解析データを取り込みました。</div>' if imported else ""
+        body = f'''{flash}<section class="analytics-toolbar"><div class="picker-tabs analytics-tabs"><a class="{'active' if days == 7 else ''}" href="/analytics?days=7">7日</a><a class="{'active' if days == 30 else ''}" href="/analytics?days=30">30日</a><a class="{'active' if days == 90 else ''}" href="/analytics?days=90">90日</a></div><span class="muted">{start.isoformat()} ～ {end.isoformat()}</span></section>
+<section class="analytics-metrics"><article class="card"><span>閲覧数</span><strong>{current['views']}</strong><small>直前期間 {analytics.change_percent(int(current['views']), int(previous['views']))}</small></article><article class="card"><span>訪問者数（延べ）</span><strong>{current['visitors']}</strong><small>直前期間 {analytics.change_percent(int(current['visitors']), int(previous['visitors']))}</small></article></section>
+<section class="card"><h2>日別閲覧数</h2><div class="analytics-chart">{chart_rows}</div></section>
+<section class="card"><h2>よく読まれたページ</h2><div class="table-wrap"><table><thead><tr><th>ページ</th><th>閲覧数</th><th>訪問者数（延べ）</th></tr></thead><tbody>{page_rows}</tbody></table></div></section>
+<section class="card"><h2>確認候補</h2><ul>{suggestion_rows}</ul></section>
+<section class="card analytics-import"><h2>集計済みCSVを取り込む</h2><p class="muted">IPアドレス、Cookie、参照元の生データは取り込みません。日別・ページ別に集計された数値だけを保存します。現在はひな形と同じ形式の手動取込だけに対応しています。</p><form method="post" action="/analytics/import" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="source" value="manual"><label>CSVファイル<input type="file" name="file" accept="text/csv,.csv" required></label><div class="editor-actions"><button class="button" type="submit">取り込む</button><a class="button secondary" href="/analytics/template.csv">ひな形CSV</a></div></form></section>
+<section class="card"><h2>取込履歴</h2><div class="table-wrap"><table><tbody>{import_rows}</tbody></table></div></section>
+<section class="card notice"><h2>外部データ取得は未接続です</h2><p>解析サービスと公開サイトの接続、APIによる自動取得、Cookie利用はまだ行っていません。サービス選定と承認後に追加します。</p></section>'''
+        return layout("アクセス解析", "/analytics", body, request.app.state.csrf_token)
+
+    @app.get("/analytics/template.csv", response_class=PlainTextResponse)
+    async def analytics_template() -> PlainTextResponse:
+        return PlainTextResponse(
+            analytics.TEMPLATE, media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="analytics-template.csv"'},
+        )
+
+    @app.post("/analytics/import")
+    async def analytics_import(request: Request):
+        form = await request.form()
+        upload = form.get("file")
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            source = str(form.get("source") or "")
+            if source not in analytics.ALLOWED_SOURCES:
+                raise analytics.AnalyticsError("データ元が正しくありません。")
+            if not isinstance(upload, StarletteUploadFile) or not upload.filename:
+                raise analytics.AnalyticsError("CSVファイルを選択してください。")
+            filename = Path(upload.filename).name
+            if not filename.casefold().endswith(".csv"):
+                raise analytics.AnalyticsError("CSVファイルを選択してください。")
+            rows = analytics.parse_csv(await upload.read(analytics.MAX_CSV_BYTES + 1))
+            db.import_analytics_rows(rows, source, filename, db_path)
+            db.record_event("analytics_import", "success", "analytics_imported", "解析データを取り込みました。", db_path)
+            return RedirectResponse("/analytics?imported=1", status_code=303)
+        except (analytics.AnalyticsError, articles.ArticleError) as exc:
+            body = f'<section class="card error-card"><h2>取込を停止しました</h2><p>{escape(str(exc))}</p><a class="button secondary" href="/analytics">アクセス解析へ戻る</a></section>'
+            return HTMLResponse(layout("安全停止", "/analytics", body, request.app.state.csrf_token), status_code=400)
+        finally:
+            if isinstance(upload, StarletteUploadFile):
+                await upload.close()
+
     descriptions = {
         "/editorial": "AI編集部は後続Phaseで実装します。",
-        "/releases": "新作・セール情報は後続Phaseで実装します。", "/social": "SNS連携は後続Phaseで実装します。", "/analytics": "アクセス解析は後続Phaseで実装します。",
+        "/releases": "新作・セール情報は後続Phaseで実装します。", "/social": "SNS連携は後続Phaseで実装します。",
     }
     for path, label, phase in NAV_ITEMS:
         if path in descriptions:
@@ -825,7 +899,7 @@ def create_app(
         deleted_table = "".join(deleted_rows) or '<tr><td colspan="3">削除した記事はありません。</td></tr>'
         public_only = publishing.public_only_slugs(content_root, request.app.state.public_posts)
         public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase G有効</dd></dl></article>
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase H（ローカル解析）有効</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
@@ -849,7 +923,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "G", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "H", "version": APP_VERSION}
 
     return app
 

@@ -101,6 +101,30 @@ SCHEMA_V5_COLUMNS = {
     "publish_attempts": {"scheduled_for": "TEXT"},
 }
 
+SCHEMA_V6 = """
+CREATE TABLE IF NOT EXISTS analytics_daily (
+    day TEXT NOT NULL,
+    path TEXT NOT NULL,
+    views INTEGER NOT NULL CHECK (views >= 0),
+    visitors INTEGER NOT NULL CHECK (visitors >= 0),
+    source TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    PRIMARY KEY (day, path, source)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    row_count INTEGER NOT NULL,
+    period_start TEXT,
+    period_end TEXT,
+    result TEXT NOT NULL CHECK (result IN ('success','failure')),
+    safe_message TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -162,6 +186,11 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
                 "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (5, utc_now()),
             )
+        connection.executescript(SCHEMA_V6)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (6, utc_now()),
+        )
         connection.commit()
 
 
@@ -191,6 +220,62 @@ def recent_events(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> list[dict
             """SELECT event_type, result, message_code, safe_message, created_at
                FROM app_events ORDER BY id DESC LIMIT ?""",
             (safe_limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def import_analytics_rows(
+    rows: list[dict[str, object]], source: str, filename: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    now = utc_now()
+    days = [str(item["day"]) for item in rows]
+    with closing(connect(db_path)) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        for item in rows:
+            connection.execute(
+                """INSERT INTO analytics_daily(day,path,views,visitors,source,imported_at)
+                   VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(day,path,source) DO UPDATE SET
+                   views=excluded.views,visitors=excluded.visitors,imported_at=excluded.imported_at""",
+                (str(item["day"]), str(item["path"]), int(item["views"]), int(item["visitors"]), source, now),
+            )
+        connection.execute(
+            """INSERT INTO analytics_imports
+               (source,filename,row_count,period_start,period_end,result,safe_message,created_at)
+               VALUES (?,?,?,?,?,'success','解析データを取り込みました。',?)""",
+            (source, filename, len(rows), min(days) if days else None, max(days) if days else None, now),
+        )
+        connection.commit()
+
+
+def analytics_summary(start: str, end: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object]:
+    with closing(connect(db_path)) as connection:
+        total = connection.execute(
+            """SELECT COALESCE(SUM(views),0) views,COALESCE(SUM(visitors),0) visitors
+               FROM analytics_daily WHERE day BETWEEN ? AND ?""",
+            (start, end),
+        ).fetchone()
+        daily = connection.execute(
+            """SELECT day,SUM(views) views,SUM(visitors) visitors FROM analytics_daily
+               WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day""",
+            (start, end),
+        ).fetchall()
+        pages = connection.execute(
+            """SELECT path,SUM(views) views,SUM(visitors) visitors FROM analytics_daily
+               WHERE day BETWEEN ? AND ? GROUP BY path ORDER BY views DESC,path LIMIT 20""",
+            (start, end),
+        ).fetchall()
+    return {
+        "views": int(total["views"]), "visitors": int(total["visitors"]),
+        "daily": [dict(row) for row in daily], "pages": [dict(row) for row in pages],
+    }
+
+
+def recent_analytics_imports(db_path: Path = DEFAULT_DB_PATH, limit: int = 10) -> list[dict[str, object]]:
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            "SELECT * FROM analytics_imports ORDER BY id DESC LIMIT ?", (min(max(limit, 1), 50),)
         ).fetchall()
     return [dict(row) for row in rows]
 
