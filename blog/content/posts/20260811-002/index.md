@@ -6,7 +6,7 @@ description: リリース・セール情報になります
 draft: false
 images: []
 lastmod: '2026-08-11'
-title: リリース・セール情報
+title: リリース・セール情報１
 ---
 
 ## 今週の選定方針
