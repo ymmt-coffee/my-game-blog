@@ -77,7 +77,7 @@ article_management:
   calendar_sources_deferred: [social_post, release_date, sale_end]
 
 access_analytics:
-  status: umami_public_tracking_configured
+  status: umami_live_tracking_and_privacy_notice_verified
   external_provider: umami_cloud
   public_tracking_enabled: true
   automatic_fetch_enabled: false
@@ -93,8 +93,6 @@ access_analytics:
   self_exclusion_storage: browser_local_storage
   deferred_providers: [google_analytics, plausible]
   remaining_work:
-    - verify_umami_live_tracking_and_privacy_policy
-    - enable_self_traffic_exclusion_in_owner_browser
     - implement_safe_api_fetch
     - map_paths_to_article_titles
     - add_article_7_day_and_30_day_performance

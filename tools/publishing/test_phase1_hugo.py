@@ -117,6 +117,7 @@ class Phase1HugoTests(unittest.TestCase):
             weekly_html = (public / "posts" / "weekly-picks-test" / "index.html").read_text(encoding="utf-8")
             monthly_html = (public / "posts" / "monthly-essay-test" / "index.html").read_text(encoding="utf-8")
             home_html = (public / "index.html").read_text(encoding="utf-8")
+            about_html = (public / "about" / "index.html").read_text(encoding="utf-8")
             self.assertIn("約6時間", play_html)
             self.assertIn("完走したレビューではなく", play_html)
             self.assertIn("未プレイ作品", weekly_html)
@@ -138,6 +139,9 @@ class Phase1HugoTests(unittest.TestCase):
             self.assertIn("/my-game-blog/", play_html)
             self.assertIn("localStorage", play_html)
             self.assertNotIn("document.cookie", play_html)
+            self.assertIn("Umami Analytics", about_html)
+            self.assertIn("Cookieは使用せず", about_html)
+            self.assertIn("個人を特定する目的では利用しません", about_html)
             self.assertLess(home_html.index("20260811-003"), home_html.index("20260811-002"))
             for menu_name in ("プレイログ", "新作・セール", "月刊コラム", "About", "検索"):
                 self.assertIn(menu_name, home_html)
