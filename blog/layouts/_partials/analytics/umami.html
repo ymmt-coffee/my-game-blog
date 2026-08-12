@@ -1,19 +1,32 @@
 {{- $scriptUrl := .Site.Params.analytics.umami.scriptUrl | default "https://cloud.umami.is/script.js" -}}
 {{- $websiteId := .Site.Params.analytics.umami.websiteId | default "" -}}
 {{- $excludeSelf := .Site.Params.analytics.umami.excludeSelf | default false -}}
+{{- $domain := .Site.Params.analytics.umami.domain | default "" -}}
+{{- $pathPrefix := .Site.Params.analytics.umami.pathPrefix | default "/" -}}
 
 {{- if $websiteId -}}
-  {{- if $excludeSelf -}}
 <script>
 (function () {
-  if (window.location.search.includes('umami_ignore_self=1')) {
-    document.cookie = 'umami_ignore_self=1; path=/; max-age=' + 60 * 60 * 24 * 365;
+  var selfKey = 'framing_umami_ignore_self';
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('umami_ignore_self') === '1') {
+    localStorage.setItem(selfKey, '1');
+    params.delete('umami_ignore_self');
+    var clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+    window.history.replaceState(null, '', clean);
+  } else if (params.get('umami_ignore_self') === '0') {
+    localStorage.removeItem(selfKey);
+    params.delete('umami_ignore_self');
+    var restored = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+    window.history.replaceState(null, '', restored);
   }
+  window.framingUmamiBeforeSend = function (type, payload) {
+    if ({{ if $excludeSelf }}localStorage.getItem(selfKey) === '1' || {{ end }}window.location.hostname !== {{ printf "%q" $domain | safeJS }} || !window.location.pathname.startsWith({{ printf "%q" $pathPrefix | safeJS }})) {
+      return false;
+    }
+    return payload;
+  };
 })();
-function umamiBeforeSend(type, payload) {
-  return document.cookie.includes('umami_ignore_self=1') ? false : payload;
-}
 </script>
-  {{- end -}}
-<script defer src="{{ $scriptUrl }}" data-website-id="{{ $websiteId }}"{{ if $excludeSelf }} data-before-send="umamiBeforeSend"{{ end }}></script>
+<script defer src="{{ $scriptUrl }}" data-website-id="{{ $websiteId }}" data-domains="{{ $domain }}" data-exclude-search="true" data-exclude-hash="true" data-do-not-track="true" data-before-send="framingUmamiBeforeSend"></script>
 {{- end -}}

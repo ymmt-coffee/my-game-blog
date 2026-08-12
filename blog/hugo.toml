@@ -23,12 +23,14 @@ resourceDir = "../var/resources"
   disableSpecial1stPost = true
 
   [params.analytics]
-    provider = ""
+    provider = "umami"
 
     [params.analytics.umami]
       scriptUrl = "https://cloud.umami.is/script.js"
-      websiteId = ""
+      websiteId = "b6809a40-f862-4c3a-b650-da1fe19d0f39"
       excludeSelf = true
+      domain = "ymmt-coffee.github.io"
+      pathPrefix = "/my-game-blog/"
 
     [params.analytics.google]
       measurementId = ""

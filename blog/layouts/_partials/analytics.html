@@ -1,3 +1,4 @@
+{{- if hugo.IsProduction -}}
 {{- $provider := .Site.Params.analytics.provider | default "" -}}
 
 {{- if eq $provider "umami" -}}
@@ -6,4 +7,5 @@
   {{ partial "analytics/google.html" . }}
 {{- else if eq $provider "plausible" -}}
   {{ partial "analytics/plausible.html" . }}
+{{- end -}}
 {{- end -}}
