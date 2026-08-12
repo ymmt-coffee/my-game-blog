@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 
 MAX_CSV_BYTES = 2 * 1024 * 1024
 MAX_ROWS = 10_000
 REQUIRED_COLUMNS = {"date", "path", "views", "visitors"}
-ALLOWED_SOURCES = {"manual", "umami", "google", "plausible"}
+UMAMI_COLUMNS = {"website_id", "session_id", "event_type", "hostname", "url_path", "created_at"}
+UMAMI_HOSTNAME = "ymmt-coffee.github.io"
+UMAMI_PATH_PREFIX = "/my-game-blog"
+JST = ZoneInfo("Asia/Tokyo")
 
 
 class AnalyticsError(ValueError):
@@ -55,6 +59,72 @@ def parse_csv(data: bytes) -> list[dict[str, object]]:
     if not rows:
         raise AnalyticsError("CSVにデータ行がありません。")
     return rows
+
+
+def _decode_csv(data: bytes) -> tuple[str, set[str]]:
+    if not data:
+        raise AnalyticsError("CSVファイルが空です。")
+    if len(data) > MAX_CSV_BYTES:
+        raise AnalyticsError("CSVファイルは2MB以下にしてください。")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise AnalyticsError("CSVはUTF-8形式で保存してください。") from exc
+    reader = csv.DictReader(io.StringIO(text))
+    columns = {str(item or "").strip().casefold() for item in (reader.fieldnames or [])}
+    return text, columns
+
+
+def parse_umami_export(data: bytes) -> list[dict[str, object]]:
+    """Umamiのwebsite_event.csvを匿名の日別・ページ別集計へ変換する。"""
+    text, columns = _decode_csv(data)
+    if not UMAMI_COLUMNS.issubset(columns):
+        raise AnalyticsError("Umamiのwebsite_event.csvを選択してください。")
+    grouped: dict[tuple[str, str], dict[str, object]] = {}
+    reader = csv.DictReader(io.StringIO(text))
+    for number, raw in enumerate(reader, start=2):
+        if number - 1 > MAX_ROWS:
+            raise AnalyticsError("CSVは10,000行以下にしてください。")
+        normalized = {str(key or "").strip().casefold(): str(value or "").strip() for key, value in raw.items()}
+        if normalized.get("event_type") != "1":
+            continue
+        if normalized.get("hostname") != UMAMI_HOSTNAME:
+            raise AnalyticsError(f"CSVの{number}行目に対象外のホストがあります。")
+        raw_path = normalized.get("url_path", "")
+        if raw_path != UMAMI_PATH_PREFIX and not raw_path.startswith(f"{UMAMI_PATH_PREFIX}/"):
+            raise AnalyticsError(f"CSVの{number}行目に対象外のページパスがあります。")
+        path = raw_path[len(UMAMI_PATH_PREFIX):] or "/"
+        if not path.startswith("/") or "?" in path or "#" in path or len(path) > 500:
+            raise AnalyticsError(f"CSVの{number}行目のページパスが正しくありません。")
+        session_id = normalized.get("session_id", "")
+        if not session_id:
+            raise AnalyticsError(f"CSVの{number}行目にセッション識別子がありません。")
+        try:
+            instant = datetime.fromisoformat(normalized.get("created_at", "").replace(" ", "T"))
+        except ValueError as exc:
+            raise AnalyticsError(f"CSVの{number}行目の日時が正しくありません。") from exc
+        if instant.tzinfo is None:
+            instant = instant.replace(tzinfo=timezone.utc)
+        day = instant.astimezone(JST).date().isoformat()
+        item = grouped.setdefault((day, path), {"day": day, "path": path, "views": 0, "sessions": set()})
+        item["views"] = int(item["views"]) + 1
+        sessions = item["sessions"]
+        if isinstance(sessions, set):
+            sessions.add(session_id)
+    if not grouped:
+        raise AnalyticsError("Umami CSVにページ表示データがありません。")
+    return [
+        {"day": item["day"], "path": item["path"], "views": item["views"], "visitors": len(item["sessions"])}
+        for item in sorted(grouped.values(), key=lambda value: (str(value["day"]), str(value["path"])))
+    ]
+
+
+def parse_import(data: bytes) -> tuple[list[dict[str, object]], str]:
+    """列構成からUmami実データまたは従来の集計済みCSVを判別する。"""
+    _text, columns = _decode_csv(data)
+    if UMAMI_COLUMNS.issubset(columns):
+        return parse_umami_export(data), "umami"
+    return parse_csv(data), "manual"
 
 
 def period(days: int, *, today: date | None = None) -> tuple[date, date, date, date]:

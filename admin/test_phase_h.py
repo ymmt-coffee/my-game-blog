@@ -32,7 +32,7 @@ class PhaseHAnalyticsTests(unittest.TestCase):
         page = self.client.get("/analytics")
         self.assertEqual(page.status_code, 200)
         self.assertIn("閲覧数", page.text)
-        self.assertIn("外部データ取得は未接続", page.text)
+        self.assertIn("Umami Cloudを利用しています", page.text)
         template = self.client.get("/analytics/template.csv")
         self.assertEqual(template.status_code, 200)
         self.assertIn("date,path,views,visitors", template.text)
@@ -78,6 +78,39 @@ class PhaseHAnalyticsTests(unittest.TestCase):
             analytics.parse_csv(duplicate)
         rows = analytics.parse_csv(b"date,path,views,visitors,ip_address\n2026-08-11,/a/,1,1,192.0.2.1\n")
         self.assertNotIn("ip_address", rows[0])
+
+    def test_umami_export_is_aggregated_without_personal_fields(self) -> None:
+        content = (
+            "website_id,session_id,event_type,hostname,url_path,created_at,browser,country\n"
+            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 15:30:00,Chrome,JP\n"
+            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 15:31:00,Chrome,JP\n"
+            "site,session-b,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 16:00:00,Firefox,JP\n"
+            "site,session-b,2,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 16:01:00,Firefox,JP\n"
+        ).encode()
+        rows, source = analytics.parse_import(content)
+        self.assertEqual(source, "umami")
+        self.assertEqual(rows, [{"day": "2026-09-01", "path": "/posts/test/", "views": 3, "visitors": 2}])
+        self.assertNotIn("session_id", rows[0])
+        self.assertNotIn("browser", rows[0])
+        self.assertNotIn("country", rows[0])
+
+    def test_umami_export_upload_uses_umami_source(self) -> None:
+        content = (
+            "website_id,session_id,event_type,hostname,url_path,created_at\n"
+            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/,2026-08-12 12:37:09\n"
+        ).encode()
+        response = self.client.post(
+            "/analytics/import",
+            data={"csrf_token": self.csrf},
+            files={"file": ("website_event.csv", content, "text/csv")},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303, response.text)
+        summary = db.analytics_summary("2026-08-12", "2026-08-12", self.db_path)
+        self.assertEqual(summary["views"], 1)
+        self.assertEqual(summary["visitors"], 1)
+        history = db.recent_analytics_imports(self.db_path)
+        self.assertEqual(history[0]["source"], "umami")
 
     def test_periods_do_not_overlap(self) -> None:
         start, end, previous_start, previous_end = analytics.period(30, today=date(2026, 8, 11))

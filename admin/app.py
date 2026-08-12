@@ -27,6 +27,8 @@ ADMIN_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = ADMIN_ROOT / "static"
 APP_VERSION = (ADMIN_ROOT / "app-version.txt").read_text(encoding="utf-8").strip()
 AI_REVIEW_ENABLED = False
+ANALYTICS_REVIEW_DAY = 1
+ANALYTICS_REVIEW_HOUR = 20
 STATE_LABELS = {
     "draft": "下書き", "review_pending": "校正待ち", "ready": "公開準備完了",
     "scheduled": "予約済み", "published": "公開済み", "archived": "アーカイブ",
@@ -788,9 +790,11 @@ def create_app(
         cells = []
         for day in days:
             event_html = "".join(f'<a class="calendar-event {"scheduled" if item.get("scheduled_at") else "published"}" href="/articles/{item["id"]}/edit"><span>{escape(meta)}</span>{escape(title)}</a>' for item, title, meta in events.get(day, []))
+            if day.day == ANALYTICS_REVIEW_DAY:
+                event_html += f'<a class="calendar-event analytics-review" href="/analytics"><span>{ANALYTICS_REVIEW_HOUR:02d}:00 定期</span>前月アクセス解析レビュー</a>'
             outside = " outside" if view == "month" and day.month != start.month else ""
             cells.append(f'<div class="calendar-day{outside}"><time>{day.day}</time>{event_html}</div>')
-        body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>現在は記事の予約・公開予定を表示します。SNS投稿、発売日、セール終了日は各Phaseの実装後に同じ画面へ追加します。</p></section>'''
+        body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>毎月1日20:00に前月のUmamiデータをエクスポートし、よく読まれた記事と次に書く方向性を確認します。記事の自動決定・自動公開は行いません。</p><p>記事の予約・公開予定も表示します。SNS投稿、発売日、セール終了日は各Phaseの実装後に追加します。</p></section>'''
         return layout("スケジュール", "/schedule", body, request.app.state.csrf_token)
 
     @app.get("/analytics", response_class=HTMLResponse)
@@ -830,9 +834,9 @@ def create_app(
 <section class="card"><h2>日別閲覧数</h2><div class="analytics-chart">{chart_rows}</div></section>
 <section class="card"><h2>よく読まれたページ</h2><div class="table-wrap"><table><thead><tr><th>ページ</th><th>閲覧数</th><th>訪問者数（延べ）</th></tr></thead><tbody>{page_rows}</tbody></table></div></section>
 <section class="card"><h2>確認候補</h2><ul>{suggestion_rows}</ul></section>
-<section class="card analytics-import"><h2>集計済みCSVを取り込む</h2><p class="muted">IPアドレス、Cookie、参照元の生データは取り込みません。日別・ページ別に集計された数値だけを保存します。現在はひな形と同じ形式の手動取込だけに対応しています。</p><form method="post" action="/analytics/import" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="source" value="manual"><label>CSVファイル<input type="file" name="file" accept="text/csv,.csv" required></label><div class="editor-actions"><button class="button" type="submit">取り込む</button><a class="button secondary" href="/analytics/template.csv">ひな形CSV</a></div></form></section>
+<section class="card analytics-import"><h2>アクセス解析CSVを取り込む</h2><p class="muted">Umamiのエクスポートに含まれる <code>website_event.csv</code>、またはひな形と同じ集計済みCSVに対応します。個別のセッションID、端末、地域、参照元などは保存せず、日別・ページ別の表示数と訪問者数だけを保存します。</p><form method="post" action="/analytics/import" enctype="multipart/form-data">{hidden_csrf(request.app.state.csrf_token)}<label>CSVファイル<input type="file" name="file" accept="text/csv,.csv" required></label><div class="editor-actions"><button class="button" type="submit">取り込む</button><a class="button secondary" href="/analytics/template.csv">ひな形CSV</a></div></form></section>
 <section class="card"><h2>取込履歴</h2><div class="table-wrap"><table><tbody>{import_rows}</tbody></table></div></section>
-<section class="card notice"><h2>外部データ取得は未接続です</h2><p>解析サービスと公開サイトの接続、APIによる自動取得、Cookie利用はまだ行っていません。サービス選定と承認後に追加します。</p></section>'''
+<section class="card notice"><h2>Umami Cloudを利用しています</h2><p>公開サイトの計測は有効です。API自動取得は行わず、毎月1日にUmamiから手動でエクスポートした <code>website_event.csv</code> を取り込みます。</p></section>'''
         return layout("アクセス解析", "/analytics", body, request.app.state.csrf_token)
 
     @app.get("/analytics/template.csv", response_class=PlainTextResponse)
@@ -848,15 +852,12 @@ def create_app(
         upload = form.get("file")
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
-            source = str(form.get("source") or "")
-            if source not in analytics.ALLOWED_SOURCES:
-                raise analytics.AnalyticsError("データ元が正しくありません。")
             if not isinstance(upload, StarletteUploadFile) or not upload.filename:
                 raise analytics.AnalyticsError("CSVファイルを選択してください。")
             filename = Path(upload.filename).name
             if not filename.casefold().endswith(".csv"):
                 raise analytics.AnalyticsError("CSVファイルを選択してください。")
-            rows = analytics.parse_csv(await upload.read(analytics.MAX_CSV_BYTES + 1))
+            rows, source = analytics.parse_import(await upload.read(analytics.MAX_CSV_BYTES + 1))
             db.import_analytics_rows(rows, source, filename, db_path)
             db.record_event("analytics_import", "success", "analytics_imported", "解析データを取り込みました。", db_path)
             return RedirectResponse("/analytics?imported=1", status_code=303)

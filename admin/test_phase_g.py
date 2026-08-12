@@ -106,6 +106,17 @@ class PhaseGSchedulingTests(unittest.TestCase):
         self.assertIn("予約", month.text)
         self.assertIn("calendar-grid week", week.text)
 
+    def test_calendar_has_monthly_analytics_review(self) -> None:
+        month = self.client.get("/schedule?view=month&date_value=2026-09-15")
+        week = self.client.get("/schedule?view=week&date_value=2026-09-01")
+        for response in (month, week):
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("20:00 定期", response.text)
+            self.assertIn("前月アクセス解析レビュー", response.text)
+            self.assertIn('class="calendar-event analytics-review" href="/analytics"', response.text)
+        ordinary_week = self.client.get("/schedule?view=week&date_value=2026-09-08")
+        self.assertNotIn("前月アクセス解析レビュー", ordinary_week.text)
+
     def test_due_schedule_publishes_only_matching_snapshot(self) -> None:
         self._reserve()
         past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(timespec="seconds")

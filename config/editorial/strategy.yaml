@@ -73,16 +73,28 @@ article_management:
   overdue_schedule_runs_on_next_admin_start: true
   schedule_failure_behavior: return_to_ready_with_safe_message
   calendar_views: [month, week]
-  calendar_sources_enabled: [article_schedule, article_publish]
+  calendar_sources_enabled: [article_schedule, article_publish, analytics_review]
   calendar_sources_deferred: [social_post, release_date, sale_end]
 
 access_analytics:
-  status: umami_live_tracking_and_privacy_notice_verified
+  status: current_scope_complete_api_deferred
   external_provider: umami_cloud
   public_tracking_enabled: true
   automatic_fetch_enabled: false
+  automatic_fetch_decision: deferred_while_using_umami_hobby_plan
+  primary_review_method: umami_cloud_dashboard
+  manual_csv_import_available: true
+  umami_website_event_import_enabled: true
+  umami_import_storage_fields: [date, normalized_path, views, unique_sessions_per_page_day]
+  umami_import_discarded_fields: [session_id, visit_id, event_id, browser, os, device, location, referrer, performance]
+  recurring_review_schedule: monthly_day_1_20_00_jst
+  recurring_review_label: previous_month_access_analytics_review
+  recurring_review_input: umami_cloud_export
+  recurring_review_use: editorial_direction_support_only
+  recurring_review_auto_select_or_publish: false
   supported_periods_days: [7, 30, 90]
   csv_columns: [date, path, views, visitors]
+  accepted_import_files: [aggregated_csv, umami_website_event_csv]
   stored_granularity: daily_page_aggregate
   raw_personal_data_stored: false
   same_source_day_path_import_behavior: replace
@@ -92,18 +104,17 @@ access_analytics:
   do_not_track_respected: true
   self_exclusion_storage: browser_local_storage
   deferred_providers: [google_analytics, plausible]
-  remaining_work:
-    - implement_safe_api_fetch
-    - map_paths_to_article_titles
-    - add_article_7_day_and_30_day_performance
-    - add_category_and_trend_comparison
-    - preserve_last_good_data_on_fetch_failure
-  completion_requires:
+  deferred_work:
+    - reconsider_api_fetch_only_if_paid_plan_or_need_justifies_it
+    - map_paths_to_article_titles_if_local_analysis_is_resumed
+    - add_article_comparisons_if_local_analysis_is_resumed
+  current_scope_completed:
     - real_tracking_verified
     - self_traffic_excluded
-    - per_article_metrics_visible
     - secrets_not_exposed
     - privacy_notice_confirmed
+    - local_csv_import_available
+    - umami_export_import_verified
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
