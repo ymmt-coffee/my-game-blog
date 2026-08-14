@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, publishing, scheduling
+from admin import analytics, article_templates, articles, db, publishing, scheduling, social
 from admin.article_input import ArticleInput
 
 
@@ -37,7 +37,7 @@ TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLA
 NAV_ITEMS = (
     ("/articles", "記事管理", "Phase F"), ("/schedule", "スケジュール", "Phase G"),
     ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase L"),
-    ("/social", "SNS分析", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
+    ("/social", "X投稿", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
 )
 
@@ -868,9 +868,110 @@ def create_app(
             if isinstance(upload, StarletteUploadFile):
                 await upload.close()
 
+    @app.get("/social", response_class=HTMLResponse)
+    async def social_page(request: Request, created: int = 0) -> str:
+        article_options: list[str] = []
+        for record in db.list_articles(request.app.state.db_path):
+            if str(record.get("state")) != "published" or record.get("file_hash") != record.get("published_file_hash"):
+                continue
+            try:
+                article = articles.read_article(Path(str(record["source_path"])), str(record["id"]), str(record["slug"]))
+                title = str(article.metadata.get("title") or article.slug)
+                article_options.append(f'<option value="{escape(article.article_id)}">{escape(title)}</option>')
+            except articles.ArticleError:
+                continue
+        options = "".join(article_options)
+        draft_rows: list[str] = []
+        status_labels = {"draft": "下書き", "reviewed": "確認済み", "posted": "手動投稿済み"}
+        for item in db.list_social_drafts(request.app.state.db_path):
+            try:
+                article = articles.read_article(Path(str(item["source_path"])), str(item["article_id"]), str(item["slug"]))
+                title = str(article.metadata.get("title") or item["slug"])
+                changed = article.file_hash != str(item["article_file_hash"])
+            except articles.ArticleError:
+                title, changed = str(item["slug"]), True
+            draft_id, status = str(item["id"]), str(item["status"])
+            changed_notice = '<p class="flash error">記事が変更されています。この記事から新しい投稿案を作成してください。</p>' if changed and status != "posted" else ""
+            if status == "draft":
+                next_action = f'''<form method="post" action="/social/drafts/{escape(draft_id)}/review">{hidden_csrf(request.app.state.csrf_token)}<button class="button" type="submit" {'disabled' if changed else ''}>内容を確認済みにする</button></form>'''
+            elif status == "reviewed":
+                next_action = f'''<form class="social-posted-form x-only" method="post" action="/social/drafts/{escape(draft_id)}/posted">{hidden_csrf(request.app.state.csrf_token)}<label>Xの投稿URL（任意）<input name="posted_url" type="url" maxlength="500" placeholder="https://x.com/..."></label><button class="button" type="submit" {'disabled' if changed else ''}>Xへ投稿済みにする</button></form>'''
+            else:
+                platform, posted_url = escape(str(item.get("platform") or social.PLATFORM)), str(item.get("posted_url") or "")
+                link = f' · <a class="text-link" href="{escape(posted_url)}" target="_blank" rel="noopener">投稿を開く</a>' if posted_url else ""
+                next_action = f'<p class="muted">{platform}へ手動投稿した記録があります{link}</p>'
+            draft_rows.append(f'''<section class="card social-draft"><div class="section-head"><div><h2>{escape(title)}</h2><span class="state">{status_labels.get(status, escape(status))}</span></div><button class="button secondary" type="button" data-copy-social="social-{escape(draft_id)}">コピー</button></div>{changed_notice}<form method="post" action="/social/drafts/{escape(draft_id)}/save">{hidden_csrf(request.app.state.csrf_token)}<label>投稿文<textarea id="social-{escape(draft_id)}" name="message" rows="6" maxlength="{social.MAX_MESSAGE_LENGTH}" {'readonly' if status == 'posted' else ''}>{escape(str(item['message']))}</textarea></label>{'' if status == 'posted' else '<button class="button secondary" type="submit">投稿案を保存</button>'}</form>{next_action}</section>''')
+        draft_html = "".join(draft_rows) or '<section class="card empty"><h2>投稿案はまだありません</h2></section>'
+        flash = '<div class="flash">X投稿案を作成しました。</div>' if created else ""
+        if options:
+            create_form = f'<form method="post" action="/social/drafts">{hidden_csrf(request.app.state.csrf_token)}<label>公開記事<select name="article_id" required>{options}</select></label><button class="button" type="submit">投稿案を作る</button></form>'
+        else:
+            create_form = '<p>投稿案を作成できる公開済み記事はありません。</p>'
+        body = f'''{flash}<section class="card notice"><h2>当面はXだけで運用します</h2><p>投稿案の作成、内容確認、Xへの手動投稿記録までをPC内で管理します。X APIによる予約投稿・結果取得・自動投稿は保留しています。</p></section><section class="card social-create"><h2>公開記事からX投稿案を作る</h2><p class="muted">記事タイトル・概要・URLから案を作ります。Xへの送信は行いません。最終的な文字数はXの投稿画面でも確認してください。</p>{create_form}</section><div class="social-list">{draft_html}</div>'''
+        return layout("X投稿", "/social", body, request.app.state.csrf_token, "/static/social.js")
+
+    def social_error(request: Request, message: str) -> HTMLResponse:
+        body = f'<section class="card error-card"><h2>処理を停止しました</h2><p>{escape(message)}</p><a class="button secondary" href="/social">SNSへ戻る</a></section>'
+        return HTMLResponse(layout("安全停止", "/social", body, request.app.state.csrf_token), status_code=400)
+
+    def require_current_social_article(draft: dict[str, object], request: Request) -> None:
+        record, article = load_record(str(draft["article_id"]), request)
+        if article.file_hash != str(draft["article_file_hash"]) or str(record["state"]) != "published":
+            raise social.SocialError("記事が変更されています。この記事から新しい投稿案を作成してください。")
+
+    @app.post("/social/drafts")
+    async def social_create(request: Request):
+        try:
+            form = await request.form(); require_csrf(request, str(form.get("csrf_token") or ""))
+            article_id = str(form.get("article_id") or "")
+            record, article = load_record(article_id, request)
+            if str(record["state"]) != "published" or record.get("published_file_hash") != article.file_hash:
+                raise social.SocialError("公開中の内容と一致する記事だけから投稿案を作成できます。")
+            message = social.generate_message(str(article.metadata.get("title") or article.slug), str(article.metadata.get("description") or ""), article.slug)
+            db.create_social_draft(uuid.uuid4().hex, article_id, article.file_hash, message, request.app.state.db_path)
+            return RedirectResponse("/social?created=1", status_code=303)
+        except (articles.ArticleError, social.SocialError, RuntimeError) as exc:
+            return social_error(request, str(exc))
+
+    @app.post("/social/drafts/{draft_id}/save")
+    async def social_save(draft_id: str, request: Request):
+        try:
+            form = await request.form(); require_csrf(request, str(form.get("csrf_token") or ""))
+            draft = db.get_social_draft(draft_id, request.app.state.db_path)
+            if draft is None or str(draft["status"]) == "posted":
+                raise social.SocialError("編集できるSNS投稿案が見つかりません。")
+            db.update_social_draft(draft_id, social.validate_message(str(form.get("message") or "")), request.app.state.db_path)
+            return RedirectResponse("/social", status_code=303)
+        except (articles.ArticleError, social.SocialError, RuntimeError) as exc:
+            return social_error(request, str(exc))
+
+    @app.post("/social/drafts/{draft_id}/review")
+    async def social_review(draft_id: str, request: Request):
+        try:
+            form = await request.form(); require_csrf(request, str(form.get("csrf_token") or ""))
+            draft = db.get_social_draft(draft_id, request.app.state.db_path)
+            if draft is None: raise social.SocialError("SNS投稿案が見つかりません。")
+            require_current_social_article(draft, request)
+            db.review_social_draft(draft_id, request.app.state.db_path)
+            return RedirectResponse("/social", status_code=303)
+        except (articles.ArticleError, social.SocialError, RuntimeError) as exc:
+            return social_error(request, str(exc))
+
+    @app.post("/social/drafts/{draft_id}/posted")
+    async def social_posted(draft_id: str, request: Request):
+        try:
+            form = await request.form(); require_csrf(request, str(form.get("csrf_token") or ""))
+            draft = db.get_social_draft(draft_id, request.app.state.db_path)
+            if draft is None: raise social.SocialError("SNS投稿案が見つかりません。")
+            require_current_social_article(draft, request)
+            db.mark_social_draft_posted(draft_id, social.PLATFORM, social.validate_posted_url(str(form.get("posted_url") or "")), request.app.state.db_path)
+            return RedirectResponse("/social", status_code=303)
+        except (articles.ArticleError, social.SocialError, RuntimeError) as exc:
+            return social_error(request, str(exc))
+
     descriptions = {
         "/editorial": "AI編集部は後続Phaseで実装します。",
-        "/releases": "新作・セール情報は後続Phaseで実装します。", "/social": "SNS連携は後続Phaseで実装します。",
+        "/releases": "新作・セール情報は後続Phaseで実装します。",
     }
     for path, label, phase in NAV_ITEMS:
         if path in descriptions:
@@ -924,7 +1025,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "H", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "I", "version": APP_VERSION}
 
     return app
 

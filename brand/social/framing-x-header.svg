@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500">
+  <rect width="1500" height="500" fill="#171717"/>
+  <g stroke="#2D2D2D" stroke-width="2">
+    <line x1="0" y1="125" x2="1500" y2="125"/>
+    <line x1="0" y1="375" x2="1500" y2="375"/>
+    <line x1="500" y1="0" x2="500" y2="500"/>
+    <line x1="1000" y1="0" x2="1000" y2="500"/>
+  </g>
+  <g fill="none" stroke="#747474" stroke-width="4" stroke-linecap="square">
+    <path d="M430 155V100H485"/>
+    <path d="M1015 100H1070V155"/>
+    <path d="M1070 345V400H1015"/>
+    <path d="M485 400H430V345"/>
+  </g>
+  <text x="750" y="285" fill="#F7F7F5" font-family="Noto Sans JP, sans-serif" font-size="88" font-weight="600" letter-spacing="14" text-anchor="middle">FRAMING</text>
+</svg>

@@ -1,5 +1,5 @@
-version: 5
-updated_at: "2026-08-11"
+version: 6
+updated_at: "2026-08-14"
 
 direction:
   primary_interface: local_admin_web_app
@@ -10,8 +10,8 @@ direction:
   discord_enabled: false
 
 current:
-  phase: local_access_analytics
-  phase_status: completed
+  phase: social_draft_and_approval
+  phase_status: local_manual_scope_completed_external_scope_deferred
   retained:
     - hugo_blog
     - article_page_bundles
@@ -116,6 +116,21 @@ access_analytics:
     - local_csv_import_available
     - umami_export_import_verified
 
+social:
+  status: local_manual_scope_complete_external_scope_deferred
+  primary_platform: x
+  bluesky_status: not_used_for_now
+  external_posting_enabled: false
+  current_operations: [generate_from_published_article, edit, copy, review, record_manual_post]
+  source_article_requirement: published_and_matches_live_version
+  generated_fields: [title, description, public_article_url]
+  storage: sqlite_local_state_only
+  article_change_behavior: block_review_and_manual_post_record
+  manual_post_platform: x_fixed
+  manual_post_url_optional: true
+  draft_raw_character_limit: 280
+  deferred_work: [x_api_evaluation, scheduling, result_fetch, automation, calendar_integration]
+
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
   approved_at: "2026-08-09"
@@ -147,7 +162,7 @@ admin_app:
   state_database: var/admin/admin.sqlite3
   article_operations_enabled: true
   publish_operations_enabled: true
-  schema_version: 4
+  schema_version: 7
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk

@@ -22,6 +22,7 @@
 15. `site-refactoring-report.md` - Phase A〜F完成後の構成整理、共通化、挙動維持の検証記録
 16. `phase-g-scheduling-report.md` - 記事の予約公開、失敗時の安全停止、月・週カレンダーの実装報告
 17. `phase-h-analytics-report.md` - Umami計測、手動エクスポート取込、期間比較、月次レビュー、安全な保留境界の実装報告
+18. `phase-i-social-report.md` - X投稿案、確認、コピー、手動投稿記録と、X API連携の保留境界の実装報告
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 

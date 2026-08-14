@@ -125,6 +125,22 @@ CREATE TABLE IF NOT EXISTS analytics_imports (
 );
 """
 
+SCHEMA_V7 = """
+CREATE TABLE IF NOT EXISTS social_drafts (
+    id TEXT PRIMARY KEY,
+    article_id TEXT NOT NULL REFERENCES articles(id),
+    article_file_hash TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('draft','reviewed','posted')),
+    platform TEXT,
+    posted_url TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    posted_at TEXT
+);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -190,6 +206,11 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (6, utc_now()),
+        )
+        connection.executescript(SCHEMA_V7)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (7, utc_now()),
         )
         connection.commit()
 
@@ -278,6 +299,77 @@ def recent_analytics_imports(db_path: Path = DEFAULT_DB_PATH, limit: int = 10) -
             "SELECT * FROM analytics_imports ORDER BY id DESC LIMIT ?", (min(max(limit, 1), 50),)
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def create_social_draft(
+    draft_id: str, article_id: str, article_file_hash: str, message: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO social_drafts
+               (id,article_id,article_file_hash,message,status,created_at,updated_at)
+               VALUES (?,?,?,?,'draft',?,?)""",
+            (draft_id, article_id, article_file_hash, message, now, now),
+        )
+        connection.commit()
+
+
+def list_social_drafts(db_path: Path = DEFAULT_DB_PATH) -> list[dict[str, object]]:
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            """SELECT social_drafts.*,articles.slug,articles.source_path
+               FROM social_drafts JOIN articles ON articles.id=social_drafts.article_id
+               ORDER BY social_drafts.updated_at DESC"""
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_social_draft(draft_id: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object] | None:
+    with closing(connect(db_path)) as connection:
+        row = connection.execute("SELECT * FROM social_drafts WHERE id=?", (draft_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_social_draft(draft_id: str, message: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE social_drafts SET message=?,status='draft',reviewed_at=NULL,
+               platform=NULL,posted_url=NULL,posted_at=NULL,updated_at=? WHERE id=?""",
+            (message, utc_now(), draft_id),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("SNS投稿案が見つかりません。")
+        connection.commit()
+
+
+def review_social_draft(draft_id: str, db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            "UPDATE social_drafts SET status='reviewed',reviewed_at=?,updated_at=? WHERE id=? AND status='draft'",
+            (now, now, draft_id),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("下書き状態のSNS投稿案が見つかりません。")
+        connection.commit()
+
+
+def mark_social_draft_posted(
+    draft_id: str, platform: str, posted_url: str | None,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE social_drafts SET status='posted',platform=?,posted_url=?,posted_at=?,updated_at=?
+               WHERE id=? AND status='reviewed'""",
+            (platform, posted_url, now, now, draft_id),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("確認済みのSNS投稿案が見つかりません。")
+        connection.commit()
 
 
 def create_article(

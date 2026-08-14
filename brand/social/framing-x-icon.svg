@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <rect width="800" height="800" fill="#171717"/>
+  <g fill="none" stroke="#747474" stroke-width="8" stroke-linecap="square">
+    <path d="M170 280V170H280"/>
+    <path d="M520 170H630V280"/>
+    <path d="M630 520V630H520"/>
+    <path d="M280 630H170V520"/>
+  </g>
+  <line x1="142" y1="400" x2="658" y2="400" stroke="#303030" stroke-width="2"/>
+  <line x1="400" y1="142" x2="400" y2="658" stroke="#303030" stroke-width="2"/>
+  <text x="400" y="522" fill="#F7F7F5" font-family="Noto Sans JP, sans-serif" font-size="340" font-weight="700" text-anchor="middle">F</text>
+</svg>
