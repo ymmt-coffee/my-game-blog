@@ -10,6 +10,7 @@
 - 月次保持候補は検証後にdry-run記録だけを作り、未承認の実削除はしない
 - Discord通知は停止済み
 - 失敗は `%LOCALAPPDATA%\my-game-blog\phase4-backup` の非公開状態記録へ残す
+- 管理画面DBはバックアップ直前にSQLiteの整合性を確認し、`my-game-blog/backup-source/admin/admin.sqlite3` へ安全な複製を作ってから暗号化対象へ含める
 
 ## 状態確認
 
@@ -23,6 +24,8 @@ Get-ScheduledTask -TaskName "my-game-blog Phase4 Daily Backup","my-game-blog Pha
 .\tools\backup\run_phase4_backup.ps1 -Mode Plan
 ```
 
+計画確認ではDB複製を作らない。実際の日次・月次バックアップでは、使用中のDBを直接コピーせず、SQLiteの標準バックアップ機能で一貫した複製を原子的に作る。複製元が壊れている、または複製元がないのに古い複製だけ残っている場合は、古い内容を現在のバックアップとして扱わず処理全体を停止する。`backup-source/` はGit対象外である。
+
 ## 安全策
 
 - rclone設定とOAuth tokenをリポジトリ、ログ、チャットへ表示しない。
@@ -31,9 +34,12 @@ Get-ScheduledTask -TaskName "my-game-blog Phase4 Daily Backup","my-game-blog Pha
 - 元ファイルが処理中に変化した場合は成功扱いにしない。
 - Google Driveの安全な空き容量を残せない場合は停止する。
 - 復元先に現在の `Life_and_Div` を直接指定しない。
+- DB複製の作成前後と復元後にSQLiteの整合性検査を通す。
 
 ## 復元
 
 まず別の一時フォルダへ復元し、ファイル数、ハッシュ、内容を確認する。現在の原稿への置換は、対象一覧と影響を確認し、ユーザーの明示承認後に行う。
+
+管理画面DBも最初に別の復元確認用フォルダへ取り出す。`sqlite_snapshot.py restore` は稼働中DBと同じフォルダへの復元を拒否する。復元確認用DBが開けることと整合性を確認し、管理画面を停止した後、対象と退避先を確認してから明示承認の範囲で切り替える。
 
 認証情報、暗号化パスワード、復旧情報の値は、この文書やGitへ保存しない。

@@ -1,4 +1,4 @@
-version: 6
+version: 7
 updated_at: "2026-08-14"
 
 direction:
@@ -10,8 +10,8 @@ direction:
   discord_enabled: false
 
 current:
-  phase: social_draft_and_approval
-  phase_status: local_manual_scope_completed_external_scope_deferred
+  phase: shared_game_information
+  phase_status: shared_storage_foundation_implemented_trial_pending
   retained:
     - hugo_blog
     - article_page_bundles
@@ -131,6 +131,91 @@ social:
   draft_raw_character_limit: 280
   deferred_work: [x_api_evaluation, scheduling, result_fetch, automation, calendar_integration]
 
+game_discovery:
+  design_approved_at: "2026-08-14"
+  design_document: docs/phase-j-shared-game-information-design.md
+  target_store: steam
+  target_region: japan
+  target_currency: JPY
+  japanese_support_required: interface_or_subtitles
+  single_player_required: true
+  excluded: [horror_primary, multiplayer_only, coop_only, dlc, soundtrack, virtual_currency, demo, adult_only, software, video, unavailable_in_japan]
+  early_access_allowed: true
+  free_to_play_allowed: true
+  sources: [automaton, four_gamer, game_spark, steam]
+  source_readiness:
+    four_gamer: official_rss_confirmed
+    automaton: acquisition_method_confirmation_pending
+    game_spark: acquisition_method_confirmation_pending
+    steam_store: public_japan_response_parser_ready
+  apify_actor: fetch_cat/steam-store-games-scraper
+  apify_actor_trial:
+    tested_at: "2026-08-15"
+    result_items: 3
+    cost_usd: 0.005
+    result: api_and_json_passed_console_preview_failed
+    role: discovery_and_basic_metadata_only
+  candidate_trial:
+    implementation: real_run_completed
+    discovery: steam_public_new_releases_5_and_sales_5
+    enrichment: [apify, steam_japan_details]
+    manual_confirmation_required: true
+    recurring_enabled: false
+  candidate_decisions_enabled: true
+  steam_credentials_setup_helper: admin/set-steam-credentials.cmd
+  steam_owned_sync_status: deferred_waiting_for_steam_guard_and_credentials
+  credential_environment_names:
+    apify_token: APIFY_API_TOKEN
+    steam_web_api_key: STEAM_WEB_API_KEY
+    steam_id64: STEAM_ID64
+  overseas_media_initially_enabled: false
+  recurring_schedule: thursday_08_00_jst
+  overdue_run_on_next_admin_start: true
+  rss_candidate_limit: 30
+  steam_direct_candidate_limit: 20
+  steam_direct_new_limit: 10
+  steam_direct_sale_limit: 10
+  apify_per_run_item_limit: 50
+  apify_trial_item_limit: 10
+  apify_connection_check_item_limit: 3
+  apify_monthly_stop_usd: 4
+  gemini_scope: top_candidates_explanation_only
+  gemini_paid_usage_enabled: false
+  first_run_history_days: 7
+  catchup_history_days_max: 14
+  release_window_days_before: 30
+  release_window_days_after: 14
+  normal_sale_discount_percent_min: 20
+  sale_remaining_hours_preferred_min: 72
+  candidate_counts:
+    editorial_top: 3
+    new_release: 5
+    sale_or_free: 5
+  score_weights_initial:
+    personal_interest: 35
+    media_momentum: 25
+    steam_reviews: 15
+    price_and_discount: 15
+    editorial_diversity: 10
+  analytics_scoring_activation:
+    published_articles_min: 10
+    views_90_days_min: 100
+    weight_percent_after_activation: 10
+  monthly_budget_jpy: 10000
+  exceptional_monthly_budget_jpy: 20000
+  decision_states: [play_candidate, article_candidate, hold, not_interested]
+  automatic_purchase: false
+  automatic_article_draft: false
+  automatic_publish: false
+  automatic_social_post: false
+  source_history_retention_days: 365
+  execution_log_retention_days: 90
+  user_decision_retention: unlimited
+  trial_required_before_recurring_enable: true
+  sqlite_backup_snapshot: backup-source/admin/admin.sqlite3
+  sqlite_backup_snapshot_verified_locally: true
+  encrypted_remote_backup_with_phase_j_data_verified: false
+
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
   approved_at: "2026-08-09"
@@ -162,7 +247,7 @@ admin_app:
   state_database: var/admin/admin.sqlite3
   article_operations_enabled: true
   publish_operations_enabled: true
-  schema_version: 7
+  schema_version: 8
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk
@@ -253,10 +338,10 @@ roadmap_order:
   - calendar
   - analytics
   - social_draft_and_approval
-  - social_automation
   - shared_game_information
   - ai_editorial
   - release_and_sale
+  - social_automation_deferred
 
 safety:
   ai_may_modify_article_body: false

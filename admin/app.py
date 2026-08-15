@@ -19,12 +19,13 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, publishing, scheduling, social
+from admin import analytics, article_templates, articles, db, game_collection, game_information, publishing, scheduling, social
 from admin.article_input import ArticleInput
 
 
 ADMIN_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = ADMIN_ROOT / "static"
+ADMIN_DB_SNAPSHOT = ADMIN_ROOT.parent / "backup-source" / "admin" / "admin.sqlite3"
 APP_VERSION = (ADMIN_ROOT / "app-version.txt").read_text(encoding="utf-8").strip()
 AI_REVIEW_ENABLED = False
 ANALYTICS_REVIEW_DAY = 1
@@ -36,7 +37,7 @@ STATE_LABELS = {
 TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLATES.items()}
 NAV_ITEMS = (
     ("/articles", "記事管理", "Phase F"), ("/schedule", "スケジュール", "Phase G"),
-    ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase L"),
+    ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase J"),
     ("/social", "X投稿", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
 )
@@ -969,9 +970,171 @@ def create_app(
         except (articles.ArticleError, social.SocialError, RuntimeError) as exc:
             return social_error(request, str(exc))
 
+    @app.get("/releases", response_class=HTMLResponse)
+    async def releases_page(request: Request) -> str:
+        summary = db.game_information_summary(request.app.state.db_path)
+        readiness = game_collection.collection_readiness()
+        decision_labels = {
+            "play_candidate": "プレイ候補", "article_candidate": "記事候補",
+            "hold": "保留", "not_interested": "興味なし",
+        }
+        candidate_row_parts: list[str] = []
+        for item in db.list_game_candidates(request.app.state.db_path):
+            options = "".join(
+                f'<option value="{value}"{" selected" if item.get("latest_decision") == value else ""}>{label}</option>'
+                for value, label in decision_labels.items()
+            )
+            if not item.get("latest_decision"):
+                options = '<option value="" disabled hidden selected>選択</option>' + options
+            kind_label = "新作" if item["candidate_kind"] == "new_release" else (
+                "セール" if item["candidate_kind"] == "sale" else escape(str(item["candidate_kind"]))
+            )
+            status_label = "候補" if item["status"] == "active" else (
+                "要確認" if item["status"] == "unconfirmed" else "除外"
+            )
+            candidate_row_parts.append(
+                f'<tr><td><a href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener">{escape(str(item["title"]))}</a></td>'
+                f'<td>{kind_label}</td><td>{status_label}</td><td>{item["total_score"]}</td>'
+                f'<td>{escape(str(item.get("exclusion_reason") or ""))}</td>'
+                f'<td>{escape(decision_labels.get(str(item.get("latest_decision") or ""), "未判断"))}</td>'
+                f'<td><form class="candidate-decision-form" method="post" action="/releases/candidates/{item["steam_app_id"]}/decision">'
+                f'{hidden_csrf(request.app.state.csrf_token)}<select name="decision" aria-label="候補の判断">{options}</select>'
+                '<button class="button secondary" type="submit">記録</button></form></td></tr>'
+            )
+        candidate_rows = "".join(candidate_row_parts) or '<tr><td colspan="7" class="muted">試運転前のため候補はありません。</td></tr>'
+        last_run = summary["last_run"]
+        if isinstance(last_run, dict):
+            run_text = (
+                f"{escape(str(last_run['started_at'])[:16])} · "
+                f"{escape(str(last_run['status']))} · {escape(str(last_run['safe_message']))}"
+            )
+        else:
+            run_text = "まだ実行していません。"
+        trial_notice = '<section class="notice success">Apify APIの3件接続確認が完了しました。</section>' if request.query_params.get("trial") == "success" else ""
+        if request.query_params.get("candidate_trial") == "success":
+            trial_notice = '<section class="notice success">最大10件の候補試運転が完了しました。</section>'
+        trial_control = (
+            f'<form method="post" action="/releases/apify-trial">{hidden_csrf(request.app.state.csrf_token)}'
+            '<button class="button" type="submit">3件でAPI接続を確認</button></form>'
+            if readiness.trial_ready else
+            '<button class="button" type="button" disabled>APIトークン設定後に接続確認</button>'
+        )
+        candidate_trial_control = (
+            f'<form method="post" action="/releases/candidate-trial">{hidden_csrf(request.app.state.csrf_token)}'
+            '<button class="button" type="submit">最大10件で候補試運転</button></form>'
+            if readiness.trial_ready else ""
+        )
+        body = f'''{trial_notice}<section class="analytics-metrics game-metrics">
+<article class="card"><span>ゲーム</span><strong>{summary['games']}</strong></article>
+<article class="card"><span>有効候補</span><strong>{summary['candidates']}</strong></article>
+<article class="card"><span>未確認</span><strong>{summary['unconfirmed']}</strong></article>
+<article class="card"><span>情報源 / 価格履歴</span><strong>{summary['sources']} / {summary['prices']}</strong></article></section>
+<section class="card"><h2>収集準備</h2><p class="ok">RSSとSteam日本向け情報を最大10件で検査する処理は準備できています。</p>
+<dl class="readiness-list"><dt>4Gamer公式RSS</dt><dd>取得方法確認済み</dd><dt>AUTOMATON / Game*Spark</dt><dd>正式な取得方法を確認中</dd><dt>Apify APIトークン</dt><dd>{'設定済み' if readiness.apify_token else '未設定'}</dd><dt>採用Actor</dt><dd>{escape(game_collection.APIFY_ACTOR_ID)}</dd><dt>Steam所有情報</dt><dd>{'設定済み' if readiness.ownership_sync_ready else 'APIキーとSteam IDが未設定'}</dd></dl>
+<p class="muted">秘密情報の値は画面・DB・ログへ保存しません。接続確認は固定3件、正式な試運転は最大10件で停止します。</p><div class="button-row">{trial_control}{candidate_trial_control}</div></section>
+<section class="card"><h2>最終収集</h2><p>{run_text}</p></section>
+<section class="card"><h2>候補</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>種類</th><th>状態</th><th>点数</th><th>除外・確認理由</th><th>判断</th><th>操作</th></tr></thead><tbody>{candidate_rows}</tbody></table></div></section>'''
+        return layout("リリース・セール情報", "/releases", body, request.app.state.csrf_token)
+
+    @app.post("/releases/apify-trial")
+    async def run_releases_apify_trial(request: Request):
+        form = await request.form()
+        run_id = uuid.uuid4().hex
+        started = False
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            token = game_collection.apify_api_token()
+            if not token:
+                raise game_information.GameInformationError("Apify APIトークンが管理画面へ反映されていません。設定後に管理画面を起動し直してください。")
+            last_run = db.game_information_summary(request.app.state.db_path).get("last_run")
+            if isinstance(last_run, dict) and last_run.get("run_kind") == "trial":
+                started_at = datetime.fromisoformat(str(last_run["started_at"]))
+                if datetime.now(timezone.utc) - started_at < timedelta(hours=24):
+                    raise game_information.GameInformationError("前回の試運転から24時間以内のため、再実行を停止しました。")
+            db.start_game_collection_run(run_id, "trial", len(game_collection.APIFY_TRIAL_APP_IDS), request.app.state.db_path)
+            started = True
+            observations = await asyncio.to_thread(game_collection.run_apify_trial, token)
+            for game, price in observations:
+                source = game_information.SourceRecord(
+                    source_kind="steam", source_name="Apify Steam Store Games Scraper",
+                    url=str(game["store_url"]), article_title=str(game["title"]),
+                    candidate_reason="API接続確認用の固定ゲーム", discovered_at=str(game.get("verified_at") or db.utc_now()),
+                ).validated()
+                db.save_game_observation(game, source, price, request.app.state.db_path)
+            complete = len(observations) == len(game_collection.APIFY_TRIAL_APP_IDS)
+            db.finish_game_collection_run(
+                run_id, "success" if complete else "partial",
+                "Apify APIの接続確認を完了しました。" if complete else "一部のゲームだけ確認できました。",
+                items_discovered=len(observations), items_stored=len(observations),
+                apify_items=len(observations), db_path=request.app.state.db_path,
+            )
+            return RedirectResponse("/releases?trial=success", status_code=303)
+        except game_information.GameInformationError as exc:
+            if started:
+                try:
+                    db.finish_game_collection_run(run_id, "failure", str(exc), db_path=request.app.state.db_path)
+                except RuntimeError:
+                    pass
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/releases/candidate-trial")
+    async def run_releases_candidate_trial(request: Request):
+        form = await request.form()
+        run_id = uuid.uuid4().hex
+        started = False
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            token = game_collection.apify_api_token()
+            if not token:
+                raise game_information.GameInformationError("Apify APIトークンが管理画面へ反映されていません。")
+            last_run = db.game_information_summary(request.app.state.db_path).get("last_run")
+            if (isinstance(last_run, dict) and last_run.get("run_kind") == "trial"
+                    and int(last_run.get("item_limit") or 0) == game_collection.TRIAL_ITEM_LIMIT):
+                started_at = datetime.fromisoformat(str(last_run["started_at"]))
+                if datetime.now(timezone.utc) - started_at < timedelta(hours=24):
+                    raise game_information.GameInformationError("前回の候補試運転から24時間以内のため、再実行を停止しました。")
+            db.start_game_collection_run(run_id, "trial", game_collection.TRIAL_ITEM_LIMIT, request.app.state.db_path)
+            started = True
+            result = await asyncio.to_thread(game_collection.run_candidate_trial, token)
+            for item in result.items:
+                source = game_information.SourceRecord(
+                    source_kind="steam", source_name="Steam公開一覧 / Apify",
+                    url=str(item.game["store_url"]), article_title=str(item.game["title"]),
+                    candidate_reason="Steamの新作・セール公開一覧から発見",
+                    discovered_at=str(item.game.get("verified_at") or db.utc_now()),
+                ).validated()
+                db.save_game_observation(item.game, source, item.price, request.app.state.db_path)
+                db.save_game_candidate(item.candidate, request.app.state.db_path)
+            db.finish_game_collection_run(
+                run_id, "success" if len(result.items) == game_collection.TRIAL_ITEM_LIMIT else "partial",
+                f"最大10件の候補試運転を完了し、{len(result.items)}件を保存しました。",
+                items_discovered=len(result.items), items_stored=len(result.items),
+                apify_items=result.apify_items,
+                db_path=request.app.state.db_path,
+            )
+            return RedirectResponse("/releases?candidate_trial=success", status_code=303)
+        except game_information.GameInformationError as exc:
+            if started:
+                try:
+                    db.finish_game_collection_run(run_id, "failure", str(exc), db_path=request.app.state.db_path)
+                except RuntimeError:
+                    pass
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/releases/candidates/{steam_app_id}/decision")
+    async def save_release_candidate_decision(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            db.record_game_decision(
+                steam_app_id, str(form.get("decision") or ""), db_path=request.app.state.db_path,
+            )
+            return RedirectResponse("/releases", status_code=303)
+        except ValueError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
     descriptions = {
-        "/editorial": "AI編集部は後続Phaseで実装します。",
-        "/releases": "新作・セール情報は後続Phaseで実装します。",
+        "/editorial": "共通情報基盤の試運転後に、候補3本と推薦理由を表示します。",
     }
     for path, label, phase in NAV_ITEMS:
         if path in descriptions:
@@ -1001,8 +1164,10 @@ def create_app(
         deleted_table = "".join(deleted_rows) or '<tr><td colspan="3">削除した記事はありません。</td></tr>'
         public_only = publishing.public_only_slugs(content_root, request.app.state.public_posts)
         public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase H（ローカル解析）有効</dd></dl></article>
-<article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
+        game_summary = db.game_information_summary(db_path)
+        snapshot_status = "準備済み" if ADMIN_DB_SNAPSHOT.is_file() else "次回バックアップ時に作成"
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase J（共通情報基盤）</dd><dt>ゲーム情報</dt><dd>{game_summary['games']}件</dd><dt>DBバックアップ</dt><dd>{snapshot_status}</dd></dl></article>
+<article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p><p class="muted">DBの安全な複製は日次・月次バックアップの直前に更新します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
 
@@ -1025,7 +1190,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "I", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "J", "version": APP_VERSION}
 
     return app
 

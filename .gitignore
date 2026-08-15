@@ -1,5 +1,6 @@
 # Generated output and temporary files
 /var/
+/backup-source/
 /blog/.hugo_build.lock
 
 # OS

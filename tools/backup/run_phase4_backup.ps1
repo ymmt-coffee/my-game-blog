@@ -17,6 +17,9 @@ $RunId = [Guid]::NewGuid().ToString("N")
 $RcloneExe = Join-Path $env:LOCALAPPDATA "Programs\rclone\rclone.exe"
 $PasswordReader = Join-Path $PSScriptRoot "get_rclone_config_password.ps1"
 $PasswordCommand = "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PasswordReader`""
+$AdminDbPath = Join-Path $ProjectRoot "var\admin\admin.sqlite3"
+$AdminSnapshotPath = Join-Path $ProjectRoot "backup-source\admin\admin.sqlite3"
+$SqliteSnapshotTool = Join-Path $PSScriptRoot "sqlite_snapshot.py"
 
 function Invoke-Rclone([string[]]$Arguments) {
     $PreviousPreference = $ErrorActionPreference
@@ -56,6 +59,10 @@ try {
 
 $FailureKind = "configuration"
 try {
+    $FailureKind = "sqlite_snapshot"
+    $SnapshotResult = python $SqliteSnapshotTool create --source $AdminDbPath --output $AdminSnapshotPath
+    if ($LASTEXITCODE -ne 0) { throw "Could not create a safe admin database snapshot." }
+
     $Destination = if ($Mode -eq "Monthly") {
         $FilterPath = $MonthlyFilterPath
         $Month = Get-Date -Format "yyyy-MM"

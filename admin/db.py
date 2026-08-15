@@ -141,6 +141,106 @@ CREATE TABLE IF NOT EXISTS social_drafts (
 );
 """
 
+SCHEMA_V8 = """
+CREATE TABLE IF NOT EXISTS games (
+    steam_app_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    developer TEXT,
+    publisher TEXT,
+    store_url TEXT NOT NULL,
+    official_url TEXT,
+    release_date TEXT,
+    japan_availability TEXT NOT NULL CHECK (japan_availability IN ('unknown','available','unavailable')),
+    japanese_support TEXT NOT NULL CHECK (japanese_support IN ('unknown','confirmed','planned','none')),
+    single_player TEXT NOT NULL CHECK (single_player IN ('unknown','yes','no')),
+    early_access INTEGER NOT NULL CHECK (early_access IN (0,1)),
+    free_to_play INTEGER NOT NULL CHECK (free_to_play IN (0,1)),
+    review_status TEXT,
+    review_percent INTEGER CHECK (review_percent IS NULL OR review_percent BETWEEN 0 AND 100),
+    review_count INTEGER CHECK (review_count IS NULL OR review_count >= 0),
+    owned INTEGER NOT NULL DEFAULT 0 CHECK (owned IN (0,1)),
+    wishlisted INTEGER NOT NULL DEFAULT 0 CHECK (wishlisted IN (0,1)),
+    steam_synced_at TEXT,
+    verified_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    source_kind TEXT NOT NULL CHECK (source_kind IN ('rss','steam','official','manual')),
+    source_name TEXT NOT NULL,
+    article_title TEXT,
+    url TEXT NOT NULL,
+    published_at TEXT,
+    summary TEXT,
+    candidate_reason TEXT,
+    discovered_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, url)
+);
+
+CREATE TABLE IF NOT EXISTS game_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    currency TEXT NOT NULL,
+    regular_price INTEGER CHECK (regular_price IS NULL OR regular_price >= 0),
+    current_price INTEGER CHECK (current_price IS NULL OR current_price >= 0),
+    discount_percent INTEGER CHECK (discount_percent IS NULL OR discount_percent BETWEEN 0 AND 100),
+    sale_ends_at TEXT,
+    source_url TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, observed_at)
+);
+
+CREATE TABLE IF NOT EXISTS game_candidates (
+    id TEXT PRIMARY KEY,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    cycle_key TEXT NOT NULL,
+    candidate_kind TEXT NOT NULL CHECK (candidate_kind IN ('editorial','new_release','sale','free','manual')),
+    status TEXT NOT NULL CHECK (status IN ('active','unconfirmed','excluded')),
+    total_score INTEGER NOT NULL CHECK (total_score BETWEEN 0 AND 100),
+    interest_score INTEGER NOT NULL CHECK (interest_score BETWEEN 0 AND 35),
+    momentum_score INTEGER NOT NULL CHECK (momentum_score BETWEEN 0 AND 25),
+    review_score INTEGER NOT NULL CHECK (review_score BETWEEN 0 AND 15),
+    price_score INTEGER NOT NULL CHECK (price_score BETWEEN 0 AND 15),
+    diversity_score INTEGER NOT NULL CHECK (diversity_score BETWEEN 0 AND 10),
+    reasons_json TEXT NOT NULL,
+    exclusion_reason TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, cycle_key, candidate_kind)
+);
+
+CREATE TABLE IF NOT EXISTS game_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    decision TEXT NOT NULL CHECK (decision IN ('play_candidate','article_candidate','hold','not_interested')),
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_collection_runs (
+    id TEXT PRIMARY KEY,
+    run_kind TEXT NOT NULL CHECK (run_kind IN ('trial','scheduled','manual','rss_only','steam_sync')),
+    status TEXT NOT NULL CHECK (status IN ('running','success','partial','failure')),
+    item_limit INTEGER NOT NULL CHECK (item_limit BETWEEN 1 AND 50),
+    items_discovered INTEGER NOT NULL DEFAULT 0 CHECK (items_discovered >= 0),
+    items_stored INTEGER NOT NULL DEFAULT 0 CHECK (items_stored >= 0),
+    apify_items INTEGER NOT NULL DEFAULT 0 CHECK (apify_items >= 0),
+    apify_cost_usd REAL NOT NULL DEFAULT 0 CHECK (apify_cost_usd >= 0),
+    safe_message TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_sources_discovered ON game_sources(discovered_at);
+CREATE INDEX IF NOT EXISTS idx_game_prices_observed ON game_prices(steam_app_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_candidates_cycle ON game_candidates(cycle_key, status, total_score DESC);
+CREATE INDEX IF NOT EXISTS idx_game_decisions_game ON game_decisions(steam_app_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_runs_started ON game_collection_runs(started_at DESC);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -212,7 +312,199 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (7, utc_now()),
         )
+        connection.executescript(SCHEMA_V8)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (8, utc_now()),
+        )
         connection.commit()
+
+
+def save_game_observation(
+    game: dict[str, object],
+    source: dict[str, object] | None = None,
+    price: dict[str, object] | None = None,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    """検証済みゲーム情報と任意の出典・価格を一つのトランザクションで保存する。"""
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """INSERT INTO games
+               (steam_app_id,title,developer,publisher,store_url,official_url,release_date,
+                japan_availability,japanese_support,single_player,early_access,free_to_play,
+                review_status,review_percent,review_count,owned,wishlisted,steam_synced_at,
+                verified_at,created_at,updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(steam_app_id) DO UPDATE SET
+                title=excluded.title,developer=excluded.developer,publisher=excluded.publisher,
+                store_url=excluded.store_url,official_url=excluded.official_url,
+                release_date=excluded.release_date,japan_availability=excluded.japan_availability,
+                japanese_support=excluded.japanese_support,single_player=excluded.single_player,
+                early_access=excluded.early_access,free_to_play=excluded.free_to_play,
+                review_status=excluded.review_status,review_percent=excluded.review_percent,
+                review_count=excluded.review_count,
+                owned=CASE WHEN excluded.steam_synced_at IS NULL THEN games.owned ELSE excluded.owned END,
+                wishlisted=CASE WHEN excluded.steam_synced_at IS NULL THEN games.wishlisted ELSE excluded.wishlisted END,
+                steam_synced_at=excluded.steam_synced_at,verified_at=excluded.verified_at,
+                updated_at=excluded.updated_at""",
+            (
+                game["steam_app_id"], game["title"], game.get("developer"), game.get("publisher"),
+                game["store_url"], game.get("official_url"), game.get("release_date"),
+                game["japan_availability"], game["japanese_support"], game["single_player"],
+                int(bool(game.get("early_access"))), int(bool(game.get("free_to_play"))),
+                game.get("review_status"), game.get("review_percent"), game.get("review_count"),
+                int(bool(game.get("owned"))), int(bool(game.get("wishlisted"))),
+                game.get("steam_synced_at"), game.get("verified_at"), now, now,
+            ),
+        )
+        if source:
+            connection.execute(
+                """INSERT INTO game_sources
+                   (steam_app_id,source_kind,source_name,article_title,url,published_at,summary,
+                    candidate_reason,discovered_at) VALUES (?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(steam_app_id,url) DO UPDATE SET
+                    source_kind=excluded.source_kind,source_name=excluded.source_name,
+                    article_title=excluded.article_title,published_at=excluded.published_at,
+                    summary=excluded.summary,candidate_reason=excluded.candidate_reason""",
+                (
+                    game["steam_app_id"], source["source_kind"], source["source_name"],
+                    source.get("article_title"), source["url"], source.get("published_at"),
+                    source.get("summary"), source.get("candidate_reason"),
+                    source.get("discovered_at") or now,
+                ),
+            )
+        if price:
+            connection.execute(
+                """INSERT INTO game_prices
+                   (steam_app_id,currency,regular_price,current_price,discount_percent,
+                    sale_ends_at,source_url,observed_at) VALUES (?,?,?,?,?,?,?,?)
+                   ON CONFLICT(steam_app_id,observed_at) DO UPDATE SET
+                    currency=excluded.currency,regular_price=excluded.regular_price,
+                    current_price=excluded.current_price,discount_percent=excluded.discount_percent,
+                    sale_ends_at=excluded.sale_ends_at,source_url=excluded.source_url""",
+                (
+                    game["steam_app_id"], price["currency"], price.get("regular_price"),
+                    price.get("current_price"), price.get("discount_percent"),
+                    price.get("sale_ends_at"), price["source_url"], price["observed_at"],
+                ),
+            )
+        connection.commit()
+
+
+def save_game_candidate(candidate: dict[str, object], db_path: Path = DEFAULT_DB_PATH) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO game_candidates
+               (id,steam_app_id,cycle_key,candidate_kind,status,total_score,interest_score,
+                momentum_score,review_score,price_score,diversity_score,reasons_json,
+                exclusion_reason,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(steam_app_id,cycle_key,candidate_kind) DO UPDATE SET
+                status=excluded.status,total_score=excluded.total_score,
+                interest_score=excluded.interest_score,momentum_score=excluded.momentum_score,
+                review_score=excluded.review_score,price_score=excluded.price_score,
+                diversity_score=excluded.diversity_score,reasons_json=excluded.reasons_json,
+                exclusion_reason=excluded.exclusion_reason,updated_at=excluded.updated_at""",
+            (
+                candidate["id"], candidate["steam_app_id"], candidate["cycle_key"],
+                candidate["candidate_kind"], candidate["status"], candidate["total_score"],
+                candidate["interest_score"], candidate["momentum_score"], candidate["review_score"],
+                candidate["price_score"], candidate["diversity_score"], candidate["reasons_json"],
+                candidate.get("exclusion_reason"), now, now,
+            ),
+        )
+        connection.commit()
+
+
+def record_game_decision(
+    steam_app_id: str, decision: str, note: str | None = None,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if not steam_app_id.isascii() or not steam_app_id.isdigit():
+        raise ValueError("Steam App IDが正しくありません。")
+    if decision not in {"play_candidate", "article_candidate", "hold", "not_interested"}:
+        raise ValueError("候補の判断が正しくありません。")
+    cleaned_note = note.strip() if note else None
+    if cleaned_note and len(cleaned_note) > 500:
+        raise ValueError("候補のメモが長すぎます。")
+    with closing(connect(db_path)) as connection:
+        if connection.execute("SELECT 1 FROM games WHERE steam_app_id=?", (steam_app_id,)).fetchone() is None:
+            raise ValueError("対象ゲームが見つかりません。")
+        connection.execute(
+            "INSERT INTO game_decisions(steam_app_id,decision,note,created_at) VALUES (?,?,?,?)",
+            (steam_app_id, decision, cleaned_note, utc_now()),
+        )
+        connection.commit()
+
+
+def start_game_collection_run(
+    run_id: str, run_kind: str, item_limit: int, db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO game_collection_runs
+               (id,run_kind,status,item_limit,safe_message,started_at)
+               VALUES (?,?,'running',?,'収集を開始しました。',?)""",
+            (run_id, run_kind, item_limit, utc_now()),
+        )
+        connection.commit()
+
+
+def finish_game_collection_run(
+    run_id: str, status: str, safe_message: str, *, items_discovered: int = 0,
+    items_stored: int = 0, apify_items: int = 0, apify_cost_usd: float = 0,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE game_collection_runs SET status=?,items_discovered=?,items_stored=?,
+               apify_items=?,apify_cost_usd=?,safe_message=?,completed_at=?
+               WHERE id=? AND status='running'""",
+            (status, items_discovered, items_stored, apify_items, apify_cost_usd,
+             safe_message, utc_now(), run_id),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("実行中の収集記録が見つかりません。")
+        connection.commit()
+
+
+def game_information_summary(db_path: Path = DEFAULT_DB_PATH) -> dict[str, object]:
+    with closing(connect(db_path)) as connection:
+        games = int(connection.execute("SELECT COUNT(*) FROM games").fetchone()[0])
+        candidates = int(connection.execute(
+            "SELECT COUNT(*) FROM game_candidates WHERE status='active'"
+        ).fetchone()[0])
+        unconfirmed = int(connection.execute(
+            "SELECT COUNT(*) FROM game_candidates WHERE status='unconfirmed'"
+        ).fetchone()[0])
+        sources = int(connection.execute("SELECT COUNT(*) FROM game_sources").fetchone()[0])
+        prices = int(connection.execute("SELECT COUNT(*) FROM game_prices").fetchone()[0])
+        last_run = connection.execute(
+            "SELECT * FROM game_collection_runs ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+    return {
+        "games": games, "candidates": candidates, "unconfirmed": unconfirmed,
+        "sources": sources, "prices": prices, "last_run": dict(last_run) if last_run else None,
+    }
+
+
+def list_game_candidates(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> list[dict[str, object]]:
+    safe_limit = min(max(limit, 1), 100)
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            """SELECT game_candidates.*,games.title,games.store_url,games.japanese_support,
+                      games.japan_availability,games.single_player,games.owned,games.wishlisted,
+                      (SELECT decision FROM game_decisions
+                       WHERE game_decisions.steam_app_id=game_candidates.steam_app_id
+                       ORDER BY created_at DESC,id DESC LIMIT 1) AS latest_decision
+               FROM game_candidates JOIN games USING(steam_app_id)
+               ORDER BY game_candidates.cycle_key DESC,game_candidates.total_score DESC,
+                        games.title COLLATE NOCASE LIMIT ?""",
+            (safe_limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def record_event(

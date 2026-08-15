@@ -222,6 +222,8 @@ class Phase4BackupTests(unittest.TestCase):
         protector = (backup.BACKUP_TOOLS / "protect_rclone_config.ps1").read_text(encoding="utf-8")
         register = (backup.BACKUP_TOOLS / "register_phase4_tasks.ps1").read_text(encoding="utf-8")
         self.assertIn("--password-command", runner)
+        self.assertIn("sqlite_snapshot.py", runner)
+        self.assertLess(runner.index("sqlite_snapshot.py"), runner.index('Invoke-Rclone @("size", $Source'))
         self.assertIn('Invoke-Rclone @("size", $Source', runner)
         self.assertIn("$MonthlySize.count", runner)
         self.assertIn("$MonthlySize.bytes", runner)
