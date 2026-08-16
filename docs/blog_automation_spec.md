@@ -112,7 +112,7 @@ SQLiteが壊れても記事本文と画像を読み出せることを必須と�
 
 管理画面は既存の安全な公開処理を機能単位で再利用する。公開前に校正状態、必須項目、画像、内部リンク、Hugoビルド、生成サイトを確認する。公開処理は対象記事だけをcommitし、承認後だけpushする。
 
-GitHub Pagesのビルドと公開は維持する。Discord通知は使用しない。
+GitHub Pagesのビルドと公開は維持し、公開サイトの正規URLは `https://framing-games.com/` とする。従来の `https://ymmt-coffee.github.io/my-game-blog/` はGitHub Pagesの転送元として残す。Discord通知は使用しない。
 
 ### Phase E実装状況
 
@@ -150,7 +150,7 @@ Phase Gでは記事の予約前チェック、確認画面、予約確定、解�
 
 Phase Hのローカル範囲では、UTF-8の集計済みCSVまたはUmamiの `website_event.csv` を読み込み、SQLiteには `date`、`path`、`views`、`visitors` に相当する日別・ページ別の集計値だけを保存する。7・30・90日の集計、直前期間比較、日別閲覧数、上位ページ、ルールベースの確認候補を表示する。同一データ元・日付・ページは再取込で置き換え、二重加算しない。セッションID、IPアドレス、Cookie、ユーザーエージェント、端末、地域、参照元の生データは保存しない。
 
-公開サイトではUmami CloudのHobbyプランを利用する。`ymmt-coffee.github.io` の `/my-game-blog/` 配下だけを計測し、検索パラメーターとハッシュを除外し、Do Not Trackを尊重する。自己アクセスはブラウザのlocalStorage設定で除外する。実地計測とAboutページのプライバシー表記は完了している。当面はUmami画面で確認し、手動エクスポートの `website_event.csv` を管理画面へ取り込む。API自動取得のためだけには有料化しない。
+公開サイトではUmami CloudのHobbyプランを利用する。独自ドメイン移行後は `framing-games.com` だけを計測し、検索パラメーターとハッシュを除外し、Do Not Trackを尊重する。自己アクセスはブラウザのlocalStorage設定で除外する。旧 `ymmt-coffee.github.io/my-game-blog/` のエクスポートは履歴として引き続き取り込める。当面はUmami画面で確認し、手動エクスポートの `website_event.csv` を管理画面へ取り込む。API自動取得のためだけには有料化しない。
 
 月次レビューではUmamiから前月分を手動でエクスポートし、`website_event.csv` を日別・ページ別の匿名集計値へ変換して取り込む。個別のセッションID、端末、地域、参照元等は保存しない。よく読まれた記事、伸びたカテゴリー、次に書く候補の方向性を確認する。解析結果は判断材料に限定し、記事の自動選定・自動生成・自動公開には使わない。
 

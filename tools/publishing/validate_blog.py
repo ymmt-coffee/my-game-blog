@@ -18,7 +18,8 @@ import frontmatter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BLOG_ROOT = PROJECT_ROOT / "blog"
-BASE_PATH = "/my-game-blog/"
+PUBLIC_HOST = "framing-games.com"
+BASE_PATH = "/"
 ARTICLE_TYPES = {"play_note", "weekly_picks", "monthly_essay"}
 COMMON_REQUIRED = ("title", "date", "lastmod", "draft", "description", "images", "article_type", "author")
 IMAGE_EXTENSIONS = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"}
@@ -259,7 +260,7 @@ def meta_values(parser: PageParser, key: str, value: str) -> list[str]:
 
 def resolve_public_target(public_dir: Path, raw: str) -> Path | None:
     parsed = urlparse(raw)
-    if parsed.scheme and parsed.netloc and parsed.netloc != "ymmt-coffee.github.io":
+    if parsed.scheme and parsed.netloc and parsed.netloc != PUBLIC_HOST:
         return None
     path = unquote(parsed.path)
     if not path or path == "#" or (not path.startswith("/") and parsed.scheme):

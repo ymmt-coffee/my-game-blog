@@ -101,7 +101,7 @@ function Wait-ForPagesDeployment {
                     throw "GitHub Pages deployment failed: $($run.url)"
                 }
 
-                $response = Invoke-WebRequest -Uri "https://ymmt-coffee.github.io/my-game-blog/" -UseBasicParsing -TimeoutSec 30
+                $response = Invoke-WebRequest -Uri "https://framing-games.com/" -UseBasicParsing -TimeoutSec 30
                 if ([int]$response.StatusCode -ne 200) {
                     throw "Pages returned HTTP $($response.StatusCode)."
                 }

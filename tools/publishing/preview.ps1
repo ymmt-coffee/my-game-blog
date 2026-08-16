@@ -90,7 +90,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "Open http://localhost:1313/my-game-blog/ in your browser." -ForegroundColor Green
+    Write-Host "Open http://localhost:1313/ in your browser." -ForegroundColor Green
     Write-Host "Press Ctrl+C in this window to stop the preview."
     hugo server --source $BlogRoot --buildDrafts --contentDir $previewContent --disableFastRender
     if ($LASTEXITCODE -ne 0) {

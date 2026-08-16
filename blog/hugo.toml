@@ -1,4 +1,4 @@
-baseURL = "https://ymmt-coffee.github.io/my-game-blog/"
+baseURL = "https://framing-games.com/"
 locale = "ja-JP"
 defaultContentLanguage = "ja"
 title = "FRAMING"
@@ -29,8 +29,8 @@ resourceDir = "../var/resources"
       scriptUrl = "https://cloud.umami.is/script.js"
       websiteId = "b6809a40-f862-4c3a-b650-da1fe19d0f39"
       excludeSelf = true
-      domain = "ymmt-coffee.github.io"
-      pathPrefix = "/my-game-blog/"
+      domain = "framing-games.com"
+      pathPrefix = "/"
 
     [params.analytics.google]
       measurementId = ""

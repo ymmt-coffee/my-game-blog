@@ -82,10 +82,10 @@ class PhaseHAnalyticsTests(unittest.TestCase):
     def test_umami_export_is_aggregated_without_personal_fields(self) -> None:
         content = (
             "website_id,session_id,event_type,hostname,url_path,created_at,browser,country\n"
-            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 15:30:00,Chrome,JP\n"
-            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 15:31:00,Chrome,JP\n"
-            "site,session-b,1,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 16:00:00,Firefox,JP\n"
-            "site,session-b,2,ymmt-coffee.github.io,/my-game-blog/posts/test/,2026-08-31 16:01:00,Firefox,JP\n"
+            "site,session-a,1,framing-games.com,/posts/test/,2026-08-31 15:30:00,Chrome,JP\n"
+            "site,session-a,1,framing-games.com,/posts/test/,2026-08-31 15:31:00,Chrome,JP\n"
+            "site,session-b,1,framing-games.com,/posts/test/,2026-08-31 16:00:00,Firefox,JP\n"
+            "site,session-b,2,framing-games.com,/posts/test/,2026-08-31 16:01:00,Firefox,JP\n"
         ).encode()
         rows, source = analytics.parse_import(content)
         self.assertEqual(source, "umami")
@@ -97,7 +97,7 @@ class PhaseHAnalyticsTests(unittest.TestCase):
     def test_umami_export_upload_uses_umami_source(self) -> None:
         content = (
             "website_id,session_id,event_type,hostname,url_path,created_at\n"
-            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/,2026-08-12 12:37:09\n"
+            "site,session-a,1,framing-games.com,/,2026-08-12 12:37:09\n"
         ).encode()
         response = self.client.post(
             "/analytics/import",
@@ -111,6 +111,15 @@ class PhaseHAnalyticsTests(unittest.TestCase):
         self.assertEqual(summary["visitors"], 1)
         history = db.recent_analytics_imports(self.db_path)
         self.assertEqual(history[0]["source"], "umami")
+
+    def test_legacy_github_pages_export_remains_importable(self) -> None:
+        content = (
+            "website_id,session_id,event_type,hostname,url_path,created_at\n"
+            "site,session-a,1,ymmt-coffee.github.io,/my-game-blog/posts/old/,2026-08-12 12:37:09\n"
+        ).encode()
+        rows, source = analytics.parse_import(content)
+        self.assertEqual(source, "umami")
+        self.assertEqual(rows[0]["path"], "/posts/old/")
 
     def test_periods_do_not_overlap(self) -> None:
         start, end, previous_start, previous_end = analytics.period(30, today=date(2026, 8, 11))

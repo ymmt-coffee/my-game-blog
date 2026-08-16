@@ -12,8 +12,12 @@ MAX_CSV_BYTES = 2 * 1024 * 1024
 MAX_ROWS = 10_000
 REQUIRED_COLUMNS = {"date", "path", "views", "visitors"}
 UMAMI_COLUMNS = {"website_id", "session_id", "event_type", "hostname", "url_path", "created_at"}
-UMAMI_HOSTNAME = "ymmt-coffee.github.io"
-UMAMI_PATH_PREFIX = "/my-game-blog"
+UMAMI_SCOPES = {
+    "framing-games.com": "",
+    "www.framing-games.com": "",
+    # 独自ドメイン移行前のエクスポートも継続して取り込めるようにする。
+    "ymmt-coffee.github.io": "/my-game-blog",
+}
 JST = ZoneInfo("Asia/Tokyo")
 
 
@@ -88,12 +92,14 @@ def parse_umami_export(data: bytes) -> list[dict[str, object]]:
         normalized = {str(key or "").strip().casefold(): str(value or "").strip() for key, value in raw.items()}
         if normalized.get("event_type") != "1":
             continue
-        if normalized.get("hostname") != UMAMI_HOSTNAME:
+        hostname = normalized.get("hostname", "").casefold()
+        if hostname not in UMAMI_SCOPES:
             raise AnalyticsError(f"CSVの{number}行目に対象外のホストがあります。")
         raw_path = normalized.get("url_path", "")
-        if raw_path != UMAMI_PATH_PREFIX and not raw_path.startswith(f"{UMAMI_PATH_PREFIX}/"):
+        path_prefix = UMAMI_SCOPES[hostname]
+        if path_prefix and raw_path != path_prefix and not raw_path.startswith(f"{path_prefix}/"):
             raise AnalyticsError(f"CSVの{number}行目に対象外のページパスがあります。")
-        path = raw_path[len(UMAMI_PATH_PREFIX):] or "/"
+        path = raw_path[len(path_prefix):] or "/"
         if not path.startswith("/") or "?" in path or "#" in path or len(path) > 500:
             raise AnalyticsError(f"CSVの{number}行目のページパスが正しくありません。")
         session_id = normalized.get("session_id", "")

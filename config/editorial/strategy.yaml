@@ -98,8 +98,9 @@ access_analytics:
   stored_granularity: daily_page_aggregate
   raw_personal_data_stored: false
   same_source_day_path_import_behavior: replace
-  tracking_scope_domain: ymmt-coffee.github.io
-  tracking_scope_path_prefix: /my-game-blog/
+  tracking_scope_domain: framing-games.com
+  tracking_scope_path_prefix: /
+  legacy_tracking_import_scope: ymmt-coffee.github.io/my-game-blog/
   query_and_hash_tracking: false
   do_not_track_respected: true
   self_exclusion_storage: browser_local_storage

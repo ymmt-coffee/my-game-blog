@@ -30,13 +30,23 @@
 
 2026-08-12にUmami Cloudを採用し、FRAMING専用Websiteを追加した。公開サイトにはFRAMING用Website IDを設定し、`ymmt-coffee.github.io` の `/my-game-blog/` 配下だけを送信対象とする。検索パラメーターとハッシュを除外し、Do Not Trackを尊重する。
 
+2026-08-16の独自ドメイン移行では、今後の送信対象を `framing-games.com` の全ページへ変更した。旧ドメインで取得済みの `website_event.csv` も履歴として取り込める互換性を維持する。独自ドメインで自己アクセス除外を使う場合は、新URLで改めて設定する。
+
 自己アクセス除外はCookieではなくブラウザのlocalStorageを使う。公開後に次のURLを自分が利用するブラウザで一度開く。
 
 `https://ymmt-coffee.github.io/my-game-blog/?umami_ignore_self=1`
 
+独自ドメイン移行後は次を使用する。
+
+`https://framing-games.com/?umami_ignore_self=1`
+
 除外を解除する場合は次を開く。
 
 `https://ymmt-coffee.github.io/my-game-blog/?umami_ignore_self=0`
+
+独自ドメイン移行後は次を使用する。
+
+`https://framing-games.com/?umami_ignore_self=0`
 
 除外用パラメーターは計測コードの実行前にURLから取り除く。別ブラウザや別端末では、それぞれ設定が必要である。
 

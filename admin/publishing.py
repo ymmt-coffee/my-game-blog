@@ -109,7 +109,7 @@ def import_public_article(content_root: Path, slug: str, public_posts: Path = PU
         shutil.rmtree(staging, ignore_errors=True)
     article_id = uuid.uuid5(uuid.NAMESPACE_URL, f"my-game-blog:{slug}").hex
     return articles.read_article(destination, article_id, slug)
-PAGES_URL = "https://ymmt-coffee.github.io/my-game-blog/"
+PAGES_URL = "https://framing-games.com/"
 REPOSITORY = "ymmt-coffee/my-game-blog"
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 

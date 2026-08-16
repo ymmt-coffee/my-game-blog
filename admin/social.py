@@ -5,7 +5,7 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 
-PUBLIC_BASE_URL = "https://ymmt-coffee.github.io/my-game-blog/"
+PUBLIC_BASE_URL = "https://framing-games.com/"
 PLATFORM = "X"
 MAX_MESSAGE_LENGTH = 280
 
