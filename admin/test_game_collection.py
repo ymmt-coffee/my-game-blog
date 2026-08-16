@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 import json
 from datetime import date
+from unittest.mock import patch
 
 from admin import game_collection
 from admin.game_information import GameInformationError
@@ -84,11 +85,44 @@ class GameCollectionTests(unittest.TestCase):
 
     def test_apify_trial_rejects_too_many_items_and_oversized_response(self) -> None:
         with self.assertRaises(GameInformationError):
-            game_collection.run_apify_trial("token", tuple(str(i) for i in range(11)), lambda *_: b"[]")
+            game_collection.run_apify_trial("token", tuple(str(i) for i in range(51)), lambda *_: b"[]")
         with self.assertRaises(GameInformationError):
             game_collection.run_apify_trial(
                 "token", ("620",), lambda *_: b"x" * (game_collection.MAX_APIFY_RESPONSE_BYTES + 1)
             )
+
+    def test_apify_monthly_usage_is_checked_without_token_in_url(self) -> None:
+        captured = {}
+
+        def transport(request, timeout):
+            captured["url"] = request.full_url
+            captured["authorization"] = request.headers.get("Authorization")
+            return json.dumps({"data": {"totalUsageCreditsUsdAfterVolumeDiscount": 0.25}}).encode()
+
+        usage = game_collection.apify_monthly_usage_usd("private-token", transport)
+        self.assertEqual(usage, 0.25)
+        self.assertNotIn("private-token", captured["url"])
+        self.assertEqual(captured["authorization"], "Bearer private-token")
+
+    def test_owned_games_use_official_endpoint_without_key_in_url(self) -> None:
+        captured = {}
+
+        def transport(request, timeout):
+            captured["url"] = request.full_url
+            captured["api_key"] = request.headers.get("X-webapi-key")
+            captured["method"] = request.get_method()
+            return json.dumps({"response": {"game_count": 1, "games": [
+                {"appid": 620, "name": "Portal 2", "playtime_forever": 999},
+            ]}}).encode()
+
+        games = game_collection.fetch_owned_games("private-steam-key", "76561198000000000", transport)
+        self.assertEqual(captured["method"], "GET")
+        self.assertNotIn("private-steam-key", captured["url"])
+        self.assertEqual(captured["api_key"], "private-steam-key")
+        self.assertIn("input_json=", captured["url"])
+        self.assertEqual(games[0]["steam_app_id"], "620")
+        self.assertTrue(games[0]["owned"])
+        self.assertNotIn("playtime", games[0])
 
     def test_featured_candidates_select_five_new_and_five_sales_without_duplicates(self) -> None:
         payload = {
@@ -103,6 +137,32 @@ class GameCollectionTests(unittest.TestCase):
         self.assertEqual([item.candidate_kind for item in items].count("new_release"), 5)
         self.assertEqual([item.candidate_kind for item in items].count("sale"), 5)
         self.assertEqual(len({item.steam_app_id for item in items}), 10)
+
+    def test_weekly_featured_candidates_are_limited_to_ten_each(self) -> None:
+        payload = {
+            "new_releases": {"items": [{"id": index} for index in range(1, 16)]},
+            "specials": {"items": [{"id": index, "discount_percent": 20} for index in range(16, 31)]},
+        }
+        items = game_collection.parse_featured_candidates(payload, game_collection.WEEKLY_STEAM_ITEM_LIMIT)
+        self.assertEqual(len(items), 20)
+        self.assertEqual([item.candidate_kind for item in items].count("new_release"), 10)
+        self.assertEqual([item.candidate_kind for item in items].count("sale"), 10)
+
+    def test_collection_can_keep_manual_trial_at_ten_items(self) -> None:
+        captured = {}
+        empty = game_collection.CandidateTrialResult((), 0)
+
+        def candidate_trial(_token, **kwargs):
+            captured["item_limit"] = kwargs["item_limit"]
+            return empty
+
+        with (
+            patch.object(game_collection, "apify_monthly_usage_usd", return_value=0.0),
+            patch.object(game_collection, "run_candidate_trial", side_effect=candidate_trial),
+            patch.object(game_collection, "fetch_feed", return_value=[]),
+        ):
+            game_collection.run_weekly_collection("token", item_limit=game_collection.TRIAL_ITEM_LIMIT)
+        self.assertEqual(captured["item_limit"], game_collection.TRIAL_ITEM_LIMIT)
 
     def test_fixed_scoring_excludes_horror_and_keeps_verified_single_player(self) -> None:
         game = {
@@ -121,6 +181,24 @@ class GameCollectionTests(unittest.TestCase):
         self.assertGreater(active["total_score"], 0)
         self.assertEqual(excluded["status"], "excluded")
         self.assertIn("ホラー", str(excluded["exclusion_reason"]))
+
+    def test_media_headline_adds_bounded_momentum_without_article_body(self) -> None:
+        game = {
+            "steam_app_id": "123", "title": "Test Game", "japanese_support": "confirmed",
+            "single_player": "yes", "free_to_play": False, "wishlisted": False,
+        }
+        candidate = game_collection.score_candidate(game, None, "sale", "2026-W33")
+        trial = game_collection.CandidateTrialResult((
+            game_collection.CandidateTrialItem(game, None, candidate),
+        ), 1)
+        feed = game_collection.FeedItem(
+            "4Gamer", "Test Gameのセールが開始", "https://www.4gamer.net/games/001/G000001/1/",
+            "2026-08-15T00:00:00+00:00", "短いRSS要約", None,
+        )
+        enriched = game_collection.add_media_momentum(trial, [feed]).items[0]
+        self.assertEqual(enriched.candidate["momentum_score"], 15)
+        self.assertEqual(enriched.media_items, (feed,))
+        self.assertLessEqual(enriched.candidate["total_score"], 100)
 
 
 if __name__ == "__main__":

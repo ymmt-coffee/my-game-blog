@@ -23,6 +23,7 @@ dl { display:grid; grid-template-columns:100px 1fr; gap:9px; margin:0; } dt { co
 .button.secondary { background:white; color:var(--green); }.button.danger { background:var(--danger); border-color:var(--danger); }.button:disabled { opacity:.42; cursor:not-allowed; }
 .button-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }.button-row form { margin:0; }
 .candidate-decision-form { display:flex; align-items:center; gap:5px; margin:0; min-width:170px; }.candidate-decision-form select { width:auto; min-width:105px; min-height:30px; padding:4px 6px; }.candidate-decision-form .button { min-height:30px; padding:4px 8px; }
+.candidate-explanation { border-top:1px solid var(--line); padding:10px 0; }.candidate-explanation:first-of-type { border-top:0; }.candidate-explanation h3 { display:inline; margin:0 8px 0 0; font-size:15px; }.candidate-explanation p { margin:6px 0 0; }
 label { display:grid; gap:5px; margin-bottom:11px; font-weight:600; font-size:13px; } input,textarea,select { width:100%; border:1px solid #b9c2bc; border-radius:1px; padding:7px 9px; min-height:34px; background:white; color:var(--ink); font:inherit; }
 input:focus,textarea:focus,select:focus { outline:2px solid #8bb29b; outline-offset:0; border-color:#567d66; }
 textarea { resize:vertical; }.body-editor { min-height:430px; font-family:"Noto Sans JP",sans-serif; line-height:1.75; }

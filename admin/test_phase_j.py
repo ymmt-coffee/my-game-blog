@@ -135,7 +135,7 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
         self.assertIn("収集準備", response.text)
         self.assertIn("試運転前のため候補はありません", response.text)
         self.assertIn("Apify APIトークン", response.text)
-        self.assertIn("APIトークン設定後に接続確認", response.text)
+        self.assertIn("3件でAPI接続を確認", response.text)
 
     def test_apify_api_trial_stores_three_observations_without_exposing_token(self) -> None:
         observations = []
@@ -161,7 +161,8 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("3件接続確認が完了", response.text)
         self.assertNotIn("private-token", response.text)
-        runner.assert_called_once_with("private-token")
+        runner.assert_called_once()
+        self.assertEqual(runner.call_args.args, ("private-token",))
         summary = db.game_information_summary(self.db_path)
         self.assertEqual((summary["games"], summary["prices"]), (3, 3))
         self.assertEqual(summary["last_run"]["status"], "success")
@@ -173,6 +174,31 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Apify APIトークン", response.text)
+
+    def test_manual_owned_game_sync_never_exposes_credentials(self) -> None:
+        synced = game_information.GameRecord(
+            steam_app_id="620", title="Portal 2",
+            store_url="https://store.steampowered.com/app/620/",
+            owned=True, steam_synced_at="2026-08-16T08:00:00+00:00",
+        ).validated()
+        with patch.dict(os.environ, {
+            "STEAM_WEB_API_KEY": "private-steam-key",
+            "STEAM_ID64": "76561198000000000",
+        }), patch("admin.game_collection.fetch_owned_games", return_value=[synced]) as fetcher:
+            page = self.client.get("/releases")
+            self.assertIn("所有ゲームを今すぐ同期", page.text)
+            response = self.client.post(
+                "/releases/ownership-sync",
+                data={"csrf_token": self.app.state.csrf_token},
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Steam所有ゲームを1件同期", response.text)
+        self.assertNotIn("private-steam-key", response.text)
+        fetcher.assert_called_once_with("private-steam-key", "76561198000000000")
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            owned = connection.execute("SELECT owned FROM games WHERE steam_app_id='620'").fetchone()[0]
+        self.assertEqual(owned, 1)
 
     def test_candidate_trial_stores_scored_candidates_after_explicit_button(self) -> None:
         items = []
@@ -192,6 +218,8 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             ).validated()
             items.append(game_collection.CandidateTrialItem(game, None, candidate))
         with patch("admin.game_collection.apify_api_token", return_value="private-token"), patch(
+            "admin.game_collection.apify_monthly_usage_usd", return_value=0.25,
+        ), patch(
             "admin.game_collection.run_candidate_trial",
             return_value=game_collection.CandidateTrialResult(tuple(items), 10),
         ) as runner:
@@ -203,7 +231,8 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
         self.assertIn("最大10件の候補試運転が完了", response.text)
         self.assertNotIn("private-token", response.text)
         self.assertEqual(len(db.list_game_candidates(self.db_path)), 10)
-        runner.assert_called_once_with("private-token")
+        runner.assert_called_once()
+        self.assertEqual(runner.call_args.args, ("private-token",))
 
         decision_response = self.client.post(
             "/releases/candidates/900000/decision",

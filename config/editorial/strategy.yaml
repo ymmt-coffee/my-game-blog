@@ -144,7 +144,7 @@ game_discovery:
   free_to_play_allowed: true
   sources: [automaton, four_gamer, game_spark, steam]
   source_readiness:
-    four_gamer: official_rss_confirmed
+    four_gamer: official_rss_connected
     automaton: acquisition_method_confirmation_pending
     game_spark: acquisition_method_confirmation_pending
     steam_store: public_japan_response_parser_ready
@@ -160,10 +160,11 @@ game_discovery:
     discovery: steam_public_new_releases_5_and_sales_5
     enrichment: [apify, steam_japan_details]
     manual_confirmation_required: true
-    recurring_enabled: false
+  recurring_enabled: true
   candidate_decisions_enabled: true
   steam_credentials_setup_helper: admin/set-steam-credentials.cmd
-  steam_owned_sync_status: deferred_waiting_for_steam_guard_and_credentials
+  steam_owned_sync_status: connected_and_verified_2026_08_16
+  steam_wishlist_sync_status: deferred_until_official_method_confirmed
   credential_environment_names:
     apify_token: APIFY_API_TOKEN
     steam_web_api_key: STEAM_WEB_API_KEY
@@ -181,6 +182,8 @@ game_discovery:
   apify_monthly_stop_usd: 4
   gemini_scope: top_candidates_explanation_only
   gemini_paid_usage_enabled: false
+  gemini_candidate_limit: 13
+  gemini_failure_behavior: keep_fixed_score_and_previous_explanation
   first_run_history_days: 7
   catchup_history_days_max: 14
   release_window_days_before: 30
@@ -247,7 +250,7 @@ admin_app:
   state_database: var/admin/admin.sqlite3
   article_operations_enabled: true
   publish_operations_enabled: true
-  schema_version: 8
+  schema_version: 9
   startup_script: admin/open-admin.ps1
   manual_server_script: admin/start-admin.ps1
   desktop_shortcut: ゲームブログ管理.lnk

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from admin.game_information import GameInformationError, GameRecord, PriceRecord
@@ -19,6 +19,10 @@ from admin.game_information import GameInformationError, GameRecord, PriceRecord
 MAX_FEED_BYTES = 2 * 1024 * 1024
 MAX_FEED_ITEMS = 30
 TRIAL_ITEM_LIMIT = 10
+WEEKLY_STEAM_ITEM_LIMIT = 20
+APIFY_ITEM_LIMIT = 50
+APIFY_MONTHLY_BUDGET_USD = 4.0
+STEAM_OWNED_GAMES_URL = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/"
 APIFY_ACTOR_ID = "fetch_cat/steam-store-games-scraper"
 APIFY_TRIAL_APP_IDS = ("620", "413150", "1245620")
 MAX_APIFY_RESPONSE_BYTES = 5 * 1024 * 1024
@@ -27,6 +31,9 @@ STEAM_DETAILS_URL = "https://store.steampowered.com/api/appdetails?appids={app_i
 STEAM_APP_PATTERN = re.compile(
     r"(?:store\.steampowered\.com/(?:agecheck/)?app/|steamcommunity\.com/app/)(\d{1,20})",
     re.IGNORECASE,
+)
+OFFICIAL_MEDIA_FEEDS = (
+    ("4Gamer", "https://www.4gamer.net/rss/index.xml"),
 )
 
 
@@ -67,12 +74,14 @@ class CandidateTrialItem:
     game: dict[str, object]
     price: dict[str, object] | None
     candidate: dict[str, object]
+    media_items: tuple[FeedItem, ...] = ()
 
 
 @dataclass(frozen=True)
 class CandidateTrialResult:
     items: tuple[CandidateTrialItem, ...]
     apify_items: int
+    media_failures: tuple[str, ...] = ()
 
 
 def collection_readiness(environment: dict[str, str] | None = None) -> CollectionReadiness:
@@ -160,6 +169,155 @@ def parse_feed(payload: bytes, source_name: str, item_limit: int = MAX_FEED_ITEM
     return results
 
 
+def fetch_feed(url: str, source_name: str, transport=None) -> list[FeedItem]:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise GameInformationError("RSSの接続先が正しくありません。")
+    request = Request(url, headers={"User-Agent": "my-game-blog-local-admin/1.0"})
+    try:
+        payload = (transport or _open_request)(request, 30)
+    except Exception as exc:
+        raise GameInformationError(f"{source_name}のRSS取得に失敗しました。") from exc
+    return parse_feed(payload, source_name)
+
+
+def _match_text(value: object) -> str:
+    return re.sub(r"[^0-9a-z\u3040-\u30ff\u3400-\u9fff]+", "", str(value or "").casefold())
+
+
+def match_media_items(title: str, items: list[FeedItem]) -> tuple[FeedItem, ...]:
+    """記事本文を取得せず、RSS内の見出し・短い要約だけで既存候補へ対応付ける。"""
+    needle = _match_text(title)
+    if len(needle) < 4:
+        return ()
+    matched: list[FeedItem] = []
+    for item in items:
+        haystack = _match_text(f"{item.title} {item.summary or ''}")
+        if needle in haystack:
+            matched.append(item)
+    return tuple(matched[:5])
+
+
+def add_media_momentum(
+    trial: CandidateTrialResult,
+    feed_items: list[FeedItem],
+) -> CandidateTrialResult:
+    """媒体掲載を話題性へ加える。固定配点25点を超えず、事実判定には使わない。"""
+    enriched: list[CandidateTrialItem] = []
+    for item in trial.items:
+        matched = match_media_items(str(item.game.get("title") or ""), feed_items)
+        candidate = dict(item.candidate)
+        if matched:
+            sources = sorted({entry.source_name for entry in matched})
+            candidate["momentum_score"] = min(25, int(candidate["momentum_score"]) + 5 * len(sources))
+            raw_reasons = candidate.get("reasons_json")
+            try:
+                reasons = list(json.loads(str(raw_reasons))) if raw_reasons else []
+            except (TypeError, ValueError, json.JSONDecodeError):
+                reasons = []
+            reasons.append(f"{', '.join(sources)}掲載を話題性に加点")
+            candidate["reasons_json"] = reasons
+            from admin.game_information import CandidateRecord
+            candidate = CandidateRecord(
+                id=str(candidate["id"]), steam_app_id=str(candidate["steam_app_id"]),
+                cycle_key=str(candidate["cycle_key"]), candidate_kind=str(candidate["candidate_kind"]),
+                status=str(candidate["status"]), interest_score=int(candidate["interest_score"]),
+                momentum_score=int(candidate["momentum_score"]), review_score=int(candidate["review_score"]),
+                price_score=int(candidate["price_score"]), diversity_score=int(candidate["diversity_score"]),
+                reasons=tuple(str(reason) for reason in reasons),
+                exclusion_reason=str(candidate["exclusion_reason"]) if candidate.get("exclusion_reason") else None,
+            ).validated()
+        enriched.append(CandidateTrialItem(item.game, item.price, candidate, matched))
+    return CandidateTrialResult(tuple(enriched), trial.apify_items, trial.media_failures)
+
+
+def run_weekly_collection(
+    token: str,
+    *,
+    featured_transport=None,
+    apify_transport=None,
+    steam_transport=None,
+    feed_transport=None,
+    usage_transport=None,
+    today: date | None = None,
+    item_limit: int = WEEKLY_STEAM_ITEM_LIMIT,
+) -> CandidateTrialResult:
+    usage = apify_monthly_usage_usd(token, usage_transport)
+    if usage >= APIFY_MONTHLY_BUDGET_USD:
+        raise GameInformationError("Apifyの月間利用上限に達したため、週次収集を停止しました。")
+    trial = run_candidate_trial(
+        token, featured_transport=featured_transport, apify_transport=apify_transport,
+        steam_transport=steam_transport, today=today, item_limit=item_limit,
+    )
+    media: list[FeedItem] = []
+    failures: list[str] = []
+    for source_name, url in OFFICIAL_MEDIA_FEEDS:
+        try:
+            media.extend(fetch_feed(url, source_name, feed_transport))
+        except GameInformationError:
+            # 一媒体の失敗でSteam候補を失わない。呼び出し側は件数から部分成功を表示する。
+            failures.append(source_name)
+    with_failures = CandidateTrialResult(trial.items, trial.apify_items, tuple(failures))
+    return add_media_momentum(with_failures, media)
+
+
+def apify_monthly_usage_usd(token: str, transport=None) -> float:
+    request = Request(
+        "https://api.apify.com/v2/users/me/usage/monthly",
+        headers={"Authorization": f"Bearer {token.strip()}", "User-Agent": "my-game-blog-local-admin/1.0"},
+    )
+    payload = _load_json_response(request, 30, transport, "Apify月間利用額")
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        raise GameInformationError("Apifyの月間利用額を確認できませんでした。")
+    value = data.get("totalUsageCreditsUsdAfterVolumeDiscount")
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
+        raise GameInformationError("Apifyの月間利用額を確認できませんでした。")
+    return float(value)
+
+
+def fetch_owned_games(api_key: str, steam_id: str, transport=None) -> list[dict[str, object]]:
+    """Steamの正式APIから所有App IDと名称だけを取得する。キーはURLへ含めない。"""
+    cleaned_key, cleaned_id = api_key.strip(), steam_id.strip()
+    if not cleaned_key or not cleaned_id.isascii() or not cleaned_id.isdigit() or not 16 <= len(cleaned_id) <= 20:
+        raise GameInformationError("Steam所有情報の認証設定が正しくありません。")
+    query = urlencode({
+        "input_json": json.dumps({
+            "steamid": cleaned_id,
+            "include_appinfo": True,
+            "include_played_free_games": True,
+        }, separators=(",", ":")),
+    })
+    request = Request(f"{STEAM_OWNED_GAMES_URL}?{query}", method="GET", headers={
+        "x-webapi-key": cleaned_key,
+        "User-Agent": "my-game-blog-local-admin/1.0",
+    })
+    payload = _load_json_response(request, 60, transport, "Steam所有ゲーム")
+    response = payload.get("response") if isinstance(payload, dict) else None
+    games = response.get("games") if isinstance(response, dict) else None
+    if not isinstance(games, list) or len(games) > 20_000:
+        raise GameInformationError("Steam所有ゲームの応答形式を確認できませんでした。")
+    synced_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    result: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for item in games:
+        if not isinstance(item, dict):
+            raise GameInformationError("Steam所有ゲームの応答形式を確認できませんでした。")
+        app_id, title = str(item.get("appid") or ""), str(item.get("name") or "").strip()
+        if app_id in seen:
+            continue
+        record = GameRecord(
+            steam_app_id=app_id,
+            title=title,
+            store_url=f"https://store.steampowered.com/app/{app_id}/?cc=jp&l=japanese",
+            owned=True,
+            steam_synced_at=synced_at,
+        ).validated()
+        result.append(record)
+        seen.add(app_id)
+    return result
+
+
 def parse_steam_store_response(app_id: str, payload: object, observed_at: str | None = None) -> tuple[dict[str, object], dict[str, object] | None]:
     if not isinstance(payload, dict) or not isinstance(payload.get(app_id), dict):
         raise GameInformationError("Steam情報の形式を確認できませんでした。")
@@ -244,11 +402,13 @@ def trial_items(items: list[object], limit: int = TRIAL_ITEM_LIMIT) -> list[obje
 
 
 def parse_featured_candidates(payload: object, limit: int = TRIAL_ITEM_LIMIT) -> list[DiscoveredGame]:
-    if limit < 1 or limit > TRIAL_ITEM_LIMIT or not isinstance(payload, dict):
+    if limit < 1 or limit > WEEKLY_STEAM_ITEM_LIMIT or not isinstance(payload, dict):
         raise GameInformationError("Steam候補一覧の形式を確認できませんでした。")
     results: list[DiscoveredGame] = []
     seen: set[str] = set()
-    sections = (("new_releases", "new_release", 5), ("specials", "sale", 5))
+    new_limit = min(10, (limit + 1) // 2)
+    sale_limit = min(10, limit - new_limit)
+    sections = (("new_releases", "new_release", new_limit), ("specials", "sale", sale_limit))
     for section_name, candidate_kind, section_limit in sections:
         section = payload.get(section_name)
         items = section.get("items") if isinstance(section, dict) else None
@@ -274,10 +434,10 @@ def parse_featured_candidates(payload: object, limit: int = TRIAL_ITEM_LIMIT) ->
 
 
 def run_candidate_trial(token: str, *, featured_transport=None, apify_transport=None, steam_transport=None,
-                        today: date | None = None) -> CandidateTrialResult:
+                        today: date | None = None, item_limit: int = TRIAL_ITEM_LIMIT) -> CandidateTrialResult:
     featured_request = Request(STEAM_FEATURED_URL, headers={"User-Agent": "my-game-blog-local-admin/1.0"})
     featured_payload = _load_json_response(featured_request, 30, featured_transport, "Steam候補一覧")
-    discovered = parse_featured_candidates(featured_payload)
+    discovered = parse_featured_candidates(featured_payload, item_limit)
     apify_results = run_apify_trial(token, tuple(item.steam_app_id for item in discovered), apify_transport)
     apify_by_id = {str(game["steam_app_id"]): (game, price) for game, price in apify_results}
     cycle_key = (today or datetime.now(timezone.utc).date()).strftime("%G-W%V")
@@ -423,8 +583,8 @@ def run_apify_trial(
     cleaned_token = token.strip()
     if not cleaned_token:
         raise GameInformationError("Apify APIトークンが設定されていません。")
-    if not app_ids or len(app_ids) > TRIAL_ITEM_LIMIT or any(not value.isdigit() for value in app_ids):
-        raise GameInformationError("Apify試運転の対象が正しくありません。")
+    if not app_ids or len(app_ids) > APIFY_ITEM_LIMIT or any(not value.isdigit() for value in app_ids):
+        raise GameInformationError("Apifyの対象件数またはSteam App IDが正しくありません。")
     actor_path = APIFY_ACTOR_ID.replace("/", "~")
     url = f"https://api.apify.com/v2/acts/{actor_path}/run-sync-get-dataset-items?timeout=120"
     body = json.dumps({

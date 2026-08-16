@@ -241,6 +241,21 @@ CREATE INDEX IF NOT EXISTS idx_game_decisions_game ON game_decisions(steam_app_i
 CREATE INDEX IF NOT EXISTS idx_game_runs_started ON game_collection_runs(started_at DESC);
 """
 
+SCHEMA_V9 = """
+CREATE TABLE IF NOT EXISTS game_candidate_explanations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    cycle_key TEXT NOT NULL,
+    explanation TEXT NOT NULL,
+    suitable_for TEXT NOT NULL CHECK (suitable_for IN ('play','article','sale_article','hold')),
+    method TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, cycle_key)
+);
+CREATE INDEX IF NOT EXISTS idx_game_explanations_cycle
+ON game_candidate_explanations(cycle_key, generated_at DESC);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -316,6 +331,11 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (8, utc_now()),
+        )
+        connection.executescript(SCHEMA_V9)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (9, utc_now()),
         )
         connection.commit()
 
@@ -470,6 +490,54 @@ def finish_game_collection_run(
         connection.commit()
 
 
+def get_game_collection_run(run_id: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object] | None:
+    with closing(connect(db_path)) as connection:
+        row = connection.execute(
+            "SELECT * FROM game_collection_runs WHERE id=?", (run_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def restart_failed_game_collection_run(run_id: str, db_path: Path = DEFAULT_DB_PATH) -> bool:
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(
+            """UPDATE game_collection_runs SET status='running',items_discovered=0,items_stored=0,
+               apify_items=0,apify_cost_usd=0,safe_message='収集を再試行しています。',
+               started_at=?,completed_at=NULL WHERE id=? AND status='failure'""",
+            (utc_now(), run_id),
+        )
+        connection.commit()
+    return cursor.rowcount == 1
+
+
+def save_owned_games_snapshot(games: list[dict[str, object]], db_path: Path = DEFAULT_DB_PATH) -> None:
+    """検証済みの所有ゲーム一覧を一つのトランザクションで置き換える。"""
+    synced_at = str(games[0]["steam_synced_at"]) if games else utc_now()
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            "UPDATE games SET owned=0,steam_synced_at=?,updated_at=?",
+            (synced_at, now),
+        )
+        for game in games:
+            connection.execute(
+                """INSERT INTO games
+                   (steam_app_id,title,store_url,japan_availability,japanese_support,single_player,
+                    early_access,free_to_play,owned,wishlisted,steam_synced_at,created_at,updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(steam_app_id) DO UPDATE SET
+                    owned=1,steam_synced_at=excluded.steam_synced_at,updated_at=excluded.updated_at""",
+                (
+                    game["steam_app_id"], game["title"], game["store_url"],
+                    game["japan_availability"], game["japanese_support"], game["single_player"],
+                    int(bool(game.get("early_access"))), int(bool(game.get("free_to_play"))),
+                    1, int(bool(game.get("wishlisted"))), synced_at, now, now,
+                ),
+            )
+        connection.commit()
+
+
 def game_information_summary(db_path: Path = DEFAULT_DB_PATH) -> dict[str, object]:
     with closing(connect(db_path)) as connection:
         games = int(connection.execute("SELECT COUNT(*) FROM games").fetchone()[0])
@@ -496,12 +564,59 @@ def list_game_candidates(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> li
         rows = connection.execute(
             """SELECT game_candidates.*,games.title,games.store_url,games.japanese_support,
                       games.japan_availability,games.single_player,games.owned,games.wishlisted,
+                      games.release_date,games.review_percent,games.review_count,
+                      (SELECT current_price FROM game_prices WHERE game_prices.steam_app_id=games.steam_app_id
+                       ORDER BY observed_at DESC,id DESC LIMIT 1) AS current_price,
+                      (SELECT discount_percent FROM game_prices WHERE game_prices.steam_app_id=games.steam_app_id
+                       ORDER BY observed_at DESC,id DESC LIMIT 1) AS discount_percent,
+                      (SELECT group_concat(source_name, ', ') FROM (
+                         SELECT DISTINCT source_name FROM game_sources
+                         WHERE game_sources.steam_app_id=games.steam_app_id AND source_kind='rss'
+                       )) AS media_sources,
                       (SELECT decision FROM game_decisions
                        WHERE game_decisions.steam_app_id=game_candidates.steam_app_id
                        ORDER BY created_at DESC,id DESC LIMIT 1) AS latest_decision
                FROM game_candidates JOIN games USING(steam_app_id)
                ORDER BY game_candidates.cycle_key DESC,game_candidates.total_score DESC,
                         games.title COLLATE NOCASE LIMIT ?""",
+            (safe_limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_candidate_explanations(
+    cycle_key: str,
+    rows: list[dict[str, str]],
+    method: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        for row in rows:
+            connection.execute(
+                """INSERT INTO game_candidate_explanations
+                   (steam_app_id,cycle_key,explanation,suitable_for,method,generated_at)
+                   VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(steam_app_id,cycle_key) DO UPDATE SET
+                    explanation=excluded.explanation,suitable_for=excluded.suitable_for,
+                    method=excluded.method,generated_at=excluded.generated_at""",
+                (row["steam_app_id"], cycle_key, row["explanation"], row["suitable_for"], method, now),
+            )
+        connection.commit()
+
+
+def list_candidate_explanations(db_path: Path = DEFAULT_DB_PATH, limit: int = 13) -> list[dict[str, object]]:
+    safe_limit = min(max(limit, 1), 13)
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            """SELECT e.*,g.title,g.store_url,c.total_score,c.candidate_kind
+               FROM game_candidate_explanations e
+               JOIN games g USING(steam_app_id)
+               LEFT JOIN game_candidates c ON c.steam_app_id=e.steam_app_id AND c.cycle_key=e.cycle_key
+               WHERE e.cycle_key=(SELECT cycle_key FROM game_candidate_explanations
+                                  ORDER BY generated_at DESC LIMIT 1)
+               ORDER BY c.total_score DESC,g.title COLLATE NOCASE LIMIT ?""",
             (safe_limit,),
         ).fetchall()
     return [dict(row) for row in rows]

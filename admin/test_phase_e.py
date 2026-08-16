@@ -87,7 +87,14 @@ class PhaseEPublishingTests(unittest.TestCase):
         self.assertIn("外部変更", response.text)
 
     def test_prepublish_confirmation_is_rendered_as_html(self) -> None:
-        response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
+        prepared = self.state / "prepared"
+        prepared.mkdir(parents=True)
+        with patch.object(
+            publishing,
+            "prepublish_check",
+            return_value=(publishing.CheckResult((), ()), prepared),
+        ):
+            response = self.client.post(f"/articles/{self.article_id}/prepublish", data={"csrf_token": self.csrf})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.headers["content-type"].startswith("text/html"))
         self.assertTrue(response.text.startswith("<!doctype html>"))
