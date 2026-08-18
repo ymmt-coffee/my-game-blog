@@ -223,7 +223,8 @@ game_discovery:
   trial_required_before_recurring_enable: true
   sqlite_backup_snapshot: backup-source/admin/admin.sqlite3
   sqlite_backup_snapshot_verified_locally: true
-  encrypted_remote_backup_with_phase_j_data_verified: false
+  encrypted_remote_backup_with_phase_j_data_verified: true
+  encrypted_remote_backup_verified_at: "2026-08-18"
 
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
