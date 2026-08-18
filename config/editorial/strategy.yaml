@@ -104,6 +104,10 @@ access_analytics:
   query_and_hash_tracking: false
   do_not_track_respected: true
   self_exclusion_storage: browser_local_storage
+  custom_domain_migration_status: completed_2026_08_18
+  custom_domain_https_verified: true
+  custom_domain_tracking_verified: true
+  legacy_public_url_redirect_verified: true
   deferred_providers: [google_analytics, plausible]
   deferred_work:
     - reconsider_api_fetch_only_if_paid_plan_or_need_justifies_it
@@ -116,6 +120,7 @@ access_analytics:
     - privacy_notice_confirmed
     - local_csv_import_available
     - umami_export_import_verified
+    - custom_domain_tracking_verified
 
 social:
   status: local_manual_scope_complete_external_scope_deferred

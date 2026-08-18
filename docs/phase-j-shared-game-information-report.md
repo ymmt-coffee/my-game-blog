@@ -68,4 +68,4 @@ Apify実行前に公式月間利用額APIをBearerヘッダーで確認し、4�
 
 Apifyトークンはユーザー環境変数へ登録済みで、固定3件の接続確認と最大10件の候補試運転に成功した。試運転データの価格単位補正後、候補分類とDB整合性も確認した。実環境では週次収集で20候補、Geminiによる候補説明9件を保存した。Steam Web APIキーとSteam ID64もユーザー環境変数へ登録し、所有ゲーム165件の同期に成功した。秘密情報の値はリポジトリへ保存していない。
 
-独自ドメイン `framing-games.com` を取得し、Cloudflareアカウントの二段階認証と復旧コードの保管を完了した。2026-08-16にGitHub Pagesへ登録し、Cloudflare DNSをDNSのみで接続した。HTTPS証明書の発行とUmami側の登録ドメイン変更は移行確認工程として継続する。暗号化Google Driveバックアップの実行確認も引き続き保留している。
+独自ドメイン `framing-games.com` を取得し、Cloudflareアカウントの二段階認証と復旧コードの保管を完了した。2026-08-16にGitHub Pagesへ登録し、Cloudflare DNSをDNSのみで接続した。2026-08-18にGitHub Pagesのドメイン再登録と再公開を行い、HTTPS強制、独自ドメインでの公開、旧GitHub Pages URLからの転送を確認した。Umamiの登録ドメインも `framing-games.com` へ切り替わり、新ドメインのアクセス計測を確認済みである。暗号化Google Driveバックアップの実行確認は引き続き保留している。
