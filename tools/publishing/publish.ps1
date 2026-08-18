@@ -42,7 +42,7 @@ function Resolve-ArticleSlug {
         throw "Article or SourceFile is required."
     }
 
-    $sourceRoot = [System.IO.Path]::GetFullPath("C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog")
+    $sourceRoot = [System.IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Life_and_Div\30_Projects\01_blog"))
     $sourcePath = [System.IO.Path]::GetFullPath($ActiveSourceFile)
     $rootPrefix = $sourceRoot.TrimEnd('\') + '\'
     if (-not $sourcePath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {

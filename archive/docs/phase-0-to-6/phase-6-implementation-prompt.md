@@ -4,7 +4,7 @@
 
 ## 作業場所
 
-`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\10_Apps\my-game-blog`
+`<プロジェクトルート>`
 
 ## このPhaseの目的
 
@@ -319,4 +319,3 @@ commit、pushはユーザーの明示承認後だけ行う。対象Phaseのフ�
 6. 未実施・保留事項
 7. commit・push・scheduleの状態
 8. ユーザーが次に行う操作
-

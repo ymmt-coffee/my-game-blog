@@ -23,7 +23,7 @@ from admin import article_templates
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONTENT_ROOT = PROJECT_ROOT / "content" / "articles"
 DEFAULT_STATE_ROOT = PROJECT_ROOT / "var" / "admin"
-LEGACY_ROOT = Path(r"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog")
+LEGACY_ROOT = Path.home() / "Documents" / "Life_and_Div" / "30_Projects" / "01_blog"
 SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 TAB_RE = re.compile(r"[A-Za-z0-9_-]{8,80}")
 IMAGE_EXTENSIONS = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}

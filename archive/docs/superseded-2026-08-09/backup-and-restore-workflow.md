@@ -4,7 +4,7 @@
 
 ローカルの安全機能、rclone 1.75.0、Google OAuth、通常remote、crypt remote、rclone設定ファイルのWindowsユーザー保護まで完了している。架空ファイル1件の暗号化アップロード・復元テストと初回バックアップは成功した。日次・月次タスクは登録・有効化済みである。Actions経由のDiscordエラー通知は、実障害と区別した接続テスト1件に成功している。
 
-バックアップ元は `C:\Users\ymmt_\Documents\Life_and_Div` 固定で、処理は元へ書き戻さない。日次は除外後の全体を削除伝播なしでcopyする。月次は`.obsidian`、Obsidian原稿、`my-blog`、`my-game-blog`だけを `YYYY-MM` の固定スナップショットとして12世代保持する。
+バックアップ元は `<個人データルート>` 固定で、処理は元へ書き戻さない。日次は除外後の全体を削除伝播なしでcopyする。月次は`.obsidian`、Obsidian原稿、`my-blog`、`my-game-blog`だけを `YYYY-MM` の固定スナップショットとして12世代保持する。
 
 ## 承認前にできる確認
 

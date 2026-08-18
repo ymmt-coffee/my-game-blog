@@ -316,7 +316,7 @@ article-name/
 Hugo標準コマンドでObsidian原稿側にPage Bundleを作る例は次のとおり。
 
 ```powershell
-hugo new content --kind play-note <slug>/index.md --contentDir "C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog"
+hugo new content --kind play-note <slug>/index.md --contentDir "<旧原稿ルート>"
 ```
 
 `weekly-picks` と `monthly-essay` も同じ方法で作成できる。
@@ -610,7 +610,7 @@ AI API、X API、問い合わせフォーム等の自動化費用を合計月3,0
 
 ### 16.1 対象
 
-`C:\Users\ymmt_\Documents\Life_and_Div` 全体を、専用ブログ用GoogleアカウントのGoogle Driveへrcloneで一方向バックアップする。変更前の実測は2,754,084,310 bytes・19,068ファイル、ローカル実装追加後のPhase 4専用除外後見込みは229,112,114 bytes・882ファイルである。Googleアカウントは15 GB中13 KB使用の状態をユーザーが確認した。
+`<個人データルート>` 全体を、専用ブログ用GoogleアカウントのGoogle Driveへrcloneで一方向バックアップする。変更前の実測は2,754,084,310 bytes・19,068ファイル、ローカル実装追加後のPhase 4専用除外後見込みは229,112,114 bytes・882ファイルである。Googleアカウントは15 GB中13 KB使用の状態をユーザーが確認した。
 
 除外対象:
 

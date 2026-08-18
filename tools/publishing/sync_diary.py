@@ -25,7 +25,7 @@ except ImportError:
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BLOG_ROOT = PROJECT_ROOT / "blog"
-DEFAULT_BLOG_DIR = Path(r"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog")
+DEFAULT_BLOG_DIR = Path.home() / "Documents" / "Life_and_Div" / "30_Projects" / "01_blog"
 DEFAULT_OUTPUT_DIR = BLOG_ROOT / "content" / "posts"
 JST = timezone(timedelta(hours=9))
 

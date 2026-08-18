@@ -56,7 +56,7 @@ corrections: []
 たとえば、プレイ途中記のPage BundleをObsidian原稿フォルダへ作る場合は次を実行します。
 
 ```powershell
-hugo new content --kind play-note sample-game/index.md --contentDir "C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog"
+hugo new content --kind play-note sample-game/index.md --contentDir "<旧原稿ルート>"
 ```
 
 `sample-game` を記事slugへ置き換えてください。ほかの2種類はkindだけを変えます。

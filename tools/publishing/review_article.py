@@ -18,7 +18,7 @@ from typing import Callable
 import frontmatter
 
 
-DEFAULT_SOURCE = Path(r"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog")
+DEFAULT_SOURCE = Path.home() / "Documents" / "Life_and_Div" / "30_Projects" / "01_blog"
 REPORT_NAME = "review-report.md"
 SCHEMA_VERSION = 1
 GEMINI_MODEL = "gemini-3.6-flash"

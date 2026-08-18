@@ -1,5 +1,5 @@
 param(
-    [string]$VaultRoot = "C:\Users\ymmt_\Documents\Life_and_Div",
+    [string]$VaultRoot = (Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Life_and_Div"),
     [switch]$SkipProcessCheck
 )
 
@@ -101,8 +101,9 @@ else {
     $logsPublishCommand = $existingLogsPublish[0]
 }
 
+$logsPublishScript = Join-Path $VaultRoot "30_Projects\10_Apps\my-blog\publish.ps1"
 $logsPublishCommand.alias = "Logs blog: Publish"
-$logsPublishCommand.platform_specific_commands.default = "powershell -ExecutionPolicy Bypass -File `"C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\10_Apps\my-blog\publish.ps1`""
+$logsPublishCommand.platform_specific_commands.default = "powershell -ExecutionPolicy Bypass -File `"$logsPublishScript`""
 $logsPublishCommand.confirm_execution = $true
 $logsPublishCommand.icon = "lucide-notebook-pen"
 

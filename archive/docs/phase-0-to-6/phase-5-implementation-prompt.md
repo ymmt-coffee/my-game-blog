@@ -6,11 +6,11 @@
 
 リポジトリ:
 
-`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\10_Apps\my-game-blog`
+`<プロジェクトルート>`
 
 Obsidian原稿候補:
 
-`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog`
+`<旧原稿ルート>`
 
 Obsidian原稿、画像、個人メモ、既存記事は、読み取り調査と承認済みの下書き作成以外で変更、移動、削除、名前変更しないでください。
 

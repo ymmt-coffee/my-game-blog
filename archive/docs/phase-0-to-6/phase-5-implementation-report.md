@@ -85,7 +85,7 @@ APIキーは既存の`GEMINI_API_KEY`だけから読み、会話保存を無効�
 
 Gemini実リサーチを1回だけ再実行し、新作5件・セール5件を再生成してDiscordへPDFをWebhook投稿した。ユーザーは1・4・5・9・10を選択した。独立照合ではAkatoriの最新Steam表示が日本語未対応だったため、インターフェイス・字幕・音声をすべて未対応へ修正した。その後、Re:Night、Big Walk、Akatori、Marvel's Spider-Man: Miles Morales、NieR:Automataの5本で最終下書きを再生成した。
 
-最終下書きはUTF-8、5本、`draft: true`、旧誤候補なし、日本語修正反映を機械確認し、`C:\Users\ymmt_\Documents\Life_and_Div\30_Projects\01_blog\weekly-picks-2026-w32\index.md`へ新規配置した。生成元と配置先のSHA-256一致を確認した。記事公開、SNS投稿、`draft: false`変更は行っていない。
+最終下書きはUTF-8、5本、`draft: true`、旧誤候補なし、日本語修正反映を機械確認し、`<旧原稿ルート>/weekly-picks-2026-w32/index.md`へ新規配置した。生成元と配置先のSHA-256一致を確認した。記事公開、SNS投稿、`draft: false`変更は行っていない。
 
 ユーザー承認により、毎週日曜18時（Asia/Tokyo、cronは日曜09:00 UTC）にGeminiで10候補を調査し、Discordへ要約とPDFを送るGitHub Actions scheduleを追加した。選択用の全成果物は14日間保存する。scheduleは記事生成、公開、SNS投稿を行わない。
 
