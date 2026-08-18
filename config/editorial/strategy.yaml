@@ -226,6 +226,25 @@ game_discovery:
   encrypted_remote_backup_with_phase_j_data_verified: true
   encrypted_remote_backup_verified_at: "2026-08-18"
 
+phase_k_editorial:
+  implemented_at: "2026-08-19"
+  schema_version: 10
+  top_candidate_count: 3
+  top_candidate_mix: [new_release_if_available, sale_or_free_if_available, highest_remaining]
+  explanation_source: stored_phase_j_gemini_or_fixed_score_fallback
+  monthly_budget_jpy: 10000
+  exceptional_monthly_budget_jpy: 20000
+  purchase_payment_details_stored: false
+  play_statuses: [playing, completed, stopped]
+  play_ratings: [good, neutral, not_for_me, unrated]
+  article_suggestions: [play_note, weekly_picks, monthly_essay, no_article]
+  draft_creation_requires_explicit_action: true
+  generated_draft_state: draft
+  generated_draft_is_intentionally_incomplete: true
+  automatic_purchase: false
+  automatic_publish: false
+  external_ai_call_on_page_view: false
+
 phase_a_design:
   document: docs/phase-a-data-migration-design.md
   approved_at: "2026-08-09"

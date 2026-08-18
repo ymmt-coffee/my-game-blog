@@ -142,15 +142,16 @@ def create_article_files(
     description: str = "",
     play_time: str = "",
     game_completed: bool = False,
+    allow_incomplete: bool = False,
 ) -> tuple[str, Path, str]:
     slug = validate_slug(slug)
     article_type = validate_article_type(article_type)
     title = title.strip()
     author = author.strip()
     description = description.strip()
-    if not title or not author or not description:
+    if not title or not author or (not description and not allow_incomplete):
         raise ArticleError("タイトル、概要、著者を入力してください。")
-    if article_type == "play_note" and not play_time.strip():
+    if article_type == "play_note" and not play_time.strip() and not allow_incomplete:
         raise ArticleError("プレイログではプレイ時間を入力してください。")
     target = article_dir(content_root, slug)
     if target.exists():

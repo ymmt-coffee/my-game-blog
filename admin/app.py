@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, editorial_explanations, game_collection, game_information, game_scheduling, publishing, scheduling, social
+from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, scheduling, social
 from admin.article_input import ArticleInput
 
 
@@ -1188,15 +1188,169 @@ def create_app(
             )
             return error_page(str(exc), request.app.state.csrf_token)
 
-    descriptions = {
-        "/editorial": "共通情報基盤の試運転後に、候補3本と推薦理由を表示します。",
-    }
-    for path, label, phase in NAV_ITEMS:
-        if path in descriptions:
-            async def placeholder(request: Request, *, page_label: str = label, page_phase: str = phase, page_path: str = path) -> str:
-                body = f'<section class="card empty"><span class="phase">{escape(page_phase)}</span><h2>準備中です</h2><p>{escape(descriptions[page_path])}</p></section>'
-                return layout(page_label, page_path, body, request.app.state.csrf_token)
-            app.add_api_route(path, placeholder, methods=["GET"], response_class=HTMLResponse)
+    @app.get("/editorial", response_class=HTMLResponse)
+    async def editorial_page(request: Request) -> str:
+        candidates = db.list_game_candidates(request.app.state.db_path, 100)
+        top = editorial.select_top_candidates(candidates)
+        explanations = {
+            str(item["steam_app_id"]): item
+            for item in db.list_candidate_explanations(request.app.state.db_path, 13)
+        }
+        activity = db.editorial_activity(editorial.current_month(), request.app.state.db_path)
+        decision_labels = {
+            "play_candidate": "プレイ候補", "article_candidate": "記事候補",
+            "hold": "保留", "not_interested": "興味なし",
+        }
+        article_labels = {
+            "play_note": "プレイログ", "weekly_picks": "新作・セール",
+            "monthly_essay": "月刊コラム", "no_article": "記事化せずプレイのみ",
+        }
+        cards: list[str] = []
+        for rank, item in enumerate(top, 1):
+            app_id = str(item["steam_app_id"])
+            explanation = explanations.get(app_id, {})
+            suitable = str(explanation.get("suitable_for") or "")
+            suggestion = editorial.suggested_article_type(suitable, str(item.get("candidate_kind") or ""))
+            options = "".join(
+                f'<option value="{key}"{" selected" if key == suggestion else ""}>{label}</option>'
+                for key, label in article_labels.items()
+            )
+            decision_options = "".join(
+                f'<option value="{key}"{" selected" if item.get("latest_decision") == key else ""}>{label}</option>'
+                for key, label in decision_labels.items()
+            )
+            reason = str(explanation.get("explanation") or "固定採点をもとに選定しています。AI説明がない場合も候補点は利用できます。")
+            price = item.get("current_price")
+            price_text = f'{int(price):,}円' if price is not None else "価格未確認"
+            cards.append(f'''<article class="card editorial-candidate">
+<div class="editorial-rank">候補 {rank}</div><h2><a href="{escape(str(item['store_url']))}" target="_blank" rel="noopener">{escape(str(item['title']))}</a></h2>
+<div class="editorial-facts"><span>{int(item['total_score'])}点</span><span>{price_text}</span><span>{'所有済み' if item.get('owned') else '未所有'}</span></div>
+<p>{escape(reason)}</p>
+<details><summary>判断・購入・プレイ・記事下書き</summary>
+<div class="editorial-actions-grid">
+<form method="post" action="/editorial/candidates/{app_id}/decision">{hidden_csrf(request.app.state.csrf_token)}<h3>候補の判断</h3><label>判断<select name="decision">{decision_options}</select></label><label>メモ<input name="note" maxlength="500"></label><button class="button secondary" type="submit">判断を記録</button></form>
+<form method="post" action="/editorial/candidates/{app_id}/purchase">{hidden_csrf(request.app.state.csrf_token)}<h3>購入記録</h3><label>購入日<input type="date" name="purchased_on" value="{date.today().isoformat()}" required></label><label>価格（円）<input type="number" name="price_jpy" min="0" max="20000" value="{int(price) if price is not None else ''}" required></label><label class="check-label"><input type="checkbox" name="exceptional" value="1">1万円超の例外予算を確認</label><label>メモ<input name="note" maxlength="500"></label><button class="button secondary" type="submit">購入を記録</button></form>
+<form method="post" action="/editorial/candidates/{app_id}/play-review">{hidden_csrf(request.app.state.csrf_token)}<h3>プレイ状況</h3><label>状況<select name="play_status"><option value="playing">プレイ中</option><option value="completed">クリア</option><option value="stopped">中断</option></select></label><label>評価<select name="rating"><option value="unrated">未評価</option><option value="good">良かった</option><option value="neutral">普通</option><option value="not_for_me">合わなかった</option></select></label><label>メモ<input name="note" maxlength="500"></label><button class="button secondary" type="submit">プレイ記録を保存</button></form>
+<form method="post" action="/editorial/candidates/{app_id}/draft">{hidden_csrf(request.app.state.csrf_token)}<h3>記事下書き</h3><label>提案形式<select name="article_type">{options}</select></label><p class="muted">作成後に記事管理で概要・本文等を入力します。公開はされません。</p><button class="button" type="submit">下書きを作成</button></form>
+</div></details></article>''')
+        top_html = "".join(cards) or '<section class="card empty"><h2>表示できる候補がありません</h2><p>リリース・セール情報で候補収集を確認してください。</p></section>'
+        total = int(activity["purchase_total"])
+        budget_class = "danger" if total > editorial.NORMAL_MONTHLY_BUDGET_JPY else ""
+        planned_rows = "".join(
+            f'<tr><td><a href="{escape(str(row["store_url"]))}" target="_blank" rel="noopener">{escape(str(row["title"]))}</a></td><td>{escape(str(row.get("note") or ""))}</td></tr>'
+            for row in activity["decisions"] if row["decision"] == "play_candidate"
+        ) or '<tr><td colspan="2" class="muted">プレイ候補はまだありません。</td></tr>'
+        play_rows = "".join(
+            f'<tr><td>{escape(str(row["title"]))}</td><td>{escape({"playing":"プレイ中","completed":"クリア","stopped":"中断"}.get(str(row["play_status"]), str(row["play_status"])))}</td><td>{escape({"good":"良かった","neutral":"普通","not_for_me":"合わなかった","unrated":"未評価"}.get(str(row["rating"]), str(row["rating"])))}</td><td><form method="post" action="/editorial/play-reviews/{int(row["id"])}/delete" onsubmit="return confirm(\'このプレイ記録を削除しますか？\')">{hidden_csrf(request.app.state.csrf_token)}<button class="button danger compact" type="submit">削除</button></form></td></tr>'
+            for row in activity["play_reviews"]
+        ) or '<tr><td colspan="4" class="muted">プレイ記録はありません。</td></tr>'
+        decision_rows = "".join(
+            f'<tr><td><a href="{escape(str(row["store_url"]))}" target="_blank" rel="noopener">{escape(str(row["title"]))}</a></td><td>{escape(decision_labels.get(str(row["decision"]), str(row["decision"])))}</td><td>{escape(str(row.get("note") or ""))}</td><td><form method="post" action="/editorial/decisions/{int(row["id"])}/delete" onsubmit="return confirm(\'この判断記録を削除しますか？\')">{hidden_csrf(request.app.state.csrf_token)}<button class="button danger compact" type="submit">削除</button></form></td></tr>'
+            for row in activity["decisions"]
+        ) or '<tr><td colspan="4" class="muted">判断履歴はありません。</td></tr>'
+        draft_rows = "".join(
+            f'<tr><td>{escape(str(row["title"]))}</td><td>{escape(article_labels.get(str(row["article_type"]), str(row["article_type"])))}</td><td><a href="/articles/{escape(str(row["article_id"]))}/edit">{escape(str(row["slug"]))}</a></td><td><form method="post" action="/editorial/drafts/{int(row["id"])}/unlink" onsubmit="return confirm(\'記事本体を残してAI編集部との関連を解除しますか？\')">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary compact" type="submit">関連解除</button></form></td></tr>'
+            for row in activity["drafts"]
+        ) or '<tr><td colspan="4" class="muted">編集部から作成した下書きはありません。</td></tr>'
+        purchase_rows = "".join(
+            f'<tr><td>{escape(str(row["purchased_on"]))}</td><td>{escape(str(row["title"]))}</td><td>{int(row["price_jpy"]):,}円</td><td><form method="post" action="/editorial/purchases/{int(row["id"])}/delete" onsubmit="return confirm(\'この購入記録を削除しますか？\')">{hidden_csrf(request.app.state.csrf_token)}<button class="button danger compact" type="submit">削除</button></form></td></tr>'
+            for row in activity["purchases"]
+        ) or '<tr><td colspan="4" class="muted">購入記録はありません。</td></tr>'
+        notice = '<section class="notice success">記録を削除しました。</section>' if request.query_params.get("deleted") else ('<section class="notice success">記録を保存しました。</section>' if request.query_params.get("saved") else "")
+        body = f'''{notice}<section class="editorial-summary">
+<article class="card"><span>今月の購入</span><strong class="{budget_class}">{total:,}円</strong><small>通常10,000円 / 例外上限20,000円</small></article>
+<article class="card"><span>上位候補</span><strong>{len(top)}本</strong><small>新作・セールを可能な範囲で混成</small></article></section>
+<section class="section-head"><h2>今週の候補</h2><a class="text-link" href="/releases">候補の根拠をすべて確認</a></section>{top_html}
+<section class="grid"><article class="card"><h2>これから遊ぶゲーム</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>メモ</th></tr></thead><tbody>{planned_rows}</tbody></table></div><h2 class="subsection-title">プレイ後の評価</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>状況</th><th>評価</th><th></th></tr></thead><tbody>{play_rows}</tbody></table></div></article>
+<article class="card"><h2>判断履歴</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>判断</th><th>メモ</th><th></th></tr></thead><tbody>{decision_rows}</tbody></table></div></article></section>
+<section class="grid"><article class="card"><h2>今月の購入記録</h2><div class="table-wrap"><table><thead><tr><th>日付</th><th>ゲーム</th><th>価格</th><th></th></tr></thead><tbody>{purchase_rows}</tbody></table></div></article><article class="card"><h2>作成した記事下書き</h2><p class="muted">関連解除では記事本体は削除されません。</p><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>形式</th><th>記事</th><th></th></tr></thead><tbody>{draft_rows}</tbody></table></div></article></section>'''
+        return layout("AI編集部", "/editorial", body, request.app.state.csrf_token)
+
+    @app.post("/editorial/candidates/{steam_app_id}/decision")
+    async def editorial_decision(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            db.record_game_decision(steam_app_id, str(form.get("decision") or ""), str(form.get("note") or ""), request.app.state.db_path)
+            return RedirectResponse("/editorial?saved=1", status_code=303)
+        except ValueError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/editorial/candidates/{steam_app_id}/purchase")
+    async def editorial_purchase(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            purchased_on = str(form.get("purchased_on") or "")
+            purchased_date = date.fromisoformat(purchased_on)
+            if purchased_date > date.today():
+                raise editorial.EditorialError("未来の日付では購入を記録できません。")
+            current = db.editorial_activity(purchased_on[:7], request.app.state.db_path)
+            exceptional = str(form.get("exceptional") or "") == "1"
+            price, note = editorial.validate_purchase(form.get("price_jpy"), exceptional, str(form.get("note") or ""), int(current["purchase_total"]))
+            db.record_game_purchase(steam_app_id, purchased_on, price, exceptional, note, request.app.state.db_path)
+            return RedirectResponse("/editorial?saved=1", status_code=303)
+        except (ValueError, editorial.EditorialError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/editorial/candidates/{steam_app_id}/play-review")
+    async def editorial_play_review(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            status, rating, note = editorial.validate_play_review(str(form.get("play_status") or ""), str(form.get("rating") or ""), str(form.get("note") or ""))
+            db.record_game_play_review(steam_app_id, status, rating, note, request.app.state.db_path)
+            return RedirectResponse("/editorial?saved=1", status_code=303)
+        except (ValueError, editorial.EditorialError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/editorial/candidates/{steam_app_id}/draft")
+    async def editorial_create_draft(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            article_type = editorial.validate_article_type(str(form.get("article_type") or ""))
+            if article_type == "no_article":
+                raise editorial.EditorialError("「記事化せずプレイのみ」では記事下書きを作成しません。")
+            game = db.get_game(steam_app_id, request.app.state.db_path)
+            if game is None:
+                raise editorial.EditorialError("対象ゲームが見つかりません。")
+            slug = articles.next_daily_slug(request.app.state.content_root)
+            article_id, path, digest = articles.create_article_files(
+                request.app.state.content_root, slug, str(game["title"]), article_type,
+                "やまもと", "", "", False, allow_incomplete=True,
+            )
+            db.create_article(article_id, path.name, article_type, str(path.resolve()), digest, request.app.state.db_path)
+            db.link_game_article_draft(steam_app_id, article_id, article_type, request.app.state.db_path)
+            db.record_event("editorial_draft", "success", "editorial_draft_created", "AI編集部から記事下書きを作成しました。", request.app.state.db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
+        except (articles.ArticleError, ValueError, editorial.EditorialError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/editorial/decisions/{record_id}/delete")
+    async def editorial_delete_decision(record_id: int, request: Request):
+        return await delete_editorial_record(request, db.delete_game_decision, record_id)
+
+    @app.post("/editorial/purchases/{record_id}/delete")
+    async def editorial_delete_purchase(record_id: int, request: Request):
+        return await delete_editorial_record(request, db.delete_game_purchase, record_id)
+
+    @app.post("/editorial/play-reviews/{record_id}/delete")
+    async def editorial_delete_play_review(record_id: int, request: Request):
+        return await delete_editorial_record(request, db.delete_game_play_review, record_id)
+
+    @app.post("/editorial/drafts/{record_id}/unlink")
+    async def editorial_unlink_draft(record_id: int, request: Request):
+        return await delete_editorial_record(request, db.unlink_game_article_draft, record_id)
+
+    async def delete_editorial_record(request: Request, delete_action, record_id: int):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            delete_action(record_id, request.app.state.db_path)
+            return RedirectResponse("/editorial?deleted=1", status_code=303)
+        except ValueError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
 
     @app.get("/settings", response_class=HTMLResponse)
     async def settings(request: Request) -> str:
@@ -1221,7 +1375,7 @@ def create_app(
         public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
         game_summary = db.game_information_summary(db_path)
         snapshot_status = "準備済み" if ADMIN_DB_SNAPSHOT.is_file() else "次回バックアップ時に作成"
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase J（共通情報基盤）</dd><dt>ゲーム情報</dt><dd>{game_summary['games']}件</dd><dt>DBバックアップ</dt><dd>{snapshot_status}</dd></dl></article>
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase K（AI編集部）</dd><dt>ゲーム情報</dt><dd>{game_summary['games']}件</dd><dt>DBバックアップ</dt><dd>{snapshot_status}</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p><p class="muted">DBの安全な複製は日次・月次バックアップの直前に更新します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
@@ -1245,7 +1399,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "J", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "K", "version": APP_VERSION}
 
     return app
 

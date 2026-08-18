@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 
@@ -256,6 +256,40 @@ CREATE INDEX IF NOT EXISTS idx_game_explanations_cycle
 ON game_candidate_explanations(cycle_key, generated_at DESC);
 """
 
+SCHEMA_V10 = """
+CREATE TABLE IF NOT EXISTS game_purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    purchased_on TEXT NOT NULL,
+    price_jpy INTEGER NOT NULL CHECK (price_jpy BETWEEN 0 AND 20000),
+    exceptional INTEGER NOT NULL DEFAULT 0 CHECK (exceptional IN (0,1)),
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_play_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    play_status TEXT NOT NULL CHECK (play_status IN ('playing','completed','stopped')),
+    rating TEXT NOT NULL CHECK (rating IN ('good','neutral','not_for_me','unrated')),
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_article_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    article_id TEXT NOT NULL REFERENCES articles(id),
+    article_type TEXT NOT NULL CHECK (article_type IN ('play_note','weekly_picks','monthly_essay')),
+    created_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, article_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_purchases_month ON game_purchases(purchased_on);
+CREATE INDEX IF NOT EXISTS idx_game_play_reviews_game ON game_play_reviews(steam_app_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_article_drafts_game ON game_article_drafts(steam_app_id, created_at DESC);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -336,6 +370,11 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (9, utc_now()),
+        )
+        connection.executescript(SCHEMA_V10)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (10, utc_now()),
         )
         connection.commit()
 
@@ -575,7 +614,10 @@ def list_game_candidates(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> li
                        )) AS media_sources,
                       (SELECT decision FROM game_decisions
                        WHERE game_decisions.steam_app_id=game_candidates.steam_app_id
-                       ORDER BY created_at DESC,id DESC LIMIT 1) AS latest_decision
+                       ORDER BY created_at DESC,id DESC LIMIT 1) AS latest_decision,
+                      (SELECT created_at FROM game_decisions
+                       WHERE game_decisions.steam_app_id=game_candidates.steam_app_id
+                       ORDER BY created_at DESC,id DESC LIMIT 1) AS latest_decision_at
                FROM game_candidates JOIN games USING(steam_app_id)
                ORDER BY game_candidates.cycle_key DESC,game_candidates.total_score DESC,
                         games.title COLLATE NOCASE LIMIT ?""",
@@ -620,6 +662,141 @@ def list_candidate_explanations(db_path: Path = DEFAULT_DB_PATH, limit: int = 13
             (safe_limit,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_game(steam_app_id: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object] | None:
+    with closing(connect(db_path)) as connection:
+        row = connection.execute(
+            "SELECT * FROM games WHERE steam_app_id=?", (steam_app_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def record_game_purchase(
+    steam_app_id: str, purchased_on: str, price_jpy: int, exceptional: bool,
+    note: str | None = None, db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if not steam_app_id.isascii() or not steam_app_id.isdigit():
+        raise ValueError("Steam App IDが正しくありません。")
+    try:
+        date.fromisoformat(purchased_on)
+    except ValueError as exc:
+        raise ValueError("購入日が正しくありません。") from exc
+    if price_jpy < 0 or price_jpy > 20_000:
+        raise ValueError("購入価格が正しくありません。")
+    now = utc_now()
+    with closing(connect(db_path)) as connection:
+        if connection.execute("SELECT 1 FROM games WHERE steam_app_id=?", (steam_app_id,)).fetchone() is None:
+            raise ValueError("対象ゲームが見つかりません。")
+        connection.execute(
+            """INSERT INTO game_purchases
+               (steam_app_id,purchased_on,price_jpy,exceptional,note,created_at)
+               VALUES (?,?,?,?,?,?)""",
+            (steam_app_id, purchased_on, price_jpy, int(exceptional), note, now),
+        )
+        connection.commit()
+
+
+def record_game_play_review(
+    steam_app_id: str, play_status: str, rating: str, note: str | None = None,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if not steam_app_id.isascii() or not steam_app_id.isdigit():
+        raise ValueError("Steam App IDが正しくありません。")
+    if play_status not in {"playing", "completed", "stopped"}:
+        raise ValueError("プレイ状況が正しくありません。")
+    if rating not in {"good", "neutral", "not_for_me", "unrated"}:
+        raise ValueError("評価が正しくありません。")
+    with closing(connect(db_path)) as connection:
+        if connection.execute("SELECT 1 FROM games WHERE steam_app_id=?", (steam_app_id,)).fetchone() is None:
+            raise ValueError("対象ゲームが見つかりません。")
+        connection.execute(
+            """INSERT INTO game_play_reviews
+               (steam_app_id,play_status,rating,note,created_at) VALUES (?,?,?,?,?)""",
+            (steam_app_id, play_status, rating, note, utc_now()),
+        )
+        connection.commit()
+
+
+def link_game_article_draft(
+    steam_app_id: str, article_id: str, article_type: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if not steam_app_id.isascii() or not steam_app_id.isdigit():
+        raise ValueError("Steam App IDが正しくありません。")
+    if article_type not in {"play_note", "weekly_picks", "monthly_essay"}:
+        raise ValueError("記事形式が正しくありません。")
+    with closing(connect(db_path)) as connection:
+        connection.execute(
+            """INSERT INTO game_article_drafts
+               (steam_app_id,article_id,article_type,created_at) VALUES (?,?,?,?)""",
+            (steam_app_id, article_id, article_type, utc_now()),
+        )
+        connection.commit()
+
+
+def _delete_editorial_record(table: str, record_id: int, db_path: Path) -> None:
+    allowed = {"game_decisions", "game_purchases", "game_play_reviews", "game_article_drafts"}
+    if table not in allowed or record_id <= 0:
+        raise ValueError("削除対象が正しくありません。")
+    with closing(connect(db_path)) as connection:
+        cursor = connection.execute(f"DELETE FROM {table} WHERE id=?", (record_id,))
+        if cursor.rowcount != 1:
+            raise ValueError("削除対象の記録が見つかりません。")
+        connection.commit()
+
+
+def delete_game_decision(record_id: int, db_path: Path = DEFAULT_DB_PATH) -> None:
+    _delete_editorial_record("game_decisions", record_id, db_path)
+
+
+def delete_game_purchase(record_id: int, db_path: Path = DEFAULT_DB_PATH) -> None:
+    _delete_editorial_record("game_purchases", record_id, db_path)
+
+
+def delete_game_play_review(record_id: int, db_path: Path = DEFAULT_DB_PATH) -> None:
+    _delete_editorial_record("game_play_reviews", record_id, db_path)
+
+
+def unlink_game_article_draft(record_id: int, db_path: Path = DEFAULT_DB_PATH) -> None:
+    """記事本体を残したまま、AI編集部との関連付けだけを解除する。"""
+    _delete_editorial_record("game_article_drafts", record_id, db_path)
+
+
+def editorial_activity(month: str, db_path: Path = DEFAULT_DB_PATH) -> dict[str, object]:
+    """AI編集部に必要な集計と履歴だけを返す。"""
+    with closing(connect(db_path)) as connection:
+        purchase_total = int(connection.execute(
+            "SELECT COALESCE(SUM(price_jpy),0) FROM game_purchases WHERE substr(purchased_on,1,7)=?",
+            (month,),
+        ).fetchone()[0])
+        purchases = connection.execute(
+            """SELECT p.*,g.title FROM game_purchases p JOIN games g USING(steam_app_id)
+               ORDER BY p.purchased_on DESC,p.id DESC LIMIT 20"""
+        ).fetchall()
+        play_reviews = connection.execute(
+            """SELECT r.*,g.title FROM game_play_reviews r JOIN games g USING(steam_app_id)
+               ORDER BY r.created_at DESC,r.id DESC LIMIT 20"""
+        ).fetchall()
+        drafts = connection.execute(
+            """SELECT d.*,g.title,a.slug FROM game_article_drafts d
+               JOIN games g USING(steam_app_id) JOIN articles a ON a.id=d.article_id
+               ORDER BY d.created_at DESC,d.id DESC LIMIT 20"""
+        ).fetchall()
+        decisions = connection.execute(
+            """SELECT d.*,g.title,g.store_url FROM game_decisions d JOIN games g USING(steam_app_id)
+               WHERE d.id=(SELECT d2.id FROM game_decisions d2
+                           WHERE d2.steam_app_id=d.steam_app_id
+                           ORDER BY d2.created_at DESC,d2.id DESC LIMIT 1)
+               ORDER BY d.created_at DESC,d.id DESC LIMIT 30"""
+        ).fetchall()
+    return {
+        "purchase_total": purchase_total,
+        "purchases": [dict(row) for row in purchases],
+        "play_reviews": [dict(row) for row in play_reviews],
+        "drafts": [dict(row) for row in drafts],
+        "decisions": [dict(row) for row in decisions],
+    }
 
 
 def record_event(
