@@ -207,6 +207,40 @@ class PhaseEPublishingTests(unittest.TestCase):
         finally:
             publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
 
+    def test_commit_safety_failure_stops_publish_before_commit_and_push(self) -> None:
+        original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
+        try:
+            publishing.PROJECT_ROOT = self.root
+            publishing.PUBLIC_POSTS = self.root / "blog/content/posts"
+            source = self.root / "content/articles/unsafe-post"
+            (source / "images").mkdir(parents=True)
+            (source / "index.md").write_text("---\ntitle: x\n---\nbody\n", encoding="utf-8")
+            prepared = self.root / "prepared" / ("7" * 64)
+            prepared.mkdir(parents=True)
+            (prepared / "index.md").write_text("---\ndraft: false\n---\nbody\n", encoding="utf-8")
+            article = articles.ArticleFile("id", "unsafe-post", source, {}, "body", "7" * 64)
+            calls = []
+
+            def runner(args, **_kwargs):
+                calls.append(args)
+                if args[:4] == ["git", "diff", "--cached", "--name-only"]:
+                    return subprocess.CompletedProcess(args, 0, "content/articles/unsafe-post/index.md\nblog/content/posts/unsafe-post/index.md\n", "")
+                if args[:3] == ["git", "diff", "--cached"]:
+                    return subprocess.CompletedProcess(args, 0, "", "")
+                if args[:3] == ["git", "status", "--porcelain"]:
+                    return subprocess.CompletedProcess(args, 0, "", "")
+                if args[:2] == ["python", "tools/security/check_staged_commit.py"]:
+                    return subprocess.CompletedProcess(args, 1, "", "unsafe")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            with self.assertRaisesRegex(publishing.PublishError, "安全検査") as caught:
+                publishing.publish_article(article, prepared, runner)
+            self.assertTrue(caught.exception.before_commit)
+            self.assertFalse(any(call[:2] == ["git", "commit"] for call in calls))
+            self.assertFalse(any(call[:2] == ["git", "push"] for call in calls))
+        finally:
+            publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS = original_root, original_posts
+
     def test_review_report_in_article_is_never_staged(self) -> None:
         original_root, original_posts = publishing.PROJECT_ROOT, publishing.PUBLIC_POSTS
         try:

@@ -360,6 +360,10 @@ safety:
   tests_use_real_external_services: false
   backup_remains_enabled: true
   backup_failure_notification: local_status_only
+  staged_commit_safety_check: tools/security/check_staged_commit.py
+  local_pre_commit_hook: enabled
+  github_actions_tracked_file_check: enabled
+  commit_guard_blocks: [known_secret_formats, personal_home_paths, review_reports, local_state, backup_snapshot, env_files]
 
 maintenance:
   refactored_at: "2026-08-11"

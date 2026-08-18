@@ -124,6 +124,8 @@ AI校正は操作のテンポを優先して現在停止・非表示としてい
 
 投稿時は既存stage、公開コピーの未コミット変更、対象外stageを停止条件とし、`content/articles/<slug>/` と `blog/content/posts/<slug>/` だけをcommitする。push後は対応するGitHub Actionsと公開URLのHTTP 200を確認してから公開済みと記録する。
 
+公開リポジトリの誤commit防止として、Gitへ登録済みの内容だけを読む共通検査を設ける。秘密鍵、既知形式のAPI token、Steam Web API key、個人ホームの絶対パス、`review-report.md`、`.env`、`var/`、`backup-source/` を検出した場合はcommit前に停止する。管理画面の記事公開と公開停止、ローカルGit hook、GitHub Actionsは同じ検査を使用し、検査自体を通過できない場合も安全側で停止する。
+
 ### Phase F実装状況
 
 公開ブログを明るいグレー、黒、濃淡グレーで構成する直線的なゲームメディア風デザインへ更新した。ブログ名は `FRAMING` とし、最新記事1件を大きく表示した後に記事一覧を配置する。メニューはプレイログ、新作・セール、月刊コラム、About、検索で構成する。

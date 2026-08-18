@@ -29,6 +29,7 @@ Hugoのブログ本体と安全な公開基盤を維持しながら、Obsidian�
 - AI出力や外部入力をコマンドとして実行しない。
 - テストから実AI、SNS、Discord等を呼ばない。
 - commit、push、公開、外部サービス変更は、ユーザーの明示承認後だけ行う。予約公開は、検査結果と日時を表示した確認画面の「この日時で予約する」を、対象記事と指定時刻に限った事前の明示承認として扱う。
+- commit前は `tools/security/check_staged_commit.py` を実行し、秘密情報、個人ユーザーパス、`review-report.md`、`var/`、`backup-source/`、環境変数ファイルを検出した場合は停止する。ローカルGit hook、管理画面の記事公開、GitHub Actionsで同じ検査を使用する。
 
 ## 4. 管理画面の原則
 

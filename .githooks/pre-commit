@@ -1,0 +1,11 @@
+#!/bin/sh
+if command -v python >/dev/null 2>&1; then
+    exec python tools/security/check_staged_commit.py
+elif command -v py >/dev/null 2>&1; then
+    exec py -3 tools/security/check_staged_commit.py
+elif command -v python3 >/dev/null 2>&1; then
+    exec python3 tools/security/check_staged_commit.py
+fi
+
+echo "commitを停止しました。Pythonを起動できないため安全検査を実行できません。" >&2
+exit 2

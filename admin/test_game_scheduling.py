@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-import os
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,12 +42,13 @@ class GameSchedulingTests(unittest.TestCase):
             calls.append((token, kwargs))
             return self.result()
 
-        first = game_scheduling.process_due_weekly_collection(
-            self.db_path, now=now, token="test-token", collector=collector,
-        )
-        second = game_scheduling.process_due_weekly_collection(
-            self.db_path, now=now, token="test-token", collector=collector,
-        )
+        with patch("admin.game_scheduling.game_collection._environment_secret", return_value=""):
+            first = game_scheduling.process_due_weekly_collection(
+                self.db_path, now=now, token="test-token", collector=collector,
+            )
+            second = game_scheduling.process_due_weekly_collection(
+                self.db_path, now=now, token="test-token", collector=collector,
+            )
         self.assertEqual((first, second), ("partial", "already_processed"))
         self.assertEqual(len(calls), 1)
         self.assertEqual(db.game_information_summary(self.db_path)["games"], 1)
@@ -83,9 +83,15 @@ class GameSchedulingTests(unittest.TestCase):
         def failed_ownership(_key, _steam_id):
             raise game_information.GameInformationError("認証失敗")
 
-        with patch.dict(os.environ, {
-            "STEAM_WEB_API_KEY": "test-key", "STEAM_ID64": "76561198000000000",
-        }, clear=False):
+        secrets = {
+            "STEAM_WEB_API_KEY": "test-key",
+            "STEAM_ID64": "76561198000000000",
+            "GEMINI_API_KEY": "",
+        }
+        with patch(
+            "admin.game_scheduling.game_collection._environment_secret",
+            side_effect=lambda name: secrets.get(name, ""),
+        ):
             result = game_scheduling.process_due_weekly_collection(
                 self.db_path,
                 now=datetime(2026, 8, 15, tzinfo=timezone.utc),

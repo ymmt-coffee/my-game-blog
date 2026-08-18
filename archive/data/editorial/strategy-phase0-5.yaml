@@ -535,7 +535,7 @@ backup:
   provider_storage_used_bytes_verified: 0
   provider_storage_free_bytes_verified: 16106113631
   source_scope: Life_and_Div
-  source_absolute_path: "C:/Users/ymmt_/Documents/Life_and_Div"
+  source_absolute_path: "C:/Users/<user>/Documents/Life_and_Div"
   measured_source_files: 19068
   measured_source_bytes: 2754084310
   estimated_included_files: 882

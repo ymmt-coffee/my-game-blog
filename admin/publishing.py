@@ -365,6 +365,9 @@ def publish_article(article: articles.ArticleFile, prepared: Path, runner: Comma
             raise PublishError("公開する確定保存済みの変更がありません。編集内容を手動保存してから、公開前チェックをやり直してください。")
         if any(not path.startswith(allowed) for path in changed):
             raise PublishError("対象記事以外の変更が混ざったため公開を停止しました。")
+        safety = runner(["python", "tools/security/check_staged_commit.py"], timeout=30)
+        if safety.returncode != 0:
+            raise PublishError("commit前の安全検査で公開対象外情報を検出したため停止しました。")
         commit_result = runner(["git", "commit", "-m", f"publish: {article.slug}", "--", *publish_paths], timeout=60)
         if commit_result.returncode != 0:
             raise PublishError("記事のcommitに失敗しました。")
@@ -428,6 +431,9 @@ def unpublish_article(article: articles.ArticleFile, runner: CommandRunner = run
         changed = [line.strip().replace("\\", "/") for line in names.stdout.splitlines() if line.strip()]
         if not changed or any(not path.startswith(public_rel + "/") for path in changed):
             raise PublishError("対象記事以外の変更が混ざったため公開停止を中止しました。", before_commit=True)
+        safety = runner(["python", "tools/security/check_staged_commit.py"], timeout=30)
+        if safety.returncode != 0:
+            raise PublishError("commit前の安全検査で公開対象外情報を検出したため停止しました。", before_commit=True)
         result = runner(["git", "commit", "-m", f"unpublish: {article.slug}", "--", public_rel], timeout=60)
         if result.returncode != 0:
             raise PublishError("公開停止のcommitに失敗しました。", before_commit=True)

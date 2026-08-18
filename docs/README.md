@@ -25,6 +25,7 @@
 18. `phase-i-social-report.md` - X投稿案、確認、コピー、手動投稿記録と、X API連携の保留境界の実装報告
 19. `phase-j-shared-game-information-design.md` - Phase J〜Lの承認済み収集条件、採点、外部接続、安全境界、試運転手順
 20. `phase-j-shared-game-information-report.md` - Phase JのSQLite共通基盤、バックアップ、Apify接続確認、最大10件候補試運転、保留作業の実装報告
+21. `repository-commit-safety-report.md` - 公開リポジトリの個人パス除去と、誤commit防止検査の実装・操作記録
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 
