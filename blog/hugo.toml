@@ -1,4 +1,5 @@
 baseURL = "https://framing-games.com/"
+timeZone = "Asia/Tokyo"
 locale = "ja-JP"
 defaultContentLanguage = "ja"
 title = "FRAMING"

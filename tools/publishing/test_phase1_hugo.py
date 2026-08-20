@@ -4,6 +4,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 import zlib
 import shutil
@@ -49,6 +50,11 @@ def write_article(content: Path, slug: str, article_type: str, extra: str, body:
 
 
 class Phase1HugoTests(unittest.TestCase):
+    def test_site_uses_japan_timezone(self) -> None:
+        with (BLOG_ROOT / "hugo.toml").open("rb") as stream:
+            configuration = tomllib.load(stream)
+        self.assertEqual(configuration.get("timeZone"), "Asia/Tokyo")
+
     def test_three_article_types_seo_images_and_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)

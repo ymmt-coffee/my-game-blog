@@ -1,17 +1,18 @@
-version: 7
-updated_at: "2026-08-14"
+version: 8
+updated_at: "2026-08-20"
 
 direction:
   primary_interface: local_admin_web_app
   admin_network_scope: localhost_only
   first_goal: article_management_and_publishing
   public_target: hugo_blog_only
+  site_timezone: Asia/Tokyo
   obsidian_role: retired_for_current_articles
   discord_enabled: false
 
 current:
-  phase: shared_game_information
-  phase_status: shared_storage_foundation_implemented_trial_pending
+  phase: release_sale_information
+  phase_status: phase_l_implemented
   retained:
     - hugo_blog
     - article_page_bundles
@@ -344,6 +345,26 @@ phase_f:
   category_placeholder_when_unset: true
   responsive_mobile_verified: true
   public_deploy_performed_during_implementation: false
+
+phase_l_release_sale:
+  implemented_at: "2026-08-19"
+  schema_version: 12
+  collection_route: /collection
+  weekly_selection_route: /releases
+  latest_cycle_only: true
+  new_release_limit: 5
+  sale_and_free_limit: 5
+  other_and_excluded_sections: true
+  official_recheck_source: steam_japan_public
+  one_combined_article_per_selection: true
+  all_selected_items_require_immediate_recheck: true
+  article_type: weekly_picks
+  article_draft_is_incomplete_and_unpublished: true
+  calendar_events_require_explicit_selection: true
+  calendar_event_types: [release, sale_end]
+  automatic_publish: false
+  automatic_purchase: false
+  automatic_social_post: false
 
 article_types:
   play_note:

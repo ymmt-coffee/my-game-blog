@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, scheduling, social
+from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, release_information, scheduling, social
 from admin.article_input import ArticleInput
 
 
@@ -37,7 +37,8 @@ STATE_LABELS = {
 TYPE_LABELS = {key: template.label for key, template in article_templates.TEMPLATES.items()}
 NAV_ITEMS = (
     ("/articles", "記事管理", "Phase F"), ("/schedule", "スケジュール", "Phase G"),
-    ("/editorial", "AI編集部", "Phase K"), ("/releases", "リリース・セール情報", "Phase J"),
+    ("/editorial", "AI編集部", "Phase K"), ("/collection", "情報収集", "Phase J"),
+    ("/releases", "リリース・セール情報", "Phase L"),
     ("/social", "X投稿", "Phase I"), ("/analytics", "アクセス解析", "Phase H"),
     ("/settings", "設定・履歴", "Phase B"),
 )
@@ -776,6 +777,12 @@ def create_app(
                 pass
             label = "予約" if item.get("scheduled_at") else "公開"
             events.setdefault(local.date(), []).append((item, title, f"{local:%H:%M} {label}"))
+        game_events: dict[date, list[dict[str, object]]] = {}
+        for item in db.list_game_calendar_events(db_path):
+            raw = item.get("release_date") if item["event_kind"] == "release" else item.get("sale_ends_at")
+            normalized = release_information.event_date(raw)
+            if normalized:
+                game_events.setdefault(date.fromisoformat(normalized), []).append(item)
         if view == "week":
             start = focus - timedelta(days=focus.weekday())
             days = [start + timedelta(days=i) for i in range(7)]
@@ -792,11 +799,15 @@ def create_app(
         cells = []
         for day in days:
             event_html = "".join(f'<a class="calendar-event {"scheduled" if item.get("scheduled_at") else "published"}" href="/articles/{item["id"]}/edit"><span>{escape(meta)}</span>{escape(title)}</a>' for item, title, meta in events.get(day, []))
+            event_html += "".join(
+                f'<a class="calendar-event game-date" href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener"><span>{"発売日" if item["event_kind"] == "release" else "セール終了"}</span>{escape(str(item["title"]))}</a>'
+                for item in game_events.get(day, [])
+            )
             if day.day == ANALYTICS_REVIEW_DAY:
                 event_html += f'<a class="calendar-event analytics-review" href="/analytics"><span>{ANALYTICS_REVIEW_HOUR:02d}:00 定期</span>前月アクセス解析レビュー</a>'
             outside = " outside" if view == "month" and day.month != start.month else ""
             cells.append(f'<div class="calendar-day{outside}"><time>{day.day}</time>{event_html}</div>')
-        body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>毎月1日20:00に前月のUmamiデータをエクスポートし、よく読まれた記事と次に書く方向性を確認します。記事の自動決定・自動公開は行いません。</p><p>記事の予約・公開予定も表示します。SNS投稿、発売日、セール終了日は各Phaseの実装後に追加します。</p></section>'''
+        body = f'''<section class="calendar-toolbar"><div class="picker-tabs calendar-tabs"><a class="{'active' if view == 'month' else ''}" href="/schedule?view=month&date_value={focus.isoformat()}">月</a><a class="{'active' if view == 'week' else ''}" href="/schedule?view=week&date_value={focus.isoformat()}">週</a></div><a class="button secondary" href="/schedule?view={view}&date_value={previous.isoformat()}">前へ</a><h2>{heading}</h2><a class="button secondary" href="/schedule?view={view}&date_value={following.isoformat()}">次へ</a></section><div class="calendar-grid {'week' if view == 'week' else ''}">{''.join(cells)}</div><section class="card calendar-help"><p>毎月1日20:00に前月のUmamiデータをエクスポートし、よく読まれた記事と次に書く方向性を確認します。記事の自動決定・自動公開は行いません。</p><p>記事の予約・公開予定と、リリース・セール情報で選択した発売日・セール終了日を表示します。</p></section>'''
         return layout("スケジュール", "/schedule", body, request.app.state.csrf_token)
 
     @app.get("/analytics", response_class=HTMLResponse)
@@ -972,6 +983,94 @@ def create_app(
             return social_error(request, str(exc))
 
     @app.get("/releases", response_class=HTMLResponse)
+    async def weekly_release_page(request: Request) -> str:
+        candidates = db.list_game_candidates(request.app.state.db_path, 100)
+        current = release_information.latest_cycle(candidates)
+        cycle_key = str(current[0]["cycle_key"]) if current else ""
+        selected = db.list_weekly_release_selections(cycle_key, request.app.state.db_path) if cycle_key else []
+        selected_ids = {str(row["steam_app_id"]) for row in selected}
+        pools = release_information.sections(candidates)
+
+        def selection_rows(items: list[dict[str, object]], kind: str) -> str:
+            rows: list[str] = []
+            for item in items:
+                app_id = str(item["steam_app_id"])
+                chosen = app_id in selected_ids
+                price_text = f'{int(item["current_price"]):,}円' if item.get("current_price") is not None else "価格未確認"
+                rows.append(
+                    f'<tr><td><a href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener">{escape(str(item["title"]))}</a></td>'
+                    f'<td>{int(item["total_score"])}点</td><td>{price_text}</td><td>'
+                    f'<form method="post" action="/releases/select">{hidden_csrf(request.app.state.csrf_token)}'
+                    f'<input type="hidden" name="cycle_key" value="{escape(cycle_key)}">'
+                    f'<input type="hidden" name="steam_app_id" value="{app_id}">'
+                    f'<input type="hidden" name="selection_kind" value="{kind}">'
+                    f'<input type="hidden" name="selected" value="{0 if chosen else 1}">'
+                    f'<button class="button {"danger" if chosen else "secondary"} compact" type="submit">'
+                    f'{"選択解除" if chosen else "掲載候補に追加"}</button></form></td></tr>'
+                )
+            return "".join(rows) or '<tr><td colspan="4" class="muted">候補はありません。</td></tr>'
+
+        selected_rows = "".join(
+            f'<tr><td>{"新作" if row["selection_kind"] == "new_release" else "セール・無料"}</td><td><a href="{escape(str(row["store_url"]))}" target="_blank" rel="noopener">{escape(str(row["title"]))}</a></td><td>{escape(str(row.get("release_date") or ""))}</td></tr>'
+            for row in selected
+        ) or '<tr><td colspan="3" class="muted">掲載候補を選択してください。</td></tr>'
+        new_count = sum(1 for row in selected if row["selection_kind"] == "new_release")
+        sale_count = len(selected) - new_count
+        create_control = f'<form method="post" action="/releases/draft">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="cycle_key" value="{escape(cycle_key)}"><button class="button" type="submit"{" disabled" if not selected else ""}>選択した内容から記事下書きを作成</button></form>'
+        notice = '<section class="notice success">掲載候補を更新しました。</section>' if request.query_params.get("saved") else ""
+        body = f'''{notice}<section class="card"><div class="section-head"><div><h2>今週の記事候補</h2><p class="muted">新作 {new_count}/5本・セール／無料 {sale_count}/5本</p></div><a class="text-link" href="/collection">情報収集結果を確認</a></div><div class="table-wrap"><table><thead><tr><th>区分</th><th>ゲーム</th><th>発売日</th></tr></thead><tbody>{selected_rows}</tbody></table></div><div class="button-row">{create_control}</div></section>
+<section class="grid"><article class="card"><h2>新作候補</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>点数</th><th>価格</th><th></th></tr></thead><tbody>{selection_rows(pools["new"], "new_release")}</tbody></table></div></article><article class="card"><h2>セール・無料候補</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>点数</th><th>価格</th><th></th></tr></thead><tbody>{selection_rows(pools["sale"], "sale")}</tbody></table></div></article></section>'''
+        return layout("リリース・セール情報", "/releases", body, request.app.state.csrf_token)
+
+    @app.post("/releases/select")
+    async def select_weekly_release_candidate(request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            db.set_weekly_release_selection(
+                str(form.get("cycle_key") or ""), str(form.get("steam_app_id") or ""),
+                str(form.get("selection_kind") or ""), str(form.get("selected") or "") == "1",
+                request.app.state.db_path,
+            )
+            return RedirectResponse("/releases?saved=1", status_code=303)
+        except ValueError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/releases/draft")
+    async def create_weekly_release_draft(request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            cycle_key = str(form.get("cycle_key") or "")
+            selected = db.list_weekly_release_selections(cycle_key, request.app.state.db_path)
+            if not selected:
+                raise ValueError("掲載候補を1本以上選択してください。")
+            verified: list[tuple[dict[str, object], dict[str, object] | None, dict[str, object]]] = []
+            for item in selected:
+                game, price = await asyncio.to_thread(game_collection.fetch_steam_game, str(item["steam_app_id"]))
+                verified.append((game, price, item))
+            for game, price, _item in verified:
+                db.save_game_observation(game, price=price, db_path=request.app.state.db_path)
+            lines = ["## 今週の選定方針", "", "選定理由をここに記入します。"]
+            for heading, kind in (("新作", "new_release"), ("セール・無料", "sale")):
+                lines.extend(["", f"## {heading}"])
+                for game, _price, item in verified:
+                    if item["selection_kind"] == kind:
+                        lines.extend(["", f"### {game['title']}", "", f"- Steam公式: {game['store_url']}", "- 注目ポイント：", "- 価格・期間：", "- 日本語対応："])
+            lines.extend(["", "## まとめ", "", "選定を振り返ります。"])
+            slug = articles.next_daily_slug(request.app.state.content_root)
+            article_id, path, digest = articles.create_article_files(
+                request.app.state.content_root, slug, "今週の新作・セール情報", "weekly_picks",
+                "やまもと", "", "", False, allow_incomplete=True, body="\n".join(lines),
+            )
+            db.create_article(article_id, path.name, "weekly_picks", str(path.resolve()), digest, request.app.state.db_path)
+            for game, _price, _item in verified:
+                db.link_game_article_draft(str(game["steam_app_id"]), article_id, "weekly_picks", request.app.state.db_path)
+            return RedirectResponse(f"/articles/{article_id}/edit?created=1", status_code=303)
+        except (articles.ArticleError, ValueError, game_information.GameInformationError) as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.get("/collection", response_class=HTMLResponse)
     async def releases_page(request: Request) -> str:
         summary = db.game_information_summary(request.app.state.db_path)
         readiness = game_collection.collection_readiness()
@@ -979,30 +1078,46 @@ def create_app(
             "play_candidate": "プレイ候補", "article_candidate": "記事候補",
             "hold": "保留", "not_interested": "興味なし",
         }
-        candidate_row_parts: list[str] = []
-        for item in db.list_game_candidates(request.app.state.db_path):
-            options = "".join(
-                f'<option value="{value}"{" selected" if item.get("latest_decision") == value else ""}>{label}</option>'
-                for value, label in decision_labels.items()
-            )
-            if not item.get("latest_decision"):
-                options = '<option value="" disabled hidden selected>選択</option>' + options
-            kind_label = "新作" if item["candidate_kind"] == "new_release" else (
-                "セール" if item["candidate_kind"] == "sale" else escape(str(item["candidate_kind"]))
-            )
-            status_label = "候補" if item["status"] == "active" else (
-                "要確認" if item["status"] == "unconfirmed" else "除外"
-            )
-            candidate_row_parts.append(
-                f'<tr><td><a href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener">{escape(str(item["title"]))}</a></td>'
-                f'<td>{kind_label}</td><td>{status_label}</td><td>{item["total_score"]}</td>'
-                f'<td>{escape(str(item.get("exclusion_reason") or ""))}</td>'
-                f'<td>{escape(decision_labels.get(str(item.get("latest_decision") or ""), "未判断"))}</td>'
-                f'<td><form class="candidate-decision-form" method="post" action="/releases/candidates/{item["steam_app_id"]}/decision">'
-                f'{hidden_csrf(request.app.state.csrf_token)}<select name="decision" aria-label="候補の判断">{options}</select>'
-                '<button class="button secondary" type="submit">記録</button></form></td></tr>'
-            )
-        candidate_rows = "".join(candidate_row_parts) or '<tr><td colspan="7" class="muted">試運転前のため候補はありません。</td></tr>'
+        all_candidates = db.list_game_candidates(request.app.state.db_path, 100)
+        grouped = release_information.sections(all_candidates)
+        calendar_keys = {(str(row["steam_app_id"]), str(row["event_kind"])) for row in db.list_game_calendar_events(request.app.state.db_path)}
+
+        def candidate_rows(items: list[dict[str, object]], allow_actions: bool = True) -> str:
+            candidate_row_parts: list[str] = []
+            for item in items:
+                app_id = str(item["steam_app_id"])
+                options = "".join(
+                    f'<option value="{value}"{" selected" if item.get("latest_decision") == value else ""}>{label}</option>'
+                    for value, label in decision_labels.items()
+                )
+                if not item.get("latest_decision"):
+                    options = '<option value="" disabled hidden selected>選択</option>' + options
+                kind_label = "新作" if item["candidate_kind"] == "new_release" else ("セール" if item["candidate_kind"] == "sale" else ("無料" if item["candidate_kind"] == "free" else escape(str(item["candidate_kind"]))))
+                status_label = "候補" if item["status"] == "active" else ("要確認" if item["status"] == "unconfirmed" else "除外")
+                date_controls: list[str] = []
+                for event_kind, label, raw in (("release", "発売日", item.get("release_date")), ("sale_end", "セール終了", item.get("sale_ends_at"))):
+                    normalized = release_information.event_date(raw)
+                    if not normalized:
+                        continue
+                    selected = (app_id, event_kind) in calendar_keys
+                    date_controls.append(
+                        f'<form method="post" action="/collection/candidates/{app_id}/calendar">{hidden_csrf(request.app.state.csrf_token)}<input type="hidden" name="event_kind" value="{event_kind}"><input type="hidden" name="selected" value="{0 if selected else 1}"><button class="button secondary compact" type="submit">{label} {normalized}・{"解除" if selected else "追加"}</button></form>'
+                    )
+                operations = ""
+                if allow_actions:
+                    operations = (
+                        f'<form method="post" action="/collection/candidates/{app_id}/refresh">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary compact" type="submit">公式情報を再確認</button></form>'
+                        + "".join(date_controls)
+                        + f'<form class="candidate-decision-form" method="post" action="/collection/candidates/{app_id}/decision">{hidden_csrf(request.app.state.csrf_token)}<select name="decision" aria-label="候補の判断">{options}</select><button class="button secondary" type="submit">記録</button></form>'
+                    )
+                candidate_row_parts.append(
+                    f'<tr><td><a href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener">{escape(str(item["title"]))}</a></td><td>{kind_label}</td><td>{status_label}</td><td>{item["total_score"]}</td><td>{escape(str(item.get("exclusion_reason") or ""))}</td><td><div class="inline-actions release-actions">{operations}</div></td></tr>'
+                )
+            return "".join(candidate_row_parts) or '<tr><td colspan="6" class="muted">該当する候補はありません。</td></tr>'
+
+        def candidate_section(title: str, items: list[dict[str, object]], allow_actions: bool = True) -> str:
+            return f'<section class="card"><h2>{title}</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>種類</th><th>状態</th><th>点数</th><th>除外・確認理由</th><th>操作</th></tr></thead><tbody>{candidate_rows(items, allow_actions)}</tbody></table></div></section>'
+
         suitable_labels = {"play": "プレイ向き", "article": "記事向き", "sale_article": "セール記事向き", "hold": "保留"}
         explanation_parts = [
             f'<article class="candidate-explanation"><h3><a href="{escape(str(item["store_url"]))}" target="_blank" rel="noopener">{escape(str(item["title"]))}</a></h3>'
@@ -1025,25 +1140,29 @@ def create_app(
         if request.query_params.get("ownership") == "success":
             count = escape(str(request.query_params.get("count") or "0"))
             trial_notice = f'<section class="notice success">Steam所有ゲームを{count}件同期しました。</section>'
+        if request.query_params.get("refreshed"):
+            trial_notice = '<section class="notice success">Steam公式情報を再確認しました。</section>'
+        if request.query_params.get("calendar"):
+            trial_notice = '<section class="notice success">カレンダー表示を更新しました。</section>'
         trial_control = (
-            f'<form method="post" action="/releases/apify-trial">{hidden_csrf(request.app.state.csrf_token)}'
+            f'<form method="post" action="/collection/apify-trial">{hidden_csrf(request.app.state.csrf_token)}'
             '<button class="button" type="submit">3件でAPI接続を確認</button></form>'
             if readiness.trial_ready else
             '<button class="button" type="button" disabled>APIトークン設定後に接続確認</button>'
         )
         candidate_trial_control = (
-            f'<form method="post" action="/releases/candidate-trial">{hidden_csrf(request.app.state.csrf_token)}'
+            f'<form method="post" action="/collection/candidate-trial">{hidden_csrf(request.app.state.csrf_token)}'
             '<button class="button" type="submit">最大10件で候補試運転</button></form>'
             if readiness.trial_ready else ""
         )
         gemini_ready = bool(game_collection._environment_secret("GEMINI_API_KEY"))
         explanation_control = (
-            f'<form method="post" action="/releases/explanations">{hidden_csrf(request.app.state.csrf_token)}'
+            f'<form method="post" action="/collection/explanations">{hidden_csrf(request.app.state.csrf_token)}'
             '<button class="button secondary" type="submit">候補説明を更新</button></form>'
             if gemini_ready and summary["candidates"] else ""
         )
         ownership_control = (
-            f'<form method="post" action="/releases/ownership-sync">{hidden_csrf(request.app.state.csrf_token)}'
+            f'<form method="post" action="/collection/ownership-sync">{hidden_csrf(request.app.state.csrf_token)}'
             '<button class="button secondary" type="submit">所有ゲームを今すぐ同期</button></form>'
             if readiness.ownership_sync_ready else ""
         )
@@ -1057,10 +1176,10 @@ def create_app(
 <p class="muted">秘密情報の値は画面・DB・ログへ保存しません。週次収集は木曜8:00以降の起動時に同じ週を一度だけ処理します。</p><div class="button-row">{trial_control}{candidate_trial_control}{ownership_control}{explanation_control}</div></section>
 <section class="card"><h2>最終収集</h2><p>{run_text}</p></section>
 <section class="card"><h2>固定採点の補足</h2>{explanations}</section>
-<section class="card"><h2>候補</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>種類</th><th>状態</th><th>点数</th><th>除外・確認理由</th><th>判断</th><th>操作</th></tr></thead><tbody>{candidate_rows}</tbody></table></div></section>'''
-        return layout("リリース・セール情報", "/releases", body, request.app.state.csrf_token)
+{candidate_section("新作候補 5本", grouped["new"])}{candidate_section("セール・無料候補 5本", grouped["sale"])}{candidate_section("その他候補", grouped["other"])}{candidate_section("除外候補", grouped["excluded"], False)}'''
+        return layout("情報収集", "/collection", body, request.app.state.csrf_token)
 
-    @app.post("/releases/apify-trial")
+    @app.post("/collection/apify-trial")
     async def run_releases_apify_trial(request: Request):
         form = await request.form()
         run_id = uuid.uuid4().hex
@@ -1092,7 +1211,7 @@ def create_app(
                 items_discovered=len(observations), items_stored=len(observations),
                 apify_items=len(observations), db_path=request.app.state.db_path,
             )
-            return RedirectResponse("/releases?trial=success", status_code=303)
+            return RedirectResponse("/collection?trial=success", status_code=303)
         except game_information.GameInformationError as exc:
             if started:
                 try:
@@ -1101,7 +1220,7 @@ def create_app(
                     pass
             return error_page(str(exc), request.app.state.csrf_token)
 
-    @app.post("/releases/candidate-trial")
+    @app.post("/collection/candidate-trial")
     async def run_releases_candidate_trial(request: Request):
         form = await request.form()
         run_id = uuid.uuid4().hex
@@ -1133,7 +1252,7 @@ def create_app(
                 apify_items=result.apify_items,
                 db_path=request.app.state.db_path,
             )
-            return RedirectResponse("/releases?candidate_trial=success", status_code=303)
+            return RedirectResponse("/collection?candidate_trial=success", status_code=303)
         except game_information.GameInformationError as exc:
             if started:
                 try:
@@ -1142,7 +1261,7 @@ def create_app(
                     pass
             return error_page(str(exc), request.app.state.csrf_token)
 
-    @app.post("/releases/candidates/{steam_app_id}/decision")
+    @app.post("/collection/candidates/{steam_app_id}/decision")
     async def save_release_candidate_decision(steam_app_id: str, request: Request):
         form = await request.form()
         try:
@@ -1150,22 +1269,52 @@ def create_app(
             db.record_game_decision(
                 steam_app_id, str(form.get("decision") or ""), db_path=request.app.state.db_path,
             )
-            return RedirectResponse("/releases", status_code=303)
+            return RedirectResponse("/collection", status_code=303)
         except ValueError as exc:
             return error_page(str(exc), request.app.state.csrf_token)
 
-    @app.post("/releases/explanations")
+    @app.post("/collection/candidates/{steam_app_id}/refresh")
+    async def refresh_release_candidate(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            game, price = await asyncio.to_thread(game_collection.fetch_steam_game, steam_app_id)
+            db.save_game_observation(game, price=price, db_path=request.app.state.db_path)
+            db.record_event("release_candidate_refresh", "success", "steam_candidate_refreshed", "Steam公式情報を再確認しました。", request.app.state.db_path)
+            return RedirectResponse("/collection?refreshed=1", status_code=303)
+        except game_information.GameInformationError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/collection/candidates/{steam_app_id}/calendar")
+    async def set_release_candidate_calendar(steam_app_id: str, request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            event_kind = str(form.get("event_kind") or "")
+            selected = str(form.get("selected") or "") == "1"
+            candidate = next((row for row in db.list_game_candidates(request.app.state.db_path, 100) if str(row["steam_app_id"]) == steam_app_id), None)
+            if candidate is None:
+                raise ValueError("対象候補が見つかりません。")
+            raw = candidate.get("release_date") if event_kind == "release" else candidate.get("sale_ends_at")
+            if selected and release_information.event_date(raw) is None:
+                raise ValueError("カレンダーへ追加できる日付がありません。")
+            db.set_game_calendar_selection(steam_app_id, event_kind, selected, request.app.state.db_path)
+            return RedirectResponse("/collection?calendar=1", status_code=303)
+        except ValueError as exc:
+            return error_page(str(exc), request.app.state.csrf_token)
+
+    @app.post("/collection/explanations")
     async def update_release_explanations(request: Request):
         form = await request.form()
         try:
             require_csrf(request, str(form.get("csrf_token") or ""))
             count = await asyncio.to_thread(editorial_explanations.generate, request.app.state.db_path)
             db.record_event("candidate_explanations", "success", "candidate_explanations_updated", f"候補説明を{count}件更新しました。", request.app.state.db_path)
-            return RedirectResponse("/releases", status_code=303)
+            return RedirectResponse("/collection", status_code=303)
         except game_information.GameInformationError as exc:
             return error_page(str(exc), request.app.state.csrf_token)
 
-    @app.post("/releases/ownership-sync")
+    @app.post("/collection/ownership-sync")
     async def sync_steam_ownership(request: Request):
         form = await request.form()
         try:
@@ -1180,7 +1329,7 @@ def create_app(
                 "steam_ownership", "success", "steam_ownership_synced",
                 f"Steam所有ゲームを{len(owned_games)}件同期しました。", request.app.state.db_path,
             )
-            return RedirectResponse(f"/releases?ownership=success&count={len(owned_games)}", status_code=303)
+            return RedirectResponse(f"/collection?ownership=success&count={len(owned_games)}", status_code=303)
         except game_information.GameInformationError as exc:
             db.record_event(
                 "steam_ownership", "failure", "steam_ownership_failed",
@@ -1233,7 +1382,7 @@ def create_app(
 <form method="post" action="/editorial/candidates/{app_id}/play-review">{hidden_csrf(request.app.state.csrf_token)}<h3>プレイ状況</h3><label>状況<select name="play_status"><option value="playing">プレイ中</option><option value="completed">クリア</option><option value="stopped">中断</option></select></label><label>評価<select name="rating"><option value="unrated">未評価</option><option value="good">良かった</option><option value="neutral">普通</option><option value="not_for_me">合わなかった</option></select></label><label>メモ<input name="note" maxlength="500"></label><button class="button secondary" type="submit">プレイ記録を保存</button></form>
 <form method="post" action="/editorial/candidates/{app_id}/draft">{hidden_csrf(request.app.state.csrf_token)}<h3>記事下書き</h3><label>提案形式<select name="article_type">{options}</select></label><p class="muted">作成後に記事管理で概要・本文等を入力します。公開はされません。</p><button class="button" type="submit">下書きを作成</button></form>
 </div></details></article>''')
-        top_html = "".join(cards) or '<section class="card empty"><h2>表示できる候補がありません</h2><p>リリース・セール情報で候補収集を確認してください。</p></section>'
+        top_html = "".join(cards) or '<section class="card empty"><h2>表示できる候補がありません</h2><p>情報収集で候補収集を確認してください。</p></section>'
         total = int(activity["purchase_total"])
         budget_class = "danger" if total > editorial.NORMAL_MONTHLY_BUDGET_JPY else ""
         planned_rows = "".join(
@@ -1260,7 +1409,7 @@ def create_app(
         body = f'''{notice}<section class="editorial-summary">
 <article class="card"><span>今月の購入</span><strong class="{budget_class}">{total:,}円</strong><small>通常10,000円 / 例外上限20,000円</small></article>
 <article class="card"><span>上位候補</span><strong>{len(top)}本</strong><small>新作・セールを可能な範囲で混成</small></article></section>
-<section class="section-head"><h2>今週の候補</h2><a class="text-link" href="/releases">候補の根拠をすべて確認</a></section>{top_html}
+<section class="section-head"><h2>今週の候補</h2><a class="text-link" href="/collection">候補の根拠をすべて確認</a></section>{top_html}
 <section class="grid"><article class="card"><h2>これから遊ぶゲーム</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>メモ</th></tr></thead><tbody>{planned_rows}</tbody></table></div><h2 class="subsection-title">プレイ後の評価</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>状況</th><th>評価</th><th></th></tr></thead><tbody>{play_rows}</tbody></table></div></article>
 <article class="card"><h2>判断履歴</h2><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>判断</th><th>メモ</th><th></th></tr></thead><tbody>{decision_rows}</tbody></table></div></article></section>
 <section class="grid"><article class="card"><h2>今月の購入記録</h2><div class="table-wrap"><table><thead><tr><th>日付</th><th>ゲーム</th><th>価格</th><th></th></tr></thead><tbody>{purchase_rows}</tbody></table></div></article><article class="card"><h2>作成した記事下書き</h2><p class="muted">関連解除では記事本体は削除されません。</p><div class="table-wrap"><table><thead><tr><th>ゲーム</th><th>形式</th><th>記事</th><th></th></tr></thead><tbody>{draft_rows}</tbody></table></div></article></section>'''
@@ -1375,7 +1524,7 @@ def create_app(
         public_rows = "".join(f'''<tr><td>{escape(slug)}</td><td><form method="post" action="/settings/import-public/{escape(slug)}">{hidden_csrf(request.app.state.csrf_token)}<button class="button secondary" type="submit">管理画面へ取り込む</button></form></td></tr>''' for slug in public_only) or '<tr><td colspan="2">公開側だけの記事はありません。</td></tr>'
         game_summary = db.game_information_summary(db_path)
         snapshot_status = "準備済み" if ADMIN_DB_SNAPSHOT.is_file() else "次回バックアップ時に作成"
-        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase K（AI編集部）</dd><dt>ゲーム情報</dt><dd>{game_summary['games']}件</dd><dt>DBバックアップ</dt><dd>{snapshot_status}</dd></dl></article>
+        body = f"""<section class="grid"><article class="card"><h2>稼働設定</h2><dl><dt>接続範囲</dt><dd>このPCのみ</dd><dt>状態DB</dt><dd>var/admin/admin.sqlite3</dd><dt>現在</dt><dd>Phase L（リリース・セール情報）</dd><dt>ゲーム情報</dt><dd>{game_summary['games']}件</dd><dt>DBバックアップ</dt><dd>{snapshot_status}</dd></dl></article>
 <article class="card"><h2>安全性</h2><p class="ok">公開は検査と最終確認後だけ実行します。</p><p class="muted">DBの安全な複製は日次・月次バックアップの直前に更新します。</p></article></section><section class="card"><h2>削除した記事の復元</h2><div class="table-wrap"><table><tbody>{deleted_table}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2><div class="table-wrap"><table><tbody>{rows}</tbody></table></div></section>"""
         body = body.replace('<section class="card"><h2>最近の履歴</h2>', f'<section class="card"><h2>公開側だけの記事</h2><div class="table-wrap"><table><tbody>{public_rows}</tbody></table></div></section><section class="card"><h2>最近の履歴</h2>')
         return layout("設定・履歴", "/settings", body, request.app.state.csrf_token)
@@ -1399,7 +1548,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "scope": "localhost_only", "phase": "K", "version": APP_VERSION}
+        return {"status": "ok", "scope": "localhost_only", "phase": "L", "version": APP_VERSION}
 
     return app
 

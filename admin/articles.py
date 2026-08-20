@@ -143,6 +143,7 @@ def create_article_files(
     play_time: str = "",
     game_completed: bool = False,
     allow_incomplete: bool = False,
+    body: str | None = None,
 ) -> tuple[str, Path, str]:
     slug = validate_slug(slug)
     article_type = validate_article_type(article_type)
@@ -163,7 +164,7 @@ def create_article_files(
     target.mkdir(parents=True)
     try:
         (target / "images").mkdir()
-        data = render_markdown(metadata, article_templates.get_template(article_type).body)
+        data = render_markdown(metadata, article_templates.get_template(article_type).body if body is None else body)
         atomic_write(target / "index.md", data)
     except Exception:
         shutil.rmtree(target, ignore_errors=True)
