@@ -359,6 +359,16 @@ def parse_steam_store_response(app_id: str, payload: object, observed_at: str | 
     return game, price
 
 
+def fetch_steam_game(app_id: str, transport=None) -> tuple[dict[str, object], dict[str, object] | None]:
+    if not app_id.isascii() or not app_id.isdigit():
+        raise GameInformationError("Steam App IDが正しくありません。")
+    request = Request(STEAM_DETAILS_URL.format(app_id=app_id), headers={
+        "User-Agent": "my-game-blog-local-admin/1.0",
+    })
+    payload = _load_json_response(request, 30, transport, "Steam詳細情報")
+    return parse_steam_store_response(app_id, payload)
+
+
 def _integer(value: object) -> int | None:
     return int(value) if isinstance(value, int) and not isinstance(value, bool) else None
 

@@ -28,6 +28,9 @@ dl { display:grid; grid-template-columns:100px 1fr; gap:9px; margin:0; } dt { co
 .editorial-candidate { border-top:3px solid var(--ink); }.editorial-candidate h2 { font-size:18px; }.editorial-candidate h2 a { color:var(--ink); }.editorial-rank { color:var(--muted); font-size:11px; font-weight:700; margin-bottom:5px; }.editorial-facts { display:flex; gap:6px; flex-wrap:wrap; }.editorial-facts span { background:var(--pale); padding:3px 7px; font-size:11px; }.editorial-candidate details { border-top:1px solid var(--line); margin-top:12px; padding-top:10px; }.editorial-candidate summary { cursor:pointer; font-weight:700; color:var(--green); }.editorial-actions-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }.editorial-actions-grid form { border:1px solid var(--line); padding:12px; }.editorial-actions-grid h3 { font-size:14px; }.check-label { display:flex; grid-template-columns:none; align-items:center; flex-direction:row; }.check-label input { width:auto; min-height:auto; }
 .subsection-title { margin-top:18px; padding-top:12px; border-top:1px solid var(--line); }
 .button.compact { padding:3px 6px; min-height:24px; font-size:10px; white-space:nowrap; }
+.release-actions { min-width:220px; align-items:center; }
+.release-actions form { margin:0; }
+.calendar-event.game-date { background:#f5f0e5; border-left-color:#8a6d3b; }
 label { display:grid; gap:5px; margin-bottom:11px; font-weight:600; font-size:13px; } input,textarea,select { width:100%; border:1px solid #b9c2bc; border-radius:1px; padding:7px 9px; min-height:34px; background:white; color:var(--ink); font:inherit; }
 input:focus,textarea:focus,select:focus { outline:2px solid #8bb29b; outline-offset:0; border-color:#567d66; }
 textarea { resize:vertical; }.body-editor { min-height:430px; font-family:"Noto Sans JP",sans-serif; line-height:1.75; }

@@ -290,6 +290,31 @@ CREATE INDEX IF NOT EXISTS idx_game_play_reviews_game ON game_play_reviews(steam
 CREATE INDEX IF NOT EXISTS idx_game_article_drafts_game ON game_article_drafts(steam_app_id, created_at DESC);
 """
 
+SCHEMA_V11 = """
+CREATE TABLE IF NOT EXISTS game_calendar_selections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    event_kind TEXT NOT NULL CHECK (event_kind IN ('release','sale_end')),
+    created_at TEXT NOT NULL,
+    UNIQUE (steam_app_id, event_kind)
+);
+CREATE INDEX IF NOT EXISTS idx_game_calendar_selections_game
+ON game_calendar_selections(steam_app_id, event_kind);
+"""
+
+SCHEMA_V12 = """
+CREATE TABLE IF NOT EXISTS weekly_release_selections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_key TEXT NOT NULL,
+    steam_app_id TEXT NOT NULL REFERENCES games(steam_app_id),
+    selection_kind TEXT NOT NULL CHECK (selection_kind IN ('new_release','sale')),
+    created_at TEXT NOT NULL,
+    UNIQUE (cycle_key, steam_app_id)
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_release_selections_cycle
+ON weekly_release_selections(cycle_key, selection_kind, id);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -375,6 +400,16 @@ def initialize(db_path: Path = DEFAULT_DB_PATH) -> None:
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
             (10, utc_now()),
+        )
+        connection.executescript(SCHEMA_V11)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (11, utc_now()),
+        )
+        connection.executescript(SCHEMA_V12)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+            (12, utc_now()),
         )
         connection.commit()
 
@@ -608,6 +643,8 @@ def list_game_candidates(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> li
                        ORDER BY observed_at DESC,id DESC LIMIT 1) AS current_price,
                       (SELECT discount_percent FROM game_prices WHERE game_prices.steam_app_id=games.steam_app_id
                        ORDER BY observed_at DESC,id DESC LIMIT 1) AS discount_percent,
+                      (SELECT sale_ends_at FROM game_prices WHERE game_prices.steam_app_id=games.steam_app_id AND sale_ends_at IS NOT NULL
+                       ORDER BY observed_at DESC,id DESC LIMIT 1) AS sale_ends_at,
                       (SELECT group_concat(source_name, ', ') FROM (
                          SELECT DISTINCT source_name FROM game_sources
                          WHERE game_sources.steam_app_id=games.steam_app_id AND source_kind='rss'
@@ -622,6 +659,90 @@ def list_game_candidates(db_path: Path = DEFAULT_DB_PATH, limit: int = 50) -> li
                ORDER BY game_candidates.cycle_key DESC,game_candidates.total_score DESC,
                         games.title COLLATE NOCASE LIMIT ?""",
             (safe_limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def set_game_calendar_selection(
+    steam_app_id: str, event_kind: str, selected: bool,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if event_kind not in {"release", "sale_end"}:
+        raise ValueError("予定の種類が正しくありません。")
+    with closing(connect(db_path)) as connection:
+        if connection.execute("SELECT 1 FROM games WHERE steam_app_id=?", (steam_app_id,)).fetchone() is None:
+            raise ValueError("対象ゲームが見つかりません。")
+        if selected:
+            connection.execute(
+                "INSERT OR IGNORE INTO game_calendar_selections(steam_app_id,event_kind,created_at) VALUES (?,?,?)",
+                (steam_app_id, event_kind, utc_now()),
+            )
+        else:
+            connection.execute(
+                "DELETE FROM game_calendar_selections WHERE steam_app_id=? AND event_kind=?",
+                (steam_app_id, event_kind),
+            )
+        connection.commit()
+
+
+def list_game_calendar_events(db_path: Path = DEFAULT_DB_PATH) -> list[dict[str, object]]:
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            """SELECT s.id,s.steam_app_id,s.event_kind,g.title,g.store_url,g.release_date,
+                      (SELECT sale_ends_at FROM game_prices p WHERE p.steam_app_id=g.steam_app_id AND sale_ends_at IS NOT NULL
+                       ORDER BY observed_at DESC,p.id DESC LIMIT 1) AS sale_ends_at
+               FROM game_calendar_selections s JOIN games g USING(steam_app_id)
+               ORDER BY s.created_at DESC,s.id DESC"""
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def set_weekly_release_selection(
+    cycle_key: str, steam_app_id: str, selection_kind: str, selected: bool,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> None:
+    if not cycle_key or selection_kind not in {"new_release", "sale"}:
+        raise ValueError("掲載候補の種類が正しくありません。")
+    with closing(connect(db_path)) as connection:
+        if not selected:
+            connection.execute(
+                "DELETE FROM weekly_release_selections WHERE cycle_key=? AND steam_app_id=?",
+                (cycle_key, steam_app_id),
+            )
+            connection.commit()
+            return
+        candidate = connection.execute(
+            "SELECT candidate_kind,status FROM game_candidates WHERE cycle_key=? AND steam_app_id=?",
+            (cycle_key, steam_app_id),
+        ).fetchone()
+        if candidate is None:
+            raise ValueError("対象候補が見つかりません。")
+        latest_cycle = connection.execute("SELECT MAX(cycle_key) FROM game_candidates").fetchone()[0]
+        expected_kind = "new_release" if candidate["candidate_kind"] == "new_release" else ("sale" if candidate["candidate_kind"] in {"sale", "free"} else "")
+        if cycle_key != latest_cycle or candidate["status"] != "active" or selection_kind != expected_kind:
+            raise ValueError("最新の有効候補だけを掲載候補にできます。")
+        count = int(connection.execute(
+            "SELECT COUNT(*) FROM weekly_release_selections WHERE cycle_key=? AND selection_kind=?",
+            (cycle_key, selection_kind),
+        ).fetchone()[0])
+        if count >= 5:
+            raise ValueError("各種類で選択できるのは5本までです。")
+        connection.execute(
+            "INSERT OR IGNORE INTO weekly_release_selections(cycle_key,steam_app_id,selection_kind,created_at) VALUES (?,?,?,?)",
+            (cycle_key, steam_app_id, selection_kind, utc_now()),
+        )
+        connection.commit()
+
+
+def list_weekly_release_selections(cycle_key: str, db_path: Path = DEFAULT_DB_PATH) -> list[dict[str, object]]:
+    with closing(connect(db_path)) as connection:
+        rows = connection.execute(
+            """SELECT s.*,g.title,g.store_url,g.release_date,
+                      (SELECT current_price FROM game_prices p WHERE p.steam_app_id=g.steam_app_id ORDER BY observed_at DESC,p.id DESC LIMIT 1) AS current_price,
+                      (SELECT discount_percent FROM game_prices p WHERE p.steam_app_id=g.steam_app_id ORDER BY observed_at DESC,p.id DESC LIMIT 1) AS discount_percent
+               FROM weekly_release_selections s JOIN games g USING(steam_app_id)
+               WHERE s.cycle_key=? ORDER BY s.selection_kind,s.id""",
+            (cycle_key,),
         ).fetchall()
     return [dict(row) for row in rows]
 

@@ -130,10 +130,10 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             ).validated()
 
     def test_release_page_shows_foundation_without_external_collection(self) -> None:
-        response = self.client.get("/releases")
+        response = self.client.get("/collection")
         self.assertEqual(response.status_code, 200)
         self.assertIn("収集準備", response.text)
-        self.assertIn("試運転前のため候補はありません", response.text)
+        self.assertIn("該当する候補はありません", response.text)
         self.assertIn("Apify APIトークン", response.text)
         self.assertIn("3件でAPI接続を確認", response.text)
 
@@ -155,7 +155,7 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             "admin.game_collection.run_apify_trial", return_value=observations
         ) as runner:
             response = self.client.post(
-                "/releases/apify-trial", data={"csrf_token": self.app.state.csrf_token},
+                "/collection/apify-trial", data={"csrf_token": self.app.state.csrf_token},
                 follow_redirects=True,
             )
         self.assertEqual(response.status_code, 200)
@@ -170,7 +170,7 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
     def test_apify_trial_requires_token(self) -> None:
         with patch("admin.game_collection.apify_api_token", return_value=""):
             response = self.client.post(
-                "/releases/apify-trial", data={"csrf_token": self.app.state.csrf_token}
+                "/collection/apify-trial", data={"csrf_token": self.app.state.csrf_token}
             )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Apify APIトークン", response.text)
@@ -185,10 +185,10 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             "STEAM_WEB_API_KEY": "private-steam-key",
             "STEAM_ID64": "76561198000000000",
         }), patch("admin.game_collection.fetch_owned_games", return_value=[synced]) as fetcher:
-            page = self.client.get("/releases")
+            page = self.client.get("/collection")
             self.assertIn("所有ゲームを今すぐ同期", page.text)
             response = self.client.post(
-                "/releases/ownership-sync",
+                "/collection/ownership-sync",
                 data={"csrf_token": self.app.state.csrf_token},
                 follow_redirects=True,
             )
@@ -224,7 +224,7 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
             return_value=game_collection.CandidateTrialResult(tuple(items), 10),
         ) as runner:
             response = self.client.post(
-                "/releases/candidate-trial", data={"csrf_token": self.app.state.csrf_token},
+                "/collection/candidate-trial", data={"csrf_token": self.app.state.csrf_token},
                 follow_redirects=True,
             )
         self.assertEqual(response.status_code, 200)
@@ -235,7 +235,7 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
         self.assertEqual(runner.call_args.args, ("private-token",))
 
         decision_response = self.client.post(
-            "/releases/candidates/900000/decision",
+            "/collection/candidates/900000/decision",
             data={"csrf_token": self.app.state.csrf_token, "decision": "play_candidate"},
             follow_redirects=True,
         )
