@@ -148,6 +148,27 @@ class GameCollectionTests(unittest.TestCase):
         self.assertEqual([item.candidate_kind for item in items].count("new_release"), 10)
         self.assertEqual([item.candidate_kind for item in items].count("sale"), 10)
 
+    def test_one_unavailable_steam_detail_does_not_stop_remaining_candidates(self) -> None:
+        discovered = (
+            game_collection.DiscoveredGame("1", "new_release"),
+            game_collection.DiscoveredGame("2", "new_release"),
+        )
+        valid = {"2": {"success": True, "data": {
+            "steam_appid": 2, "name": "Available Game", "is_free": False,
+            "supported_languages": "Japanese", "categories": [{"description": "Single-player"}],
+            "release_date": {"coming_soon": False, "date": "15 Aug, 2026"},
+        }}}
+        with (
+            patch.object(game_collection, "parse_featured_candidates", return_value=discovered),
+            patch.object(game_collection, "run_apify_trial", return_value=[]),
+            patch.object(game_collection, "_load_json_response", side_effect=[{}, {"1": {"success": False}}, valid]),
+        ):
+            result = game_collection.run_candidate_trial(
+                "token", today=date(2026, 8, 15), item_limit=2,
+            )
+        self.assertEqual([item.game["steam_app_id"] for item in result.items], ["2"])
+        self.assertEqual(result.media_failures, ("Steam詳細1件",))
+
     def test_collection_can_keep_manual_trial_at_ten_items(self) -> None:
         captured = {}
         empty = game_collection.CandidateTrialResult((), 0)

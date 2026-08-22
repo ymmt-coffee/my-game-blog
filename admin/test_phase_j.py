@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from admin import db, game_collection, game_information
+from admin import db, game_collection, game_information, game_scheduling
 from admin.app import create_app
 
 
@@ -132,10 +132,48 @@ class PhaseJSharedGameInformationTests(unittest.TestCase):
     def test_release_page_shows_foundation_without_external_collection(self) -> None:
         response = self.client.get("/collection")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("収集準備", response.text)
+        self.assertIn("今週の情報更新", response.text)
         self.assertIn("該当する候補はありません", response.text)
         self.assertIn("Apify APIトークン", response.text)
+        self.assertIn("今週の情報をまとめて更新", response.text)
         self.assertIn("3件でAPI接続を確認", response.text)
+
+    def test_weekly_button_runs_the_shared_weekly_pipeline_once(self) -> None:
+        with patch("admin.game_collection.collection_readiness") as readiness, patch(
+            "admin.game_scheduling.process_due_weekly_collection", return_value="success",
+        ) as runner:
+            readiness.return_value.trial_ready = True
+            readiness.return_value.ownership_sync_ready = True
+            response = self.client.post(
+                "/collection/weekly", data={"csrf_token": self.app.state.csrf_token},
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("今週の所有ゲーム同期と候補収集が完了", response.text)
+        runner.assert_called_once_with(self.db_path)
+
+    def test_weekly_button_reports_already_processed_without_duplicate_run(self) -> None:
+        with patch("admin.game_collection.collection_readiness") as readiness, patch(
+            "admin.game_scheduling.process_due_weekly_collection", return_value="already_processed",
+        ):
+            readiness.return_value.trial_ready = True
+            readiness.return_value.ownership_sync_ready = True
+            response = self.client.post(
+                "/collection/weekly", data={"csrf_token": self.app.state.csrf_token},
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("今週分はすでに更新済み", response.text)
+
+    def test_failed_weekly_run_shows_retry_time_instead_of_active_button(self) -> None:
+        cycle, _due_at = game_scheduling.due_cycle()
+        run_id = f"scheduled-{cycle}"
+        db.start_game_collection_run(run_id, "scheduled", 20, self.db_path)
+        db.finish_game_collection_run(run_id, "failure", "安全な失敗表示", db_path=self.db_path)
+        response = self.client.get("/collection")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("以降に再試行", response.text)
+        self.assertNotIn('action="/collection/weekly"', response.text)
 
     def test_apify_api_trial_stores_three_observations_without_exposing_token(self) -> None:
         observations = []

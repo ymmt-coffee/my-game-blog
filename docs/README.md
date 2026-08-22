@@ -30,6 +30,7 @@
 23. `phase-l-release-sale-report.md` - 情報収集と週刊記事選定の分離、公式再確認、統合下書き、カレンダー連携の実装報告
 24. `admin-weekly-dashboard-report.md` - 月〜日の週次進捗、次の作業、記事・選定・プレイ状況をまとめるトップページの実装報告
 25. `admin-data-reset-report.md` - テスト運用開始前の記事・管理データ初期化と復元方法の記録
+26. `current-state.md` - 次の作業開始時に確認する現在の実装、週間ルーチン、安全境界、保留事項
 
 機械可読な現在値は `../config/editorial/strategy.yaml` を参照する。
 

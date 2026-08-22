@@ -250,7 +250,7 @@ def run_weekly_collection(
         steam_transport=steam_transport, today=today, item_limit=item_limit,
     )
     media: list[FeedItem] = []
-    failures: list[str] = []
+    failures: list[str] = list(trial.media_failures)
     for source_name, url in OFFICIAL_MEDIA_FEEDS:
         try:
             media.extend(fetch_feed(url, source_name, feed_transport))
@@ -452,22 +452,30 @@ def run_candidate_trial(token: str, *, featured_transport=None, apify_transport=
     apify_by_id = {str(game["steam_app_id"]): (game, price) for game, price in apify_results}
     cycle_key = (today or datetime.now(timezone.utc).date()).strftime("%G-W%V")
     results: list[CandidateTrialItem] = []
+    steam_detail_failures = 0
     for item in discovered:
-        request = Request(STEAM_DETAILS_URL.format(app_id=item.steam_app_id), headers={
-            "User-Agent": "my-game-blog-local-admin/1.0",
-        })
-        payload = _load_json_response(request, 30, steam_transport, "Steam詳細情報")
-        game, price = parse_steam_store_response(item.steam_app_id, payload)
-        apify_game, apify_price = apify_by_id.get(item.steam_app_id, ({}, None))
-        for field in ("review_status", "review_percent", "review_count"):
-            if apify_game.get(field) is not None:
-                game[field] = apify_game[field]
-        if price is None:
-            price = apify_price
-        tags = _steam_classification_text(item.steam_app_id, payload)
-        candidate = score_candidate(game, price, item.candidate_kind, cycle_key, tags, today=today)
-        results.append(CandidateTrialItem(game, price, candidate))
-    return CandidateTrialResult(tuple(results), len(apify_results))
+        try:
+            request = Request(STEAM_DETAILS_URL.format(app_id=item.steam_app_id), headers={
+                "User-Agent": "my-game-blog-local-admin/1.0",
+            })
+            payload = _load_json_response(request, 30, steam_transport, "Steam詳細情報")
+            game, price = parse_steam_store_response(item.steam_app_id, payload)
+            apify_game, apify_price = apify_by_id.get(item.steam_app_id, ({}, None))
+            for field in ("review_status", "review_percent", "review_count"):
+                if apify_game.get(field) is not None:
+                    game[field] = apify_game[field]
+            if price is None:
+                price = apify_price
+            tags = _steam_classification_text(item.steam_app_id, payload)
+            candidate = score_candidate(game, price, item.candidate_kind, cycle_key, tags, today=today)
+            results.append(CandidateTrialItem(game, price, candidate))
+        except GameInformationError:
+            # 公開一覧に残った削除済み・地域外候補1件で週全体を失敗させない。
+            steam_detail_failures += 1
+    if not results:
+        raise GameInformationError("Steamで確認できる候補がありませんでした。")
+    failures = (f"Steam詳細{steam_detail_failures}件",) if steam_detail_failures else ()
+    return CandidateTrialResult(tuple(results), len(apify_results), failures)
 
 
 def score_candidate(game: dict[str, object], price: dict[str, object] | None, candidate_kind: str,

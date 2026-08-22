@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, release_information, scheduling, social, weekly_dashboard
+from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, release_information, scheduling, social, weekly_dashboard, weekly_routine
 from admin.article_input import ArticleInput
 
 
@@ -81,9 +81,12 @@ def layout(
 <main><header><h1>{escape(title)}</h1></header>{body}</main></body></html>"""
 
 
-def error_page(message: str, csrf_token: str, status_code: int = 400) -> HTMLResponse:
-    body = f'<section class="card error-card"><h2>処理を停止しました</h2><p>{escape(message)}</p><a class="button secondary" href="/articles">記事一覧へ戻る</a></section>'
-    return HTMLResponse(layout("安全停止", "/articles", body, csrf_token), status_code=status_code)
+def error_page(
+    message: str, csrf_token: str, status_code: int = 400,
+    back_url: str = "/articles", back_label: str = "記事一覧へ戻る",
+) -> HTMLResponse:
+    body = f'<section class="card error-card"><h2>処理を停止しました</h2><p>{escape(message)}</p><a class="button secondary" href="{escape(back_url)}">{escape(back_label)}</a></section>'
+    return HTMLResponse(layout("安全停止", back_url, body, csrf_token), status_code=status_code)
 
 
 def hidden_csrf(token: str) -> str:
@@ -223,6 +226,50 @@ def create_app(
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request) -> str:
         summary = weekly_dashboard.build(request.app.state.db_path)
+        local_now = datetime.now(scheduling.JST)
+        local_today = local_now.date()
+        week_start = weekly_routine.week_start(local_today)
+        collection_due = datetime.combine(
+            week_start + timedelta(days=3), datetime.min.time(), scheduling.JST,
+        ) + timedelta(hours=8)
+        current_cycle = (week_start + timedelta(days=3)).strftime("%G-W%V")
+        weekly_run = db.get_game_collection_run(
+            f"scheduled-{current_cycle}", request.app.state.db_path,
+        )
+        readiness = game_collection.collection_readiness()
+        collection_state = weekly_routine.collection_action(
+            weekly_run,
+            ready=readiness.trial_ready and readiness.ownership_sync_ready,
+            now=local_now,
+            due_at=collection_due,
+        )
+        if collection_state.enabled:
+            collection_action = (
+                f'<form method="post" action="/collection/weekly">{hidden_csrf(request.app.state.csrf_token)}'
+                f'<button class="button compact" type="submit">{escape(collection_state.label)}</button></form>'
+            )
+        else:
+            title = ' title="API設定を確認してください"' if collection_state.state == "not_ready" else ""
+            collection_action = f'<button class="button compact" type="button" disabled{title}>{escape(collection_state.label)}</button>'
+        weekly_schedule_parts: list[str] = []
+        for offset, (weekday_label, tasks) in enumerate(weekly_routine.WEEKLY_TASKS):
+            day = week_start + timedelta(days=offset)
+            classes = ["home-week-day"]
+            if day == local_today:
+                classes.append("current")
+            if offset == 3:
+                classes.append("collection-day")
+                action = collection_action
+            else:
+                action = '<div class="home-week-tasks">' + "".join(
+                    f'<a href="{task_url}">{escape(task_label)}</a>'
+                    for task_label, task_url in tasks
+                ) + "</div>"
+            weekly_schedule_parts.append(
+                f'<article class="{" ".join(classes)}"><div><strong>{weekday_label}</strong>'
+                f'<time datetime="{day.isoformat()}">{day.month}/{day.day}</time></div>{action}</article>'
+            )
+        weekly_schedule = "".join(weekly_schedule_parts)
         warnings = "".join(
             f'<a href="{escape(item["url"])}">{escape(item["text"])}</a>' for item in summary["warnings"]
         )
@@ -257,7 +304,8 @@ def create_app(
                 f'<span><small>{escape(label)}</small><strong>{value}</strong></span>' for label, value in play_values
             ) + '</div></section>'
         counts = summary["counts"]
-        body = f'''{warning_card}<section class="home-overview"><div><small>今週 {escape(str(summary["period"]))}</small><strong>{escape(str(summary["overall"]))}</strong></div>
+        body = f'''{warning_card}<section class="card home-weekly-schedule"><div class="section-head"><h2>今週の予定</h2><span class="muted">月〜日の目安</span></div><div class="home-week-grid">{weekly_schedule}</div></section>
+<section class="home-overview"><div><small>今週 {escape(str(summary["period"]))}</small><strong>{escape(str(summary["overall"]))}</strong></div>
 <dl><div><dt>公開済み</dt><dd>{counts["published"]}</dd><small>前週 {counts["previous_published"]}</small></div><div><dt>記事制作</dt><dd>{counts["produced"]}</dd><small>前週 {counts["previous_produced"]}</small></div><div><dt>編集中</dt><dd>{counts["editing"]}</dd></div><div><dt>予約</dt><dd>{counts["scheduled"]}</dd></div></dl></section>
 <section class="card"><h2>次にやること</h2><div class="home-action-list">{actions}</div></section>
 <section class="card"><div class="section-head"><h2>今週の記事</h2><a class="text-link" href="/articles">記事管理へ</a></div><div class="home-articles">{article_rows}</div></section>
@@ -1173,6 +1221,10 @@ def create_app(
             )
         else:
             run_text = "まだ実行していません。"
+        current_cycle, _ = game_scheduling.due_cycle()
+        weekly_run = db.get_game_collection_run(
+            f"scheduled-{current_cycle}", request.app.state.db_path,
+        ) if current_cycle else None
         trial_notice = '<section class="notice success">Apify APIの3件接続確認が完了しました。</section>' if request.query_params.get("trial") == "success" else ""
         if request.query_params.get("candidate_trial") == "success":
             trial_notice = '<section class="notice success">最大10件の候補試運転が完了しました。</section>'
@@ -1183,6 +1235,12 @@ def create_app(
             trial_notice = '<section class="notice success">Steam公式情報を再確認しました。</section>'
         if request.query_params.get("calendar"):
             trial_notice = '<section class="notice success">カレンダー表示を更新しました。</section>'
+        if request.query_params.get("weekly") == "success":
+            trial_notice = '<section class="notice success">今週の所有ゲーム同期と候補収集が完了しました。</section>'
+        elif request.query_params.get("weekly") == "partial":
+            trial_notice = '<section class="notice">今週の更新は完了しましたが、一部の取得先を確認できませんでした。候補は保存されています。</section>'
+        elif request.query_params.get("weekly") == "already":
+            trial_notice = '<section class="notice success">今週分はすでに更新済みです。</section>'
         trial_control = (
             f'<form method="post" action="/collection/apify-trial">{hidden_csrf(request.app.state.csrf_token)}'
             '<button class="button" type="submit">3件でAPI接続を確認</button></form>'
@@ -1205,18 +1263,68 @@ def create_app(
             '<button class="button secondary" type="submit">所有ゲームを今すぐ同期</button></form>'
             if readiness.ownership_sync_ready else ""
         )
+        weekly_state = weekly_routine.collection_action(
+            weekly_run,
+            ready=readiness.trial_ready and readiness.ownership_sync_ready,
+            now=datetime.now(scheduling.JST),
+        )
+        if weekly_state.enabled:
+            weekly_control = (
+                f'<form method="post" action="/collection/weekly">{hidden_csrf(request.app.state.csrf_token)}'
+                '<button class="button" type="submit">今週の情報をまとめて更新</button></form>'
+            )
+        else:
+            labels = {
+                "done": "今週分は更新済み",
+                "cooldown": weekly_state.label.replace("再試行", "に再試行"),
+                "not_ready": "API設定を確認してください",
+            }
+            weekly_control = f'<button class="button" type="button" disabled>{escape(labels.get(weekly_state.state, weekly_state.label))}</button>'
         body = f'''{trial_notice}<section class="analytics-metrics game-metrics">
 <article class="card"><span>ゲーム</span><strong>{summary['games']}</strong></article>
 <article class="card"><span>有効候補</span><strong>{summary['candidates']}</strong></article>
 <article class="card"><span>未確認</span><strong>{summary['unconfirmed']}</strong></article>
 <article class="card"><span>情報源 / 価格履歴</span><strong>{summary['sources']} / {summary['prices']}</strong></article></section>
-<section class="card"><h2>収集準備</h2><p class="ok">RSSとSteam日本向け情報を最大10件で検査する処理は準備できています。</p>
+<section class="card weekly-collection"><h2>今週の情報更新</h2><p>Steam所有ゲーム、新作・セール候補、媒体情報、固定採点、候補説明をまとめて更新します。同じ週は1回だけ実行します。</p><div class="button-row">{weekly_control}</div><p class="muted">通常は木曜8:00以降にこの操作だけを行います。管理画面が先に自動更新した場合は「今週分は更新済み」と表示します。</p></section>
+<section class="card"><details class="collection-diagnostics"><summary>接続テスト・個別操作</summary><div class="collection-diagnostics-body"><p class="ok">RSSとSteam日本向け情報を検査する処理は準備できています。</p>
 <dl class="readiness-list"><dt>4Gamer公式RSS</dt><dd>週次候補へ接続済み</dd><dt>AUTOMATON / Game*Spark</dt><dd>公式取得口が確認できるまで保留</dd><dt>Apify APIトークン</dt><dd>{'設定済み' if readiness.apify_token else '未設定'}</dd><dt>Gemini候補説明</dt><dd>{'設定済み' if gemini_ready else 'APIキー未設定（固定採点は利用可能）'}</dd><dt>採用Actor</dt><dd>{escape(game_collection.APIFY_ACTOR_ID)}</dd><dt>Steam所有情報</dt><dd>{'設定済み' if readiness.ownership_sync_ready else 'APIキーとSteam IDが未設定'}</dd></dl>
-<p class="muted">秘密情報の値は画面・DB・ログへ保存しません。週次収集は木曜8:00以降の起動時に同じ週を一度だけ処理します。</p><div class="button-row">{trial_control}{candidate_trial_control}{ownership_control}{explanation_control}</div></section>
+<p class="muted">秘密情報の値は画面・DB・ログへ保存しません。以下は接続確認や一部機能だけを再実行したい場合に使います。</p><div class="button-row">{trial_control}{candidate_trial_control}{ownership_control}{explanation_control}</div></div></details></section>
 <section class="card"><h2>最終収集</h2><p>{run_text}</p></section>
 <section class="card"><h2>固定採点の補足</h2>{explanations}</section>
 {candidate_section("新作候補 5本", grouped["new"])}{candidate_section("セール・無料候補 5本", grouped["sale"])}{candidate_section("その他候補", grouped["other"])}{candidate_section("除外候補", grouped["excluded"], False)}'''
         return layout("情報収集", "/collection", body, request.app.state.csrf_token)
+
+    @app.post("/collection/weekly")
+    async def run_weekly_collection_once(request: Request):
+        form = await request.form()
+        try:
+            require_csrf(request, str(form.get("csrf_token") or ""))
+            readiness = game_collection.collection_readiness()
+            if not readiness.trial_ready or not readiness.ownership_sync_ready:
+                raise game_information.GameInformationError(
+                    "Apify APIトークン、Steam APIキー、Steam ID64を設定してから管理画面を起動し直してください。"
+                )
+            result = await asyncio.to_thread(
+                game_scheduling.process_due_weekly_collection,
+                request.app.state.db_path,
+            )
+            if result in {"success", "partial"}:
+                return RedirectResponse(f"/collection?weekly={result}", status_code=303)
+            if result == "already_processed":
+                return RedirectResponse("/collection?weekly=already", status_code=303)
+            messages = {
+                "credentials_missing": "Apify APIトークンが管理画面へ反映されていません。",
+                "previous_failure": "前回の失敗から6時間以内のため、再実行を停止しました。",
+                "failure": "今週の情報更新に失敗しました。最終収集の表示を確認してください。",
+            }
+            raise game_information.GameInformationError(
+                messages.get(result, "今週の情報更新を開始できませんでした。")
+            )
+        except game_information.GameInformationError as exc:
+            return error_page(
+                str(exc), request.app.state.csrf_token,
+                back_url="/collection", back_label="情報収集へ戻る",
+            )
 
     @app.post("/collection/apify-trial")
     async def run_releases_apify_trial(request: Request):

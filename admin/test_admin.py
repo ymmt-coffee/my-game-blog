@@ -27,6 +27,12 @@ class AdminPhaseBTests(unittest.TestCase):
             dashboard = client.get("/")
             self.assertEqual(dashboard.status_code, 200)
             self.assertIn("今週の記事", dashboard.text)
+            self.assertIn("今週の予定", dashboard.text)
+            self.assertIn("collection-day", dashboard.text)
+            self.assertIn("情報収集", dashboard.text)
+            self.assertIn("レビュー記事を予約公開", dashboard.text)
+            self.assertIn("新作・セールを公開", dashboard.text)
+            self.assertIn("次にプレイするゲームを決定", dashboard.text)
             self.assertIn("次にやること", dashboard.text)
             self.assertIn("新作・セール記事の進行", dashboard.text)
             self.assertIn('href="/articles">記事管理へ</a>', dashboard.text)
@@ -47,14 +53,14 @@ class AdminPhaseBTests(unittest.TestCase):
                 elif path == "releases":
                     self.assertIn("今週の記事候補", response.text)
                 else:
-                    self.assertIn("収集準備", response.text)
+                    self.assertIn("今週の情報更新", response.text)
             self.assertEqual(client.get("/settings").status_code, 200)
 
     def test_health_reports_local_scope(self) -> None:
         with TestClient(self.app) as client:
             self.assertEqual(
                 client.get("/health").json(),
-            {"status": "ok", "scope": "localhost_only", "phase": "L", "version": "phase-l-3"},
+            {"status": "ok", "scope": "localhost_only", "phase": "L", "version": "phase-l-8"},
             )
 
     def test_unknown_host_is_rejected(self) -> None:

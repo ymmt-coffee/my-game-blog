@@ -179,6 +179,10 @@ game_discovery:
   overseas_media_initially_enabled: false
   recurring_schedule: thursday_08_00_jst
   overdue_run_on_next_admin_start: true
+  weekly_manual_one_click_enabled: true
+  weekly_manual_one_click_steps: [steam_owned_sync, candidate_collection, fixed_scoring, candidate_explanations]
+  weekly_duplicate_run_blocked: true
+  diagnostic_controls_collapsed: true
   rss_candidate_limit: 30
   steam_direct_candidate_limit: 20
   steam_direct_new_limit: 10
@@ -193,6 +197,8 @@ game_discovery:
   gemini_failure_behavior: keep_fixed_score_and_previous_explanation
   first_run_history_days: 7
   catchup_history_days_max: 14
+  steam_featured_snapshot_mode: current_only
+  steam_featured_history_backfill_enabled: false
   release_window_days_before: 30
   release_window_days_after: 14
   normal_sale_discount_percent_min: 20
@@ -299,6 +305,14 @@ admin_app:
     incomplete_work_carries_forward: true
     analytics_included: false
     external_calls_on_view: false
+    weekly_editorial_routine:
+      review_game_decision: sunday
+      review_play_and_writing: monday_to_sunday
+      review_draft_deadline: sunday
+      review_scheduled_publish: wednesday
+      additional_reviews: optional_when_capacity_allows
+      release_sale_collection: thursday
+      release_sale_publish: sunday
 
 phase_c:
   completed_at: "2026-08-09"
