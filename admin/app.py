@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, release_information, scheduling, social
+from admin import analytics, article_templates, articles, db, editorial, editorial_explanations, game_collection, game_information, game_scheduling, publishing, release_information, scheduling, social, weekly_dashboard
 from admin.article_input import ArticleInput
 
 
@@ -222,7 +222,46 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request) -> str:
-        body = """<section class="home-actions"><a class="button" href="/articles">記事管理</a><a class="text-link" href="/articles/migration">既存原稿</a></section>"""
+        summary = weekly_dashboard.build(request.app.state.db_path)
+        warnings = "".join(
+            f'<a href="{escape(item["url"])}">{escape(item["text"])}</a>' for item in summary["warnings"]
+        )
+        warning_card = f'<section class="card home-warning"><h2>要確認</h2>{warnings}</section>' if warnings else ""
+        actions = "".join(
+            f'<a class="home-action" href="{escape(item["url"])}"><span>{escape(item["kind"])}</span><strong>{escape(item["text"])}</strong><b aria-hidden="true">→</b></a>'
+            for item in summary["next_actions"]
+        ) or '<p class="home-complete">今週の作業は完了しています。</p>'
+        article_rows = "".join(
+            f'''<a class="home-article-row" href="/articles/{escape(str(item["id"]))}/edit"><span><strong>{escape(str(item["display_title"]))}</strong><small>{escape(TYPE_LABELS.get(str(item["article_type"]), str(item["article_type"])))}</small></span><span class="state">{escape(state_label(item))}</span><span>{escape(str(item["action_label"]))} →</span></a>'''
+            for item in summary["articles"]
+        ) or '<p class="muted">今週の記事はまだありません。</p>'
+        flow = summary["release_flow"]
+        flow_rows = "".join(
+            f'<a href="{url}"><span>{label}</span><strong>{escape(str(value))}</strong></a>'
+            for label, value, url in (
+                ("情報収集", flow["collection"], "/collection"),
+                ("候補選定", flow["selection"], "/releases"),
+                ("記事制作", flow["production"], "/articles"),
+                ("公開", flow["published"], "/articles?status=published"),
+                ("X投稿", flow["social"], "/social"),
+            )
+        )
+        play = summary["play"]
+        play_values = (
+            ("プレイ候補", play["candidate"]), ("今週購入", play["purchased"]),
+            ("プレイ中", play["playing"]), ("評価待ち", play["evaluation"]),
+        )
+        play_card = ""
+        if any(int(value) for _, value in play_values):
+            play_card = '<section class="card"><div class="section-head"><h2>プレイ状況</h2><a class="text-link" href="/editorial">AI編集部へ</a></div><div class="home-play">' + "".join(
+                f'<span><small>{escape(label)}</small><strong>{value}</strong></span>' for label, value in play_values
+            ) + '</div></section>'
+        counts = summary["counts"]
+        body = f'''{warning_card}<section class="home-overview"><div><small>今週 {escape(str(summary["period"]))}</small><strong>{escape(str(summary["overall"]))}</strong></div>
+<dl><div><dt>公開済み</dt><dd>{counts["published"]}</dd><small>前週 {counts["previous_published"]}</small></div><div><dt>記事制作</dt><dd>{counts["produced"]}</dd><small>前週 {counts["previous_produced"]}</small></div><div><dt>編集中</dt><dd>{counts["editing"]}</dd></div><div><dt>予約</dt><dd>{counts["scheduled"]}</dd></div></dl></section>
+<section class="card"><h2>次にやること</h2><div class="home-action-list">{actions}</div></section>
+<section class="card"><div class="section-head"><h2>今週の記事</h2><a class="text-link" href="/articles">記事管理へ</a></div><div class="home-articles">{article_rows}</div></section>
+<section class="card"><div class="section-head"><h2>新作・セール記事の進行</h2><a class="text-link" href="/releases">選定画面へ</a></div><div class="home-flow">{flow_rows}</div></section>{play_card}'''
         return layout("ホーム", "/", body, request.app.state.csrf_token)
 
     @app.get("/articles", response_class=HTMLResponse)

@@ -287,6 +287,18 @@ admin_app:
   ui_density: compact
   ui_shape: low_radius_linear
   personal_tool_reduces_explanatory_text: true
+  weekly_dashboard:
+    implemented_at: "2026-08-22"
+    week_start: monday
+    week_end: sunday
+    next_action_limit: 3
+    article_limit: 5
+    progress_states: [not_started, in_progress, needs_attention, complete]
+    previous_week_comparison: [published_count, produced_count]
+    automatic_week_reset: date_range_only
+    incomplete_work_carries_forward: true
+    analytics_included: false
+    external_calls_on_view: false
 
 phase_c:
   completed_at: "2026-08-09"
